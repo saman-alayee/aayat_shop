@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Order, OrderStatus, Pagination } from '~/types';
-import { ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS } from '~/types';
+import { ORDER_STATUS_LABELS } from '~/types';
+import { shippingLabel } from '~/constants/shipping';
 
 definePageMeta({ layout: 'admin', middleware: 'admin' });
 
@@ -8,7 +9,6 @@ const route = useRoute();
 const api = useApi();
 const toast = useToast();
 const { formatPrice, formatDate, getProductImage } = useFormat();
-const { mapsLink } = useGeocoding();
 
 const orders = ref<Order[]>([]);
 const pagination = ref<Pagination | null>(null);
@@ -32,7 +32,7 @@ const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus[]>> = {
 };
 
 const STATUS_HINTS: Partial<Record<OrderStatus, string>> = {
-  REVIEWING: 'نوع پرداخت انتخاب شده است — در سیستم فروشگاه ثبت کنید',
+  REVIEWING: 'سفارش در حال بررسی است',
   NEW: 'آماده آماده‌سازی',
   SHIPPED: 'پیام «تحویل به پیک» به مشتری ارسال می‌شود',
   PREPARING: 'پیام «بسته‌بندی شد» به مشتری ارسال می‌شود',
@@ -40,36 +40,8 @@ const STATUS_HINTS: Partial<Record<OrderStatus, string>> = {
   CANCELLED: 'سفارش لغو می‌شود',
 };
 
-function paymentLabel(method?: Order['paymentMethod']) {
-  return method ? PAYMENT_METHOD_LABELS[method] : '—';
-}
-
-function deliveryMethodOf(order: Order): 'FREE' | 'JET' | null {
-  const method = order.paymentDetails?.deliveryMethod;
-  if (method === 'JET' || method === 'FREE') return method;
-  return null;
-}
-
 function deliveryLabel(order: Order) {
-  const method = deliveryMethodOf(order);
-  if (method === 'JET') return 'ارسال جت (فوری)';
-  if (method === 'FREE') return 'ارسال رایگان / معمولی';
-  return 'نامشخص';
-}
-
-function paymentDetailRows(order: Order) {
-  const details = order.paymentDetails;
-  if (!details) return [];
-
-  const rows: { label: string; value: string }[] = [];
-  if (details.nationalId) rows.push({ label: 'کد ملی', value: String(details.nationalId) });
-  if (details.salaryCard) rows.push({ label: 'شماره کارت حقوقی', value: String(details.salaryCard) });
-  if (details.taraId) rows.push({ label: 'شناسه خرید تارا', value: String(details.taraId) });
-  if (details.walletNote) rows.push({ label: 'توضیحات کیف پول', value: String(details.walletNote) });
-  if (details.otpVerified === true || details.otpVerified === 'true') {
-    rows.push({ label: 'تأیید پیامک', value: 'انجام شده' });
-  }
-  return rows;
+  return shippingLabel(order.paymentDetails?.deliveryMethod);
 }
 
 onMounted(loadOrders);
@@ -236,23 +208,8 @@ useHead({ title: 'سفارش‌ها - پنل مدیریت' });
           <span class="font-bold">{{ formatPrice(order.totalPrice) }}</span>
         </div>
         <div class="flex flex-wrap gap-1.5 mt-2">
-          <span
-            v-if="deliveryMethodOf(order) === 'JET'"
-            class="inline-flex items-center gap-1 rounded-full bg-orange-100 text-orange-700 text-[11px] font-bold px-2 py-0.5"
-          >
-            جت
-          </span>
-          <span
-            v-else-if="deliveryMethodOf(order) === 'FREE'"
-            class="inline-flex items-center gap-1 rounded-full bg-green-50 text-green-700 text-[11px] font-medium px-2 py-0.5"
-          >
-            رایگان
-          </span>
-          <span
-            v-if="order.paymentMethod && order.paymentMethod !== 'CASH_AT_DOOR'"
-            class="inline-flex items-center rounded-full bg-indigo-50 text-indigo-700 text-[11px] font-medium px-2 py-0.5"
-          >
-            {{ paymentLabel(order.paymentMethod) }}
+          <span class="inline-flex items-center rounded-full bg-primary-50 text-primary-700 text-[11px] font-medium px-2 py-0.5">
+            {{ deliveryLabel(order) }}
           </span>
         </div>
       </div>
@@ -306,75 +263,18 @@ useHead({ title: 'سفارش‌ها - پنل مدیریت' });
             <p class="text-gray-500 mb-1">آدرس تحویل:</p>
             <p v-if="selectedOrder.addressTitle" class="font-medium text-gray-800">{{ selectedOrder.addressTitle }}</p>
             <p class="leading-relaxed">{{ selectedOrder.deliveryAddress }}</p>
-            <a
-              v-if="selectedOrder.deliveryLatitude != null && selectedOrder.deliveryLongitude != null"
-              :href="mapsLink(selectedOrder.deliveryLatitude, selectedOrder.deliveryLongitude)"
-              target="_blank"
-              rel="noopener"
-              class="inline-flex items-center gap-1 text-primary-600 text-xs mt-2"
-            >
-              <AppIcon name="lucide:navigation" size="sm" />
-              مسیریابی در نقشه
-            </a>
           </div>
-          <AppMapPicker
-            v-if="selectedOrder.deliveryLatitude != null && selectedOrder.deliveryLongitude != null"
-            :latitude="selectedOrder.deliveryLatitude"
-            :longitude="selectedOrder.deliveryLongitude"
-            readonly
-            show-route
-            height="180px"
-            :zoom="17"
-            class="mt-2"
-          />
           <p v-if="selectedOrder.couponCode"><span class="text-gray-500">کد تخفیف:</span> {{ selectedOrder.couponCode }}</p>
 
-          <div
-            :class="[
-              'rounded-xl border p-3',
-              deliveryMethodOf(selectedOrder) === 'JET'
-                ? 'border-orange-200 bg-orange-50'
-                : 'border-green-100 bg-green-50/60',
-            ]"
-          >
+          <div class="rounded-xl border border-primary-100 bg-primary-50/50 p-3">
             <p class="text-xs text-gray-500 mb-0.5">نوع ارسال</p>
+            <p class="font-bold text-primary-800">{{ deliveryLabel(selectedOrder) }}</p>
             <p
-              :class="[
-                'font-bold',
-                deliveryMethodOf(selectedOrder) === 'JET' ? 'text-orange-700' : 'text-green-700',
-              ]"
-            >
-              {{ deliveryLabel(selectedOrder) }}
-            </p>
-            <p
-              v-if="selectedOrder.paymentDetails?.deliveryFee != null && Number(selectedOrder.paymentDetails.deliveryFee) > 0"
+              v-if="selectedOrder.paymentDetails?.deliveryFee != null"
               class="text-xs text-gray-600 mt-1"
             >
               هزینه ارسال: {{ formatPrice(Number(selectedOrder.paymentDetails.deliveryFee)) }}
             </p>
-          </div>
-
-          <p>
-            <span class="text-gray-500">نوع پرداخت:</span>
-            {{ paymentLabel(selectedOrder.paymentMethod) }}
-          </p>
-          <p v-if="selectedOrder.paymentMethod && selectedOrder.paymentMethod !== 'CASH_AT_DOOR'" class="text-xs text-amber-800 bg-amber-50 rounded-lg p-2">
-            این گزینه را در سیستم فروشگاه ثبت کنید؛ پرداخت در سایت انجام نشده است.
-          </p>
-
-          <div
-            v-if="paymentDetailRows(selectedOrder).length"
-            class="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3 space-y-2"
-          >
-            <p class="text-xs font-bold text-indigo-800">اطلاعات خرید قسطی / کیف پول</p>
-            <div
-              v-for="row in paymentDetailRows(selectedOrder)"
-              :key="row.label"
-              class="flex flex-wrap items-baseline justify-between gap-2 text-sm"
-            >
-              <span class="text-gray-500">{{ row.label }}</span>
-              <span class="font-bold text-gray-900" dir="ltr">{{ row.value }}</span>
-            </div>
           </div>
 
           <p v-if="selectedOrder.discountAmount">

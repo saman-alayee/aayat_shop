@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { SITE_NAME } from '~/constants/site';
+import { passwordPolicyError } from '~/utils/passwordPolicy';
 
 definePageMeta({ layout: 'profile', middleware: 'auth' });
 
@@ -72,12 +73,13 @@ async function submit() {
   error.value = '';
   success.value = '';
 
-  if (password.value.length < 6) {
-    error.value = 'رمز عبور باید حداقل ۶ کاراکتر باشد';
-    return;
-  }
   if (password.value !== confirmPassword.value) {
     error.value = 'تکرار رمز عبور مطابقت ندارد';
+    return;
+  }
+  const policyError = passwordPolicyError(password.value);
+  if (policyError) {
+    error.value = policyError;
     return;
   }
   if (mode.value === 'change' && !currentPassword.value) {
@@ -131,7 +133,7 @@ useHead({ title: `رمز عبور - ${SITE_NAME}` });
       <form v-if="ready" class="card p-5 space-y-4 mx-auto" @submit.prevent="submit">
         <!-- Change with current password -->
         <div v-if="mode === 'change'">
-          <label class="block text-sm font-medium text-gray-700 mb-1">رمز فعلی</label>
+          <label class="field-label">رمز فعلی</label>
           <input
             v-model="currentPassword"
             type="password"
@@ -169,7 +171,7 @@ useHead({ title: `رمز عبور - ${SITE_NAME}` });
               کد توسعه: <strong dir="ltr">{{ devCode }}</strong>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">کد تأیید</label>
+              <label class="field-label">کد تأیید</label>
               <input
                 v-model="otp"
                 type="text"
@@ -197,26 +199,26 @@ useHead({ title: `رمز عبور - ${SITE_NAME}` });
         <div v-if="mode === 'set' || mode === 'change' || (mode === 'otp' && otpSent)">
           <div class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">رمز جدید</label>
+              <label class="field-label">رمز جدید</label>
               <input
                 v-model="password"
                 type="password"
                 required
-                minlength="6"
+                minlength="8"
                 class="input-field"
-                placeholder="حداقل ۶ کاراکتر"
+                placeholder="حداقل ۸ حرف، عدد، علامت و حروف بزرگ و کوچک"
                 dir="ltr"
                 autocomplete="new-password"
               />
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">تکرار رمز جدید</label>
+              <label class="field-label">تکرار رمز جدید</label>
               <input
                 v-model="confirmPassword"
                 type="password"
                 required
-                minlength="6"
+                minlength="8"
                 class="input-field"
                 dir="ltr"
                 autocomplete="new-password"

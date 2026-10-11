@@ -49,7 +49,9 @@ const sizeClasses = {
         class="pointer-events-none h-full w-full object-cover"
         draggable="false"
       />
-      <span v-else class="w-full h-full flex items-center justify-center bg-gray-50 text-3xl">🛒</span>
+      <span v-else class="w-full h-full flex items-center justify-center bg-gray-50 text-gray-400">
+        <AppIcon name="lucide:shirt" size="xl" />
+      </span>
     </div>
     <span
       :class="[

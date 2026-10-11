@@ -30,12 +30,15 @@ export default defineNuxtConfig({
       crawlLinks: false,
       routes: ['/'],
     },
+    devProxy: {
+      '/uploads': { target: 'http://127.0.0.1:3001/uploads', changeOrigin: true },
+    },
   },
 
   app: {
     head: {
       htmlAttrs: { lang: 'fa', dir: 'rtl' },
-      title: 'آتلیه مد | فروشگاه اینترنتی پوشاک',
+      title: 'آیتای | فروشگاه اینترنتی پوشاک',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' },
@@ -44,7 +47,7 @@ export default defineNuxtConfig({
           content:
             'خرید آنلاین لباس زنانه، مردانه و بچگانه — کالکشن‌های فصل، ارسال سریع و پشتیبانی واقعی.',
         },
-        { property: 'og:title', content: 'آتلیه مد | فروشگاه اینترنتی پوشاک' },
+        { property: 'og:title', content: 'آیتای | فروشگاه اینترنتی پوشاک' },
         {
           property: 'og:description',
           content:
@@ -85,9 +88,8 @@ export default defineNuxtConfig({
       // Production: usually /api behind nginx
       apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:3001/api',
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-      /** کاتالوگ نمایشی لباس (Unsplash) — `NUXT_PUBLIC_FORCE_DEMO_CATALOG=false` برای داده واقعی API */
+      /** کاتالوگ نمایشی لباس (loremflickr) — `NUXT_PUBLIC_FORCE_DEMO_CATALOG=false` برای داده واقعی API */
       forceDemoCatalog: process.env.NUXT_PUBLIC_FORCE_DEMO_CATALOG !== 'false',
-      neshanApiKey: process.env.NUXT_PUBLIC_NESHAN_API_KEY || '',
     },
   },
 
@@ -106,8 +108,8 @@ export default defineNuxtConfig({
     registerType: 'autoUpdate',
     manifest: {
       id: '/',
-      name: 'آتلیه مد | فروشگاه پوشاک',
-      short_name: 'آتلیه مد',
+      name: 'آیتای | فروشگاه پوشاک',
+      short_name: 'آیتای',
       description: 'فروشگاه اینترنتی پوشاک — زنانه، مردانه و بچگانه',
       theme_color: '#652a3b',
       background_color: '#ffffff',

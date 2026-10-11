@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { PAYMENT_METHOD_LABELS, type PaymentMethod } from '~/types';
 
 definePageMeta({ layout: 'admin', middleware: 'admin' });
 
@@ -19,7 +18,6 @@ const overview = ref<{
   uniqueCustomers: number;
   daily: { date: string; revenue: number; orders: number }[];
   workingDays: { date: string; revenue: number; orders: number }[];
-  byPayment: { paymentMethod: PaymentMethod; orderCount: number; totalRevenue: number }[];
   topProducts: { name: string; totalQuantity: number; product?: { barcode?: string | null } | null }[];
   monthly: {
     monthly: { month: string; revenue: number; orders: number }[];
@@ -114,13 +112,9 @@ useHead({ title: 'گزارش فروش - پنل مدیریت' });
           <p class="text-xs text-gray-500">میانگین هر مشتری</p>
           <p class="text-lg font-bold mt-1">{{ formatPrice(overview.avgPerCustomer || 0) }}</p>
         </div>
-        <div class="card p-4">
-          <p class="text-xs text-gray-500">روش‌های پرداخت</p>
-          <p class="text-lg font-bold mt-1">{{ formatNumber(overview.byPayment.length) }}</p>
-        </div>
       </div>
 
-      <div class="grid lg:grid-cols-2 gap-4 mb-6">
+      <div class="mb-6">
         <div class="card p-4">
           <h2 class="font-semibold mb-4">فروش روزهای کاری (به‌جز جمعه)</h2>
           <div class="space-y-2 max-h-72 overflow-y-auto">
@@ -133,16 +127,6 @@ useHead({ title: 'گزارش فروش - پنل مدیریت' });
                 />
               </div>
               <span class="text-xs font-medium w-24 text-end">{{ formatPrice(day.revenue) }}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="card p-4">
-          <h2 class="font-semibold mb-4">فروش به تفکیک پرداخت</h2>
-          <div class="space-y-3">
-            <div v-for="row in overview.byPayment" :key="row.paymentMethod" class="flex justify-between text-sm border-b border-gray-50 pb-2">
-              <span>{{ PAYMENT_METHOD_LABELS[row.paymentMethod] }}</span>
-              <span class="font-medium">{{ formatPrice(row.totalRevenue) }} ({{ row.orderCount }})</span>
             </div>
           </div>
         </div>

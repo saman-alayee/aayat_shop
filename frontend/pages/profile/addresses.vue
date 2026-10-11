@@ -6,9 +6,8 @@ definePageMeta({ layout: 'profile', middleware: 'auth' });
 
 const api = useApi();
 const toast = useToast();
-const { mapsLink } = useGeocoding();
 const addressFields = useAddressFields();
-const { street, plaque, unit, errors, reset, loadFromAddress, validate, payload } = addressFields;
+const { street, plaque, unit, province, city, postalCode, cityOptions, errors, reset, loadFromAddress, validate, payload } = addressFields;
 
 const addresses = ref<Address[]>([]);
 const loading = ref(true);
@@ -16,26 +15,14 @@ const showForm = ref(false);
 const editingId = ref<string | null>(null);
 const saving = ref(false);
 const formError = ref('');
-const mapRef = ref<{ invalidateSize: () => void } | null>(null);
 const errorBannerRef = ref<HTMLElement | null>(null);
 
 const form = reactive({
   title: '',
-  latitude: null as number | null,
-  longitude: null as number | null,
   isDefault: false,
 });
 
 onMounted(loadAddresses);
-
-watch(showForm, (open) => {
-  if (open) {
-    nextTick(() => {
-      setTimeout(() => mapRef.value?.invalidateSize(), 250);
-      setTimeout(() => mapRef.value?.invalidateSize(), 800);
-    });
-  }
-});
 
 async function loadAddresses() {
   loading.value = true;
@@ -51,15 +38,11 @@ function openForm(address?: Address) {
   if (address) {
     editingId.value = address.id;
     form.title = address.title || '';
-    form.latitude = address.latitude;
-    form.longitude = address.longitude;
     form.isDefault = address.isDefault;
     loadFromAddress(address);
   } else {
     editingId.value = null;
     form.title = '';
-    form.latitude = null;
-    form.longitude = null;
     form.isDefault = addresses.value.length === 0;
     reset();
   }
@@ -75,7 +58,7 @@ function scrollToErrors() {
 
 async function save() {
   formError.value = '';
-  if (!validate({ requireMap: true, hasMap: form.latitude != null && form.longitude != null })) {
+  if (!validate()) {
     formError.value = 'لطفاً فیلدهای مشخص‌شده را تکمیل کنید.';
     toast.error('لطفاً خطاهای فرم را برطرف کنید');
     scrollToErrors();
@@ -86,8 +69,6 @@ async function save() {
   try {
     const body = payload({
       title: form.title || undefined,
-      latitude: form.latitude,
-      longitude: form.longitude,
       isDefault: form.isDefault,
     });
 
@@ -131,7 +112,7 @@ async function setDefault(id: string) {
 }
 
 const hasFormErrors = computed(() =>
-  Boolean(errors.street || errors.plaque || errors.unit || errors.map)
+  Boolean(errors.street || errors.plaque || errors.unit || errors.province || errors.city || errors.postalCode)
 );
 
 useHead({ title: `آدرس‌ها - ${SITE_NAME}` });
@@ -139,7 +120,7 @@ useHead({ title: `آدرس‌ها - ${SITE_NAME}` });
 
 <template>
   <div>
-    <ProfilePageHeader title="آدرس‌های من" subtitle="آدرس را با پلاک و واحد وارد کنید و موقعیت دقیق را روی نقشه مشخص کنید" back-to="/profile">
+    <ProfilePageHeader title="آدرس‌های من" subtitle="استان، شهر، کدپستی و آدرس را وارد کنید" back-to="/profile">
       <template #action>
         <button class="btn-primary text-sm py-2.5 px-4 min-h-[44px]" @click="openForm()">
           <span class="flex items-center gap-1">
@@ -158,15 +139,6 @@ useHead({ title: `آدرس‌ها - ${SITE_NAME}` });
         :key="addr.id"
         :class="['card overflow-hidden transition-shadow', addr.isDefault ? 'ring-2 ring-primary-100' : '']"
       >
-        <AppMapPicker
-          v-if="addr.latitude != null && addr.longitude != null"
-          :latitude="addr.latitude"
-          :longitude="addr.longitude"
-          readonly
-          height="130px"
-          :zoom="17"
-        />
-
         <div class="p-4">
           <div class="flex items-start gap-3">
             <div :class="['w-11 h-11 rounded-xl flex items-center justify-center shrink-0', addr.isDefault ? 'bg-primary-50' : 'bg-gray-50']">
@@ -185,16 +157,11 @@ useHead({ title: `آدرس‌ها - ${SITE_NAME}` });
                 <span v-if="addr.plaque && addr.unit"> • </span>
                 <span v-if="addr.unit">واحد {{ addr.unit }}</span>
               </p>
-              <a
-                v-if="addr.latitude != null && addr.longitude != null"
-                :href="mapsLink(addr.latitude, addr.longitude)"
-                target="_blank"
-                rel="noopener"
-                class="inline-flex items-center gap-1 text-xs text-primary-600 mt-2"
-              >
-                <AppIcon name="lucide:external-link" size="sm" />
-                مشاهده موقعیت روی نقشه
-              </a>
+              <p v-if="addr.province || addr.city" class="mt-1 text-xs text-gray-500">
+                <span v-if="addr.province">{{ addr.province }}</span>
+                <span v-if="addr.city">، {{ addr.city }}</span>
+                <span v-if="addr.postalCode">، کدپستی {{ addr.postalCode }}</span>
+              </p>
             </div>
           </div>
           <div class="flex flex-wrap gap-3 mt-4 pt-3 border-t border-gray-50">
@@ -232,29 +199,20 @@ useHead({ title: `آدرس‌ها - ${SITE_NAME}` });
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">عنوان (اختیاری)</label>
-              <input v-model="form.title" type="text" class="input-field min-h-[48px]" placeholder="منزل، محل کار..." />
+              <label class="field-label">عنوان</label>
+              <input v-model="form.title" type="text" class="input-field" placeholder="منزل، محل کار" />
             </div>
 
             <AddressFields
               v-model:street="street"
               v-model:plaque="plaque"
               v-model:unit="unit"
+              v-model:province="province"
+              v-model:city="city"
+              v-model:postal-code="postalCode"
+              :city-options="cityOptions"
               :errors="errors"
             />
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">موقعیت روی نقشه (برای پیک) *</label>
-              <AppMapPicker
-                ref="mapRef"
-                v-model:latitude="form.latitude"
-                v-model:longitude="form.longitude"
-                :geocode="false"
-                height="min(40vh, 320px)"
-                :zoom="18"
-              />
-              <AppFormError :message="errors.map" />
-            </div>
 
             <AppSwitch
               v-model="form.isDefault"

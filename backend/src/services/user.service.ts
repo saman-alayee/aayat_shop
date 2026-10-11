@@ -18,8 +18,9 @@ export class AddressService {
       address: string;
       plaque?: string;
       unit?: string;
-      latitude?: number | null;
-      longitude?: number | null;
+      province?: string;
+      city?: string;
+      postalCode?: string;
       isDefault?: boolean;
     }
   ) {
@@ -43,8 +44,9 @@ export class AddressService {
       address?: string;
       plaque?: string;
       unit?: string;
-      latitude?: number | null;
-      longitude?: number | null;
+      province?: string;
+      city?: string;
+      postalCode?: string;
       isDefault?: boolean;
     }
   ) {

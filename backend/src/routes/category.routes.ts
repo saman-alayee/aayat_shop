@@ -7,8 +7,9 @@ const router = Router();
 
 router.get(
   '/',
-  asyncHandler(async (_req, res) => {
-    const categories = await categoryService.getAll();
+  asyncHandler(async (req, res) => {
+    const lite = req.query.lite === '1' || req.query.lite === 'true';
+    const categories = await categoryService.getAll(false, lite);
     successResponse(res, categories);
   })
 );

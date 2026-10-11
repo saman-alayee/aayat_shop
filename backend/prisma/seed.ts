@@ -347,36 +347,35 @@ const contentPages = [
   {
     slug: 'terms',
     title: 'قوانین و مقررات',
-    body: `# قوانین و مقررات JET KALA
+    body: `## محصولات استوک ما
+- کلیه محصولات فروشگاه استوک و اورجینال هستن و از برندهای اروپایی انتخاب شده.
+- به هیچ عنوان کالاها تولیدی یا داخلی نیستن.
+- هر آیتم به صورت تک سایت و تک رنگ عرضه می‌شه و کیفیت‌شون تضمین شده است.
+- لطفاً قبل از خرید، توضیحات هر محصول در سایت رو دقیق مطالعه کنین و خریدتون رو طبق اطلاعات سایت انجام بدین.
 
-## ۱. ثبت سفارش
-- ثبت سفارش به منزله پذیرش قیمت‌ها و شرایط فروشگاه است.
-- حداقل مبلغ سفارش طبق شرایط روز محاسبه می‌شود.
+## هزینه و روش ارسال
+- همشهریان عزیزمون می‌تونن خریدشون رو به صورت حضوری انجام بدن و حتی به صورت آنلاین خرید کنند و حضوری درب فروشگاه تحویل بگیرند.
+- ارسال به سراسر ایران ۱۳۵ هزار تومان می‌باشد.
 
-## ۲. ارسال و تحویل
-- ارسال سفارش‌ها در ساعات کاری انجام می‌شود.
-- پرداخت در محل (پس از تحویل) انجام می‌شود.
+## مرجوعی و تعویض
+- به هیچ عنوان امکان تعویض یا مرجوع کردن محصولات خریداری‌شده از سایت وجود نداره.
+- خرید شما قطعی و نهاییه، پس لطفاً قبل از ثبت سفارش دقت کنین.
 
-## ۳. مرجوعی
-- کالاهای فاسدشدنی تا ۲۴ ساعت پس از تحویل قابل پیگیری هستند.
-
-## ۴. تماس
-- پشتیبانی: 09120000000`,
+## توضیحات تکمیلی
+- لطفاً آدرس و اطلاعات تماس‌تون رو دقیق وارد کنین تا سفارش به درستی و بدون مشکل به دستتون برسه.
+- خرید از سایت به معنی پذیرش قوانین و مقررات فروشگاه است.
+- تلاش می‌کنیم همه سفارش‌ها در کمترین زمان ممکن ارسال بشن، اما زمان دقیق تحویل بسته به روش ارسال و فاصله شهر مقصد ممکنه متفاوت باشه.`,
   },
   {
     slug: 'about',
-    title: 'درباره JET KALA',
-    body: `# درباره JET KALA
+    title: 'درباره ما',
+    body: `ما کارمون رو با یه دغدغه‌ی ساده ولی مهم شروع کردیم؛ اینکه توی این گرونی، مردم بتونن لباس باکیفیت بخرن، بدون اینکه مجبور باشن هزینه‌های خیلی بالا بدن. واقعیت اینه که هرچی زمان می‌گذره، کیفیت خیلی از پوشاک‌های بازار کمتر می‌شه، اما قیمت‌ها مدام بالاتر می‌رن.
 
-فروشگاه آنلاین JET KALA با هدف تأمین سریع و آسان نیازهای روزانه خانواده‌ها راه‌اندازی شده است.
+ما وقتی این شرایط رو دیدیم، تصمیم گرفتیم یه فروشگاه راه بندازیم که تمرکزش فقط روی کیفیت بالا و قیمت منصفانه باشه. توی مجموعه‌ی ما پوشاک استوک انتخاب می‌شه؛ لباس‌هایی که از نظر کیفیت کاملاً قابل اعتماد هستن و این فرصت رو می‌دن که با هزینه‌ی کمتر، خرید بهتری داشته باشین.
 
-## خدمات ما
-- ارسال سریع در محدوده شهر
-- پرداخت در محل
-- پشتیبانی پاسخگو
+همه‌ی کارها با دقت انتخاب و بررسی می‌شن چون اعتقاد داریم استوک بودن اصلاً به معنی بی‌کیفیت بودن نیست، بلکه یه انتخاب هوشمندانه‌ست. هدف ما اینه که شما با خیال راحت خرید کنین و از انتخابتون راضی باشین.
 
-## آدرس
-jetkala.shop`,
+این فروشگاه با همراهی من و همسرم راه‌اندازی شده و سعی می‌کنیم با صداقت، احترام و مسئولیت‌پذیری کنار شما باشیم. اعتماد شما برای ما از هر چیزی مهم‌تره و همیشه تلاش می‌کنیم این اعتماد رو حفظ کنیم.`,
   },
   {
     slug: 'privacy',
@@ -791,6 +790,8 @@ async function seedCart() {
 
 async function main() {
   console.log('🌱 Seeding database...');
+  /** کاتالوگ پوشاک: `npm run import:woocommerce` — seed قدیمی سوپرمارکت فقط با SEED_HYPERMARKET_CATALOG=true */
+  const seedHypermarketCatalog = process.env.SEED_HYPERMARKET_CATALOG === 'true';
 
   for (const adminPhone of config.adminPhones) {
     await prisma.user.upsert({
@@ -798,13 +799,13 @@ async function main() {
       update: {
         role: 'ADMIN' as UserRole,
         firstName: 'مدیر',
-        lastName: 'JET KALA',
+        lastName: SITE_NAME,
         isActive: true,
       },
       create: {
         phone: adminPhone,
         firstName: 'مدیر',
-        lastName: 'JET KALA',
+        lastName: SITE_NAME,
         role: 'ADMIN' as UserRole,
       },
     });
@@ -828,65 +829,53 @@ async function main() {
   }
   console.log('✅ Demo customers created');
 
-  for (const cat of categories) {
-    await prisma.category.upsert({
-      where: { slug: cat.slug },
-      update: cat,
-      create: cat,
-    });
-  }
-  console.log('✅ Categories created');
-
-  for (const [categorySlug, tags] of Object.entries(categoryTags)) {
-    const category = await prisma.category.findUnique({ where: { slug: categorySlug } });
-    if (!category) continue;
-
-    for (const tag of tags) {
-      await prisma.tag.upsert({
-        where: { categoryId_slug: { categoryId: category.id, slug: tag.slug } },
-        update: { name: tag.name, sortOrder: tag.sortOrder, icon: tag.icon ?? null },
-        create: {
-          categoryId: category.id,
-          name: tag.name,
-          slug: tag.slug,
-          sortOrder: tag.sortOrder,
-          icon: tag.icon ?? null,
-        },
+  if (seedHypermarketCatalog) {
+    for (const cat of categories) {
+      await prisma.category.upsert({
+        where: { slug: cat.slug },
+        update: cat,
+        create: cat,
       });
     }
-  }
-  console.log('✅ Tags created');
+    console.log('✅ Categories created (hypermarket sample)');
 
-  await prisma.slider.deleteMany({});
-  await prisma.slider.createMany({
-    data: [
-      {
-        title: 'تخفیف ویژه لبنیات',
-        image: '/images/sliders/dairy-sale.png',
-        linkUrl: '/categories/labaniat',
-        sortOrder: 1,
-        placement: 'HOME_TOP',
-        isActive: true,
-      },
-      {
-        title: 'ارسال رایگان در کیاشهر',
-        image: '/images/sliders/free-shipping.png',
-        linkUrl: '/',
-        sortOrder: 2,
-        placement: 'HOME_TOP',
-        isActive: true,
-      },
-      {
-        title: 'میوه و سبزی تازه روز',
-        image: '/images/sliders/fresh.png',
-        linkUrl: '/categories/mive-sabzi',
-        sortOrder: 3,
-        placement: 'HOME_TOP',
-        isActive: true,
-      },
-    ],
-  });
-  console.log('✅ Sliders created');
+    for (const [categorySlug, tags] of Object.entries(categoryTags)) {
+      const category = await prisma.category.findUnique({ where: { slug: categorySlug } });
+      if (!category) continue;
+
+      for (const tag of tags) {
+        await prisma.tag.upsert({
+          where: { categoryId_slug: { categoryId: category.id, slug: tag.slug } },
+          update: { name: tag.name, sortOrder: tag.sortOrder, icon: tag.icon ?? null },
+          create: {
+            categoryId: category.id,
+            name: tag.name,
+            slug: tag.slug,
+            sortOrder: tag.sortOrder,
+            icon: tag.icon ?? null,
+          },
+        });
+      }
+    }
+    console.log('✅ Tags created (hypermarket sample)');
+
+    await prisma.slider.deleteMany({});
+    await prisma.slider.createMany({
+      data: [
+        {
+          title: 'کالکشن پوشاک',
+          image: '/images/placeholder-product.svg',
+          linkUrl: '/categories/woman-clothe',
+          sortOrder: 1,
+          placement: 'HOME_TOP',
+          isActive: true,
+        },
+      ],
+    });
+    console.log('✅ Sliders created (sample)');
+  } else {
+    console.log('⏭️ Skipping hypermarket catalog (use npm run import:woocommerce)');
+  }
 
   await prisma.customerGroup.upsert({
     where: { id: 'seed-vip-group' },
@@ -900,10 +889,12 @@ async function main() {
     data: { isActive: false },
   });
 
-  for (const prod of products) {
-    await upsertProduct(prod);
+  if (seedHypermarketCatalog) {
+    for (const prod of products) {
+      await upsertProduct(prod);
+    }
+    console.log(`✅ Products created (${products.length})`);
   }
-  console.log(`✅ Products created (${products.length})`);
 
   for (const page of contentPages) {
     await prisma.contentPage.upsert({
@@ -953,21 +944,24 @@ async function main() {
         userId: user.id,
         title: 'منزل',
         address: `تهران، آدرس نمونه ${customer.firstName} ${customer.lastName}`,
-        latitude: 35.7219,
-        longitude: 51.3347,
+        province: 'تهران',
+        city: 'تهران',
+        postalCode: '1234567890',
+        plaque: '1',
+        unit: '1',
         isDefault: true,
       },
     });
 
     const existingWelcome = await prisma.notification.findFirst({
-      where: { userId: user.id, title: 'خوش آمدید به JET KALA' },
+      where: { userId: user.id, title: `خوش آمدید به ${SITE_NAME}` },
     });
     if (!existingWelcome) {
       await prisma.notification.create({
         data: {
           userId: user.id,
-          title: 'خوش آمدید به JET KALA',
-          message: `${customer.firstName} عزیز، از خرید آنلاین با JET KALA لذت ببرید.`,
+          title: `خوش آمدید به ${SITE_NAME}`,
+          message: `${customer.firstName} عزیز، به ${SITE_NAME} خوش آمدید.`,
           type: NotificationType.GENERAL,
         },
       });
@@ -975,11 +969,13 @@ async function main() {
   }
   console.log('✅ Addresses and notifications created');
 
-  await seedOrders();
-  console.log('✅ Sample orders created');
+  if (seedHypermarketCatalog) {
+    await seedOrders();
+    console.log('✅ Sample orders created');
 
-  await seedCart();
-  console.log('✅ Sample cart created');
+    await seedCart();
+    console.log('✅ Sample cart created');
+  }
 
   console.log('🎉 Seeding complete!');
 }

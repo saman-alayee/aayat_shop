@@ -1,4 +1,4 @@
-# API Documentation - Hyper Market
+# API Documentation — Aayat Shop (عایت)
 
 Base URL: `http://localhost:3001/api`
 

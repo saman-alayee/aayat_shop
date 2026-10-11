@@ -1,4 +1,8 @@
-export default defineNuxtPlugin(() => {
-  const { fetchFavorites } = useFavorites();
-  void fetchFavorites();
+export default defineNuxtPlugin({
+  name: 'favorites-init',
+  dependsOn: ['pinia'],
+  setup() {
+    const { fetchFavorites } = useFavorites();
+    void fetchFavorites();
+  },
 });

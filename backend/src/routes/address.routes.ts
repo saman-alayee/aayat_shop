@@ -14,8 +14,9 @@ const addressBodySchema = z.object({
   address: z.string().min(5, 'آدرس باید حداقل ۵ کاراکتر باشد'),
   plaque: z.string().min(1, 'پلاک الزامی است'),
   unit: z.string().min(1, 'واحد الزامی است'),
-  latitude: z.coerce.number().min(-90).max(90),
-  longitude: z.coerce.number().min(-180).max(180),
+  province: z.string().min(2, 'استان الزامی است'),
+  city: z.string().min(2, 'شهر الزامی است'),
+  postalCode: z.string().regex(/^\d{10}$/, 'کدپستی باید ۱۰ رقم باشد'),
   isDefault: z.boolean().optional(),
 });
 
@@ -24,8 +25,9 @@ const addressUpdateSchema = z.object({
   address: z.string().min(5, 'آدرس باید حداقل ۵ کاراکتر باشد').optional(),
   plaque: z.string().min(1, 'پلاک الزامی است').optional(),
   unit: z.string().min(1, 'واحد الزامی است').optional(),
-  latitude: z.coerce.number().min(-90).max(90).optional(),
-  longitude: z.coerce.number().min(-180).max(180).optional(),
+  province: z.string().min(2, 'استان الزامی است').optional(),
+  city: z.string().min(2, 'شهر الزامی است').optional(),
+  postalCode: z.string().regex(/^\d{10}$/, 'کدپستی باید ۱۰ رقم باشد').optional(),
   isDefault: z.boolean().optional(),
 });
 

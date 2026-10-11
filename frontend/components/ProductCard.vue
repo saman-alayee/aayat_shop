@@ -23,7 +23,16 @@ const isSarak = computed(() => props.size === 'sarak');
 const clothingMeta = computed(() => parseClothingMeta(props.product));
 const colorLabels = computed(() => clothingMeta.value?.colors?.map((c) => c.name).slice(0, 4) ?? []);
 
-const cardImages = useProductCardImages(toRef(props, 'product'));
+const {
+  primarySrc: cardPrimarySrc,
+  hoverSrc: cardHoverSrc,
+  hoverEnabled: cardHoverEnabled,
+  onPrimaryError: onCardPrimaryError,
+  onHoverError: onCardHoverError,
+  preloadHover: preloadCardHover,
+} = useProductCardImages(toRef(props, 'product'));
+
+const cardHasSwapHover = computed(() => Boolean(cardHoverSrc.value));
 const sarakMediaRef = ref<HTMLElement | null>(null);
 
 let sarakImageObserver: IntersectionObserver | null = null;
@@ -33,13 +42,13 @@ onMounted(() => {
   nextTick(() => {
     const el = sarakMediaRef.value;
     if (!el || typeof IntersectionObserver === 'undefined') {
-      cardImages.preloadHover();
+      preloadCardHover();
       return;
     }
     sarakImageObserver = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) {
-          cardImages.preloadHover();
+          preloadCardHover();
           sarakImageObserver?.disconnect();
           sarakImageObserver = null;
         }
@@ -103,38 +112,42 @@ async function handleDecrease(event: Event) {
 
 <template>
   <!-- سبک sarak-co.com -->
-  <article v-if="isSarak" class="product-card product-card--sarak flex h-full w-full flex-col bg-white">
+  <article v-if="isSarak" class="product-card product-card--sarak relative flex h-full w-full flex-col bg-white">
     <NuxtLink
       ref="sarakMediaRef"
       :to="`/products/${product.slug}`"
-      class="product-card-sarak-media relative block aspect-[354/531] w-full overflow-hidden bg-neutral-100"
+      :class="[
+        'product-card-sarak-media relative block aspect-[354/531] w-full overflow-hidden bg-neutral-100',
+        cardHasSwapHover ? 'product-card-sarak-media--swap' : 'product-card-sarak-media--lift',
+      ]"
       draggable="false"
-      @mouseenter="cardImages.preloadHover()"
-      @focusin="cardImages.preloadHover()"
+      @mouseenter="preloadCardHover()"
+      @focusin="preloadCardHover()"
     >
+      <span class="product-card-sarak-shine" aria-hidden="true" />
       <img
-        :src="cardImages.primarySrc"
+        :src="cardPrimarySrc"
         :alt="product.name"
         class="product-card-sarak-img-primary absolute inset-0 h-full w-full object-cover object-center"
         :class="[
-          cardImages.hoverSrc ? 'product-card-sarak-img-primary--swap' : 'product-card-sarak-img-primary--zoom',
-          cardImages.hoverEnabled ? 'product-card-sarak-img-primary--hide-on-hover' : '',
+          cardHoverSrc ? 'product-card-sarak-img-primary--swap' : 'product-card-sarak-img-primary--zoom',
+          cardHoverEnabled ? 'product-card-sarak-img-primary--hide-on-hover' : '',
         ]"
         loading="lazy"
         decoding="async"
         draggable="false"
-        @error="cardImages.onPrimaryError()"
+        @error="onCardPrimaryError()"
       />
       <img
-        v-if="cardImages.hoverSrc"
-        :src="cardImages.hoverSrc"
+        v-if="cardHoverSrc"
+        :src="cardHoverSrc"
         :alt="product.name"
         class="product-card-sarak-img-hover absolute inset-0 h-full w-full object-cover object-center"
-        :class="cardImages.hoverEnabled ? 'product-card-sarak-img-hover--ready' : ''"
+        :class="cardHoverEnabled ? 'product-card-sarak-img-hover--ready' : ''"
         loading="lazy"
         decoding="async"
         draggable="false"
-        @error="cardImages.onHoverError()"
+        @error="onCardHoverError()"
       />
 
       <div
@@ -150,6 +163,22 @@ async function handleDecrease(event: Event) {
         </span>
       </div>
     </NuxtLink>
+
+    <button
+      type="button"
+      class="absolute top-3 end-3 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-neutral-700 shadow-sm transition-colors hover:text-neutral-950 disabled:opacity-60"
+      :class="favorited ? 'text-red-500' : ''"
+      :disabled="favLoading"
+      :aria-pressed="favorited"
+      :aria-label="favorited ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'"
+      @click="handleFavorite"
+    >
+      <AppIcon
+        name="lucide:heart"
+        size="sm"
+        :class="favorited ? 'fill-current product-card-heart-active' : ''"
+      />
+    </button>
 
     <div class="flex flex-col pt-3 pb-1 min-h-[4.5rem]">
       <NuxtLink
@@ -357,17 +386,49 @@ async function handleDecrease(event: Event) {
   isolation: isolate;
 }
 
+.product-card-sarak-media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    165deg,
+    transparent 35%,
+    rgba(101, 42, 59, 0.07) 100%
+  );
+  transition: opacity 0.45s ease;
+}
+
+.product-card-sarak-shine {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 42%,
+    rgba(255, 255, 255, 0.22) 50%,
+    transparent 58%
+  );
+  transform: translateX(-120%) skewX(-12deg);
+  transition: transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 .product-card-sarak-img-primary,
 .product-card-sarak-img-hover {
   transition:
-    opacity 0.35s ease,
-    transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    opacity 0.55s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.65s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.5s ease;
   will-change: opacity, transform;
 }
 
 .product-card-sarak-img-hover {
   opacity: 0;
-  transform: scale(1.02);
+  transform: scale(1.06) translateY(10px);
+  filter: brightness(1.02);
 }
 
 .product-card-sarak-colors {
@@ -377,26 +438,46 @@ async function handleDecrease(event: Event) {
     opacity 0.3s ease,
     transform 0.35s ease;
   background: linear-gradient(to top, rgba(0, 0, 0, 0.45), transparent 72%);
+  z-index: 3;
 }
 
 @media (hover: hover) and (pointer: fine) {
+  .product-card--sarak:hover .product-card-sarak-media::after {
+    opacity: 1;
+  }
+
+  .product-card--sarak:hover .product-card-sarak-shine {
+    transform: translateX(120%) skewX(-12deg);
+  }
+
   .product-card--sarak:hover .product-card-sarak-img-primary--hide-on-hover {
     opacity: 0;
-    transform: scale(1.02);
+    transform: scale(1.04);
+    filter: brightness(0.98);
   }
 
   .product-card--sarak:hover .product-card-sarak-img-hover--ready {
     opacity: 1;
-    transform: scale(1);
+    transform: scale(1) translateY(0);
   }
 
   .product-card--sarak:hover .product-card-sarak-img-primary--zoom {
-    transform: scale(1.05);
+    transform: scale(1.09);
+    filter: brightness(1.03) contrast(1.02);
   }
 
   .product-card--sarak:hover .product-card-sarak-colors {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .product-card-sarak-img-primary,
+  .product-card-sarak-img-hover,
+  .product-card-sarak-shine,
+  .product-card-sarak-media::after {
+    transition: none;
   }
 }
 

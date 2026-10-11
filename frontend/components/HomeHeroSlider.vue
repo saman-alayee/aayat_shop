@@ -5,8 +5,9 @@ const props = withDefaults(
   defineProps<{
     sliders: Slider[];
     autoplayMs?: number;
+    layout?: 'fullscreen' | 'banner';
   }>(),
-  { autoplayMs: 6000 }
+  { autoplayMs: 6000, layout: 'fullscreen' }
 );
 
 const { resolveMediaUrl } = useFormat();
@@ -44,7 +45,12 @@ onUnmounted(stopAutoplay);
 <template>
   <section
     v-if="sliders.length"
-    class="relative w-full h-[100dvh] min-h-[520px] max-h-[1080px] overflow-hidden bg-neutral-900"
+    :class="[
+      'relative w-full overflow-hidden bg-neutral-100',
+      layout === 'banner'
+        ? 'h-[100dvh] max-h-none md:h-auto md:max-h-[520px] md:aspect-[2560/936]'
+        : 'h-[100dvh] min-h-[520px] max-h-[1080px] bg-neutral-900',
+    ]"
     @mouseenter="stopAutoplay"
     @mouseleave="startAutoplay"
   >
@@ -66,8 +72,12 @@ onUnmounted(stopAutoplay);
             class="h-full w-full object-cover object-center"
             :loading="index === 0 ? 'eager' : 'lazy'"
             fetchpriority="high"
+            @error="(e) => { const t = e.target as HTMLImageElement; if (t && !t.src.endsWith('placeholder-product.svg')) t.src = '/images/placeholder-product.svg'; }"
           />
-          <div class="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-black/10 pointer-events-none" />
+          <div
+            v-if="layout !== 'banner'"
+            class="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-black/20 pointer-events-none"
+          />
         </component>
       </div>
     </div>
@@ -84,7 +94,7 @@ onUnmounted(stopAutoplay);
       </p>
     </div>
 
-    <div v-if="sliders.length > 1" class="absolute inset-x-0 bottom-6 z-10 flex justify-center gap-1.5">
+    <div v-if="sliders.length > 1" class="absolute inset-x-0 bottom-[5.5rem] z-10 flex justify-center gap-1.5 md:bottom-6">
       <button
         v-for="(_, index) in sliders"
         :key="index"

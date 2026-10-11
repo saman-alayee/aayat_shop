@@ -1,1 +1,1 @@
-export const SITE_NAME = 'آتلیه مد';
+export const SITE_NAME = 'آیتای';

@@ -100,6 +100,54 @@ export const useAuthStore = defineStore('auth', () => {
     initialized.value = false;
   }
 
+  async function startAuth(phone: string, intent?: 'otp' | 'forgot') {
+    loading.value = true;
+    try {
+      const api = useApi();
+      const { data } = await api.post<{
+        step: 'signIn' | 'loginByOtp' | 'loginByPassword' | 'forgotPassword';
+        hasPassword: boolean;
+        message: string;
+        devCode?: string;
+      }>('/auth/start', {
+        phone: normalizePhoneInput(phone),
+        intent,
+      });
+      return data;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function verifyForgotOtp(phone: string, code: string) {
+    loading.value = true;
+    try {
+      const api = useApi();
+      const { data } = await api.post<{ resetToken: string }>('/auth/forgot/verify', {
+        phone: normalizePhoneInput(phone),
+        code: normalizeDigits(code),
+      });
+      return data;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function resetPassword(resetToken: string, password: string) {
+    loading.value = true;
+    try {
+      const api = useApi();
+      const { data } = await api.post<{ token: string; user: User }>('/auth/forgot/reset', {
+        resetToken,
+        password,
+      });
+      setAuth(data.token, data.user);
+      return data;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   async function sendOtp(phone: string) {
     loading.value = true;
     try {
@@ -206,6 +254,9 @@ export const useAuthStore = defineStore('auth', () => {
     setAuth,
     logout,
     sendOtp,
+    startAuth,
+    verifyForgotOtp,
+    resetPassword,
     verifyOtp,
     loginWithPassword,
     loginAdminWithPassword,

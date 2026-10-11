@@ -3,7 +3,8 @@
 ## پیش‌نیاز
 
 - Node.js 20+
-- MySQL/MariaDB
+- برای توسعه: **SQLite** (`DATABASE_URL=file:./dev.db` در `backend/.env`) — بدون نصب MySQL
+- برای production: MySQL/MariaDB
 - (اختیاری) Redis — با `REDIS_DISABLED=true` غیرفعال می‌شود
 
 ## Backend
@@ -11,10 +12,12 @@
 ```powershell
 cd backend
 copy .env.example .env
+# DATABASE_URL=file:./dev.db  (SQLite — پیش‌فرض توسعه)
 # DATABASE_URL و JWT_SECRET را تنظیم کنید
 npm install
 npx prisma db push
 npm run db:seed
+# seed فقط ادمین/صفحات ثابت می‌سازد — کاتالوگ: npm run import:woocommerce
 npm run dev
 ```
 
@@ -36,6 +39,21 @@ npm run dev
 ### کاتالوگ نمایشی (بدون DB)
 
 به‌صورت پیش‌فرض فروشگاه **۱۲ محصول** و **۳ بنر Hero** با تصاویر Unsplash نشان می‌دهد. برای اتصال به API واقعی: `NUXT_PUBLIC_FORCE_DEMO_CATALOG=false`
+
+## Import از وردپرس / WooCommerce (فقط خواندن)
+
+سایت قدیمی `aaytay.ir` تغییر نمی‌کند؛ اسکریپت فقط از API عمومی GET می‌گیرد.
+
+```powershell
+cd backend
+npm run import:woocommerce
+# اختیاری: حذف دسته/محصول دمو قبل از import
+npm run import:woocommerce -- --remove-demo
+```
+
+به‌صورت پیش‌فرض **عکس‌ها دانلود** و در `backend/uploads/wc/` ذخیره می‌شوند (مسیر DB: `/uploads/wc/...` — از API سرو می‌شود). فقط URL وردپرس: `--keep-remote-urls`. اگر قبلاً import کرده‌اید: `npm run import:woocommerce:images`
+
+سپس در `frontend/.env`: `NUXT_PUBLIC_FORCE_DEMO_CATALOG=false`
 
 ## Seed پوشاک در MySQL
 

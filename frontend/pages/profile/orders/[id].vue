@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Order } from '~/types';
 import { SITE_NAME } from '~/constants/site';
+import { shippingLabel } from '~/constants/shipping';
 
 definePageMeta({ layout: 'profile', middleware: 'auth' });
 
@@ -8,7 +9,6 @@ const api = useApi();
 const route = useRoute();
 const toast = useToast();
 const { formatPrice, formatDate, getProductImage } = useFormat();
-const { mapsLink } = useGeocoding();
 
 const order = ref<Order | null>(null);
 const loading = ref(true);
@@ -69,25 +69,6 @@ useHead({ title: `جزئیات سفارش - ${SITE_NAME}` });
               <p v-if="order.addressTitle" class="text-sm font-semibold text-gray-800">{{ order.addressTitle }}</p>
               <p class="text-sm text-gray-800 leading-relaxed">{{ order.deliveryAddress }}</p>
               <p class="text-xs text-gray-500 mt-2">{{ order.customerName }} · {{ order.customerPhone }}</p>
-              <AppMapPicker
-                v-if="order.deliveryLatitude != null && order.deliveryLongitude != null"
-                :latitude="order.deliveryLatitude"
-                :longitude="order.deliveryLongitude"
-                readonly
-                height="140px"
-                :zoom="17"
-                class="mt-3"
-              />
-              <a
-                v-if="order.deliveryLatitude != null && order.deliveryLongitude != null"
-                :href="mapsLink(order.deliveryLatitude, order.deliveryLongitude)"
-                target="_blank"
-                rel="noopener"
-                class="inline-flex items-center gap-1 text-xs text-primary-600 mt-2"
-              >
-                <AppIcon name="lucide:external-link" size="sm" />
-                باز کردن در نقشه
-              </a>
             </div>
           </div>
         </div>
@@ -145,9 +126,11 @@ useHead({ title: `جزئیات سفارش - ${SITE_NAME}` });
           <span class="font-semibold text-gray-800">مبلغ قابل پرداخت</span>
           <span class="text-lg font-bold text-primary-700">{{ formatPrice(order.totalPrice) }}</span>
         </div>
-        <p class="text-xs text-gray-400 mt-2 flex items-center gap-1">
-          <AppIcon name="lucide:banknote" size="xs" />
-          پرداخت هنگام تحویل
+        <p class="text-xs text-gray-500 mt-2">
+          نوع ارسال: {{ shippingLabel(order.paymentDetails?.deliveryMethod) }}
+          <template v-if="order.paymentDetails?.deliveryFee != null">
+            · {{ formatPrice(Number(order.paymentDetails.deliveryFee)) }}
+          </template>
         </p>
       </div>
 

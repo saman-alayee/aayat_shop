@@ -1,4 +1,7 @@
-export default defineNuxtPlugin(() => {
-  const authStore = useAuthStore();
-  authStore.init();
+export default defineNuxtPlugin({
+  name: 'auth-init',
+  dependsOn: ['pinia'],
+  setup() {
+    useAuthStore().init();
+  },
 });

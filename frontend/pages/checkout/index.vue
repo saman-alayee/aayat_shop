@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { Address, PaymentMethod } from '~/types';
-import { PAYMENT_METHOD_LABELS } from '~/types';
+import type { Address } from '~/types';
 import { SITE_NAME } from '~/constants/site';
+import { SHIPPING_OPTIONS, type ShippingMethod } from '~/constants/shipping';
 import { useOrdersStore } from '~/stores/orders';
 
 const cartStore = useCartStore();
@@ -11,7 +11,7 @@ const api = useApi();
 const toast = useToast();
 const { formatPrice } = useFormat();
 const manualAddress = useAddressFields();
-const { street, plaque, unit, errors: addressErrors, validate: validateAddress, payload: manualPayload, reset: resetManualAddress } = manualAddress;
+const { street, plaque, unit, province, city, postalCode, cityOptions, errors: addressErrors, validate: validateAddress, payload: manualPayload } = manualAddress;
 
 const checkoutMode = ref<'quick' | 'account'>('quick');
 
@@ -20,20 +20,8 @@ const form = reactive({
   customerPhone: '',
   notes: '',
   couponCode: '',
-  paymentMethod: 'CASH_AT_DOOR' as PaymentMethod,
-  deliveryMethod: 'FREE' as 'FREE' | 'JET',
-  nationalId: '',
-  salaryCard: '',
-  taraId: '',
-  walletNote: '',
+  deliveryMethod: 'NATIONWIDE' as ShippingMethod,
 });
-
-const showPaymentDetails = ref(false);
-const FREE_SHIPPING_MIN = 200_000;
-const JET_FEE = 50_000;
-
-const mapLat = ref<number | null>(null);
-const mapLng = ref<number | null>(null);
 
 const loading = ref(false);
 const error = ref('');
@@ -48,105 +36,13 @@ const appliedCoupon = ref<{
   totalPrice: number;
 } | null>(null);
 
-const paymentOptions: { value: PaymentMethod; label: string; hint?: string; info?: string }[] = [
-  { value: 'CASH_AT_DOOR', label: PAYMENT_METHOD_LABELS.CASH_AT_DOOR, hint: 'مبلغ هنگام تحویل دریافت می‌شود' },
-  {
-    value: 'RETIREMENT_FUND',
-    label: PAYMENT_METHOD_LABELS.RETIREMENT_FUND,
-    info: 'کد ملی و شماره کارت حقوقی را وارد کنید تا در سیستم فروشگاه ثبت شود.',
-  },
-  {
-    value: 'SOCIAL_SECURITY',
-    label: PAYMENT_METHOD_LABELS.SOCIAL_SECURITY,
-    info: 'کد ملی بازنشسته را وارد کنید تا سفارش در سیستم فروشگاه ثبت شود.',
-  },
-  {
-    value: 'TARA',
-    label: PAYMENT_METHOD_LABELS.TARA,
-    info: 'شناسه خرید تارا را وارد کنید تا سفارش در سیستم فروشگاه ثبت شود.',
-  },
-  {
-    value: 'OTHER_WALLET',
-    label: PAYMENT_METHOD_LABELS.OTHER_WALLET,
-    info: 'نوع کیف پول یا توضیحات پرداخت را بنویسید.',
-  },
-];
-
-const installmentMethods: PaymentMethod[] = ['RETIREMENT_FUND', 'SOCIAL_SECURITY', 'TARA', 'OTHER_WALLET'];
-
-function selectPaymentMethod(method: PaymentMethod) {
-  form.paymentMethod = method;
-  if (method !== 'CASH_AT_DOOR') {
-    showPaymentDetails.value = true;
-  }
-}
-
-function openPaymentInfo(method: PaymentMethod, event?: Event) {
-  event?.stopPropagation();
-  form.paymentMethod = method;
-  showPaymentDetails.value = true;
-}
-
 const displaySubtotal = computed(() => appliedCoupon.value?.totalPrice ?? cartStore.totalPrice);
-const deliveryFee = computed(() => (form.deliveryMethod === 'JET' ? JET_FEE : 0));
-const canUseFreeDelivery = computed(() => displaySubtotal.value >= FREE_SHIPPING_MIN);
-const displayTotal = computed(() => displaySubtotal.value + deliveryFee.value);
 const displayDiscount = computed(() => appliedCoupon.value?.discountAmount ?? 0);
 const selectedAddress = computed(() => addresses.value.find((a) => a.id === selectedAddressId.value) || null);
-const isInstallment = computed(() => form.paymentMethod !== 'CASH_AT_DOOR');
-
-watch(canUseFreeDelivery, (allowed) => {
-  if (!allowed && form.deliveryMethod === 'FREE') {
-    form.deliveryMethod = 'JET';
-  }
-});
-
-function buildPaymentDetails() {
-  if (!isInstallment.value) return undefined;
-  const details: Record<string, string> = {};
-  if (form.paymentMethod === 'RETIREMENT_FUND') {
-    if (form.nationalId.trim()) details.nationalId = form.nationalId.trim();
-    if (form.salaryCard.trim()) details.salaryCard = form.salaryCard.trim();
-  }
-  if (form.paymentMethod === 'SOCIAL_SECURITY') {
-    if (form.nationalId.trim()) details.nationalId = form.nationalId.trim();
-  }
-  if (form.paymentMethod === 'TARA' && form.taraId.trim()) {
-    details.taraId = form.taraId.trim();
-  }
-  if (form.paymentMethod === 'OTHER_WALLET' && form.walletNote.trim()) {
-    details.walletNote = form.walletNote.trim();
-  }
-  return Object.keys(details).length ? details : undefined;
-}
-
-function validateInstallmentDetails() {
-  if (!isInstallment.value) return true;
-  if (form.paymentMethod === 'RETIREMENT_FUND' && (!form.nationalId.trim() || !form.salaryCard.trim())) {
-    error.value = 'کد ملی و شماره کارت حقوقی را وارد کنید';
-    showPaymentDetails.value = true;
-    return false;
-  }
-  if (form.paymentMethod === 'SOCIAL_SECURITY') {
-    if (!form.nationalId.trim()) {
-      error.value = 'کد ملی را وارد کنید';
-      showPaymentDetails.value = true;
-      return false;
-    }
-    return true;
-  }
-  if (form.paymentMethod === 'TARA' && !form.taraId.trim()) {
-    error.value = 'شناسه خرید تارا را وارد کنید';
-    showPaymentDetails.value = true;
-    return false;
-  }
-  if (form.paymentMethod === 'OTHER_WALLET' && !form.walletNote.trim()) {
-    error.value = 'نوع کیف پول را بنویسید';
-    showPaymentDetails.value = true;
-    return false;
-  }
-  return true;
-}
+const deliveryFee = computed(
+  () => SHIPPING_OPTIONS.find((item) => item.value === form.deliveryMethod)?.fee ?? 0,
+);
+const displayTotal = computed(() => displaySubtotal.value + deliveryFee.value);
 
 function scrollToFirstError() {
   nextTick(() => {
@@ -157,9 +53,6 @@ function scrollToFirstError() {
 onMounted(async () => {
   await cartStore.fetchCart();
   if (cartStore.isEmpty) navigateTo('/cart');
-  if (cartStore.totalPrice < FREE_SHIPPING_MIN) {
-    form.deliveryMethod = 'JET';
-  }
 
   authStore.init();
   if (authStore.isLoggedIn) {
@@ -240,26 +133,20 @@ async function submitOrder() {
     deliveryPayload = {
       addressId: selectedAddress.value.id,
       deliveryAddress: selectedAddress.value.address,
-      deliveryLatitude: selectedAddress.value.latitude ?? undefined,
-      deliveryLongitude: selectedAddress.value.longitude ?? undefined,
+      province: selectedAddress.value.province || undefined,
+      city: selectedAddress.value.city || undefined,
+      postalCode: selectedAddress.value.postalCode || undefined,
     };
   } else {
-    if (!validateAddress({ requireMap: true, hasMap: mapLat.value != null && mapLng.value != null })) {
-      error.value = 'آدرس، پلاک، واحد و موقعیت روی نقشه را کامل کنید';
+    if (!validateAddress()) {
+      error.value = 'استان، شهر، آدرس و کدپستی را کامل کنید';
       toast.error(error.value);
       scrollToFirstError();
       return;
     }
     deliveryPayload = {
       ...manualPayload(),
-      deliveryLatitude: mapLat.value,
-      deliveryLongitude: mapLng.value,
     };
-  }
-
-  if (!validateInstallmentDetails()) {
-    toast.error(error.value);
-    return;
   }
 
   loading.value = true;
@@ -269,9 +156,7 @@ async function submitOrder() {
       customerPhone: form.customerPhone.trim(),
       notes: form.notes.trim() || undefined,
       couponCode: appliedCoupon.value?.code || undefined,
-      paymentMethod: form.paymentMethod,
       deliveryMethod: form.deliveryMethod,
-      paymentDetails: buildPaymentDetails(),
       ...deliveryPayload,
     };
 
@@ -302,8 +187,8 @@ useHead({ title: `ثبت سفارش - ${SITE_NAME}` });
       <div v-if="displayDiscount" class="flex justify-between text-sm text-green-600">
         <span>تخفیف</span><span>- {{ formatPrice(displayDiscount) }}</span>
       </div>
-      <div v-if="deliveryFee" class="flex justify-between text-sm text-amber-700">
-        <span>هزینه ارسال جت</span><span>{{ formatPrice(deliveryFee) }}</span>
+      <div class="flex justify-between text-sm">
+        <span>هزینه ارسال</span><span>{{ formatPrice(deliveryFee) }}</span>
       </div>
       <div class="flex justify-between pt-2 border-t font-bold">
         <span>مبلغ قابل پرداخت</span>
@@ -311,40 +196,44 @@ useHead({ title: `ثبت سفارش - ${SITE_NAME}` });
       </div>
     </div>
 
-    <div class="flex gap-2 mb-4 p-1 bg-gray-100 rounded-xl">
+    <div class="mb-6 flex gap-6 border-b border-neutral-200">
       <button
         type="button"
-        :class="['flex-1 py-2.5 text-sm font-medium rounded-lg', checkoutMode === 'quick' ? 'bg-white shadow text-primary-700' : 'text-gray-500']"
+        :class="['-mb-px border-b pb-2 text-sm', checkoutMode === 'quick' ? 'border-neutral-950 text-neutral-950' : 'border-transparent text-neutral-400']"
         @click="checkoutMode = 'quick'"
       >
-        خرید سریع بدون ثبت‌نام
+        خرید سریع
       </button>
       <button
         type="button"
-        :class="['flex-1 py-2.5 text-sm font-medium rounded-lg', checkoutMode === 'account' ? 'bg-white shadow text-primary-700' : 'text-gray-500']"
+        :class="['-mb-px border-b pb-2 text-sm', checkoutMode === 'account' ? 'border-neutral-950 text-neutral-950' : 'border-transparent text-neutral-400']"
         @click="switchToAccount"
       >
-        ورود / ثبت‌نام
+        ورود | ثبت‌نام
       </button>
     </div>
 
     <form class="space-y-4" @submit.prevent="submitOrder">
       <div>
-        <label class="block text-sm font-medium mb-1">نام و نام خانوادگی *</label>
-        <input v-model="form.customerName" type="text" required minlength="3" class="input-field min-h-[48px]" />
+        <label class="field-label">نام و نام خانوادگی</label>
+        <input v-model="form.customerName" type="text" required minlength="3" class="input-field" />
       </div>
       <div>
-        <label class="block text-sm font-medium mb-1">شماره موبایل *</label>
-        <input v-model="form.customerPhone" type="tel" required pattern="09[0-9]{9}" class="input-field min-h-[48px]" dir="ltr" />
+        <label class="field-label">شماره موبایل</label>
+        <input v-model="form.customerPhone" type="tel" required pattern="09[0-9]{9}" class="input-field" dir="ltr" />
       </div>
 
       <div v-if="checkoutMode === 'quick'" class="space-y-3" data-field-error="true">
-        <AddressFields v-model:street="street" v-model:plaque="plaque" v-model:unit="unit" :errors="addressErrors" />
-        <div>
-          <label class="block text-sm font-medium mb-1">موقعیت روی نقشه (کیاشهر) *</label>
-          <AppMapPicker v-model:latitude="mapLat" v-model:longitude="mapLng" :geocode="false" height="220px" :zoom="16" />
-          <AppFormError :message="addressErrors.map" />
-        </div>
+        <AddressFields
+          v-model:street="street"
+          v-model:plaque="plaque"
+          v-model:unit="unit"
+          v-model:province="province"
+          v-model:city="city"
+          v-model:postal-code="postalCode"
+          :city-options="cityOptions"
+          :errors="addressErrors"
+        />
         <p class="text-xs text-gray-500">
           ثبت‌نام لازم نیست. در صورت تمایل می‌توانید
           <button type="button" class="text-primary-600 font-medium" @click="switchToAccount">وارد حساب شوید</button>.
@@ -354,16 +243,24 @@ useHead({ title: `ثبت سفارش - ${SITE_NAME}` });
       <div v-else class="space-y-3">
         <LoadingSpinner :show="addressesLoading" />
         <template v-if="!addressesLoading && addresses.length">
-          <label class="block text-sm font-medium">انتخاب آدرس ذخیره‌شده</label>
+          <p class="field-label">آدرس ذخیره‌شده</p>
           <button
             v-for="addr in addresses"
             :key="addr.id"
             type="button"
-            :class="['w-full text-start p-3 rounded-xl border-2', selectedAddressId === addr.id ? 'border-primary-500 bg-primary-50/40' : 'border-gray-100']"
+            :class="[
+              'w-full border-b border-neutral-200 py-3 text-start',
+              selectedAddressId === addr.id ? 'text-neutral-950' : 'text-neutral-500',
+            ]"
             @click="selectedAddressId = addr.id"
           >
             <p class="text-sm font-medium">{{ addr.title || 'آدرس' }}</p>
             <p class="text-xs text-gray-600 mt-1">{{ addr.address }}</p>
+            <p v-if="addr.province || addr.city || addr.postalCode" class="mt-1 text-xs text-gray-500">
+              <span v-if="addr.province">{{ addr.province }}</span>
+              <span v-if="addr.city">، {{ addr.city }}</span>
+              <span v-if="addr.postalCode">، کدپستی {{ addr.postalCode }}</span>
+            </p>
           </button>
         </template>
         <div v-else-if="!addressesLoading" class="space-y-2">
@@ -372,102 +269,25 @@ useHead({ title: `ثبت سفارش - ${SITE_NAME}` });
         </div>
       </div>
 
-      <div class="card p-4 space-y-3">
-        <h2 class="text-sm font-bold text-gray-800">روش ارسال</h2>
+      <div class="space-y-1">
+        <p class="field-label">روش ارسال</p>
         <label
-          :class="['flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer', form.deliveryMethod === 'FREE' ? 'border-primary-500 bg-primary-50/40' : 'border-gray-100', !canUseFreeDelivery ? 'opacity-50 cursor-not-allowed' : '']"
+          v-for="option in SHIPPING_OPTIONS"
+          :key="option.value"
+          class="flex cursor-pointer items-center justify-between gap-4 border-b border-neutral-200 py-3"
         >
-          <input v-model="form.deliveryMethod" type="radio" value="FREE" class="mt-1" :disabled="!canUseFreeDelivery" />
           <span>
-            <span class="text-sm font-medium block text-green-700">ارسال رایگان</span>
-            <span class="text-xs text-gray-500">برای سفارش بالای ۲۰۰٬۰۰۰ تومان — زمان تقریبی ۲۰ تا ۹۰ دقیقه</span>
-          </span>
-        </label>
-        <label
-          :class="['flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer', form.deliveryMethod === 'JET' ? 'border-orange-500 bg-orange-50/50' : 'border-gray-100']"
-        >
-          <input v-model="form.deliveryMethod" type="radio" value="JET" class="mt-1" />
-          <span>
-            <span class="text-sm font-bold block text-orange-600">ارسال فوری (جت)</span>
-            <span class="text-xs text-gray-500">۵۰٬۰۰۰ تومان — زمان تقریبی ۱۵ تا ۳۰ دقیقه</span>
-          </span>
-        </label>
-      </div>
-
-      <div class="card p-4 space-y-3">
-        <h2 class="text-sm font-bold text-gray-800">نوع پرداخت</h2>
-        <p class="text-xs text-gray-500 leading-relaxed">
-          پرداخت در سایت انجام نمی‌شود. فقط گزینه را انتخاب کنید؛ فروشگاه بعد از ثبت سفارش، همین روش را در سیستم فروشگاه ثبت می‌کند.
-        </p>
-        <label
-          v-for="opt in paymentOptions"
-          :key="opt.value"
-          class="flex items-start gap-3 cursor-pointer rounded-xl border p-3 transition-colors"
-          :class="form.paymentMethod === opt.value ? 'border-primary-400 bg-primary-50/30' : 'border-gray-100'"
-          @click="selectPaymentMethod(opt.value)"
-        >
-          <input v-model="form.paymentMethod" type="radio" :value="opt.value" class="mt-1" @click.stop />
-          <span class="flex-1 min-w-0">
-            <span class="flex items-center gap-2">
-              <span class="text-sm font-medium">{{ opt.label }}</span>
-              <button
-                v-if="installmentMethods.includes(opt.value)"
-                type="button"
-                class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary-100 text-primary-700 hover:bg-primary-200"
-                aria-label="راهنمای اطلاعات پرداخت"
-                @click="openPaymentInfo(opt.value, $event)"
-              >
-                <AppIcon name="lucide:info" size="sm" />
-              </button>
-            </span>
-            <span v-if="opt.hint" class="text-xs text-gray-400 block mt-0.5">{{ opt.hint }}</span>
-            <span v-else-if="opt.info && form.paymentMethod === opt.value" class="text-xs text-gray-500 block mt-1 leading-relaxed">
-              {{ opt.info }}
+            <span class="block text-sm text-neutral-900">{{ option.label }}</span>
+            <span class="mt-0.5 block text-xs text-neutral-500">
+              {{ option.hint }}<template v-if="option.fee"> — {{ formatPrice(option.fee) }}</template>
             </span>
           </span>
+          <input v-model="form.deliveryMethod" type="radio" :value="option.value" />
         </label>
-
-        <AppAlertBanner
-          v-if="isInstallment"
-          message="سفارش با این نوع پرداخت در وضعیت «در حال بررسی» ثبت می‌شود."
-          variant="info"
-        />
-
-        <button
-          v-if="isInstallment"
-          type="button"
-          class="w-full flex items-center justify-between p-3 rounded-xl border border-primary-200 bg-primary-50/40 text-sm"
-          @click="showPaymentDetails = !showPaymentDetails"
-        >
-          <span class="font-medium text-primary-700 inline-flex items-center gap-2">
-            <AppIcon name="lucide:file-text" size="sm" />
-            وارد کردن اطلاعات پرداخت
-          </span>
-          <AppIcon :name="showPaymentDetails ? 'lucide:chevron-up' : 'lucide:chevron-down'" size="sm" />
-        </button>
-
-        <div v-if="isInstallment && showPaymentDetails" class="space-y-3 pt-1">
-          <div v-if="form.paymentMethod === 'RETIREMENT_FUND' || form.paymentMethod === 'SOCIAL_SECURITY'">
-            <label class="block text-sm font-medium mb-1">کد ملی *</label>
-            <input v-model="form.nationalId" type="text" maxlength="10" class="input-field min-h-[44px]" dir="ltr" />
-          </div>
-          <div v-if="form.paymentMethod === 'RETIREMENT_FUND'">
-            <label class="block text-sm font-medium mb-1">شماره کارت حقوقی *</label>
-            <input v-model="form.salaryCard" type="text" class="input-field min-h-[44px]" dir="ltr" />
-          </div>
-          <div v-if="form.paymentMethod === 'TARA'">
-            <label class="block text-sm font-medium mb-1">شناسه خرید تارا *</label>
-            <input v-model="form.taraId" type="text" class="input-field min-h-[44px]" dir="ltr" />
-          </div>
-          <div v-if="form.paymentMethod === 'OTHER_WALLET'">
-            <label class="block text-sm font-medium mb-1">نوع کیف پول / توضیحات *</label>
-            <input v-model="form.walletNote" type="text" class="input-field min-h-[44px]" />
-          </div>
-        </div>
       </div>
 
       <div>
-        <label class="block text-sm font-medium mb-1">توضیحات (اختیاری)</label>
+        <label class="field-label">توضیحات</label>
         <textarea v-model="form.notes" rows="2" class="input-field resize-none" />
       </div>
 

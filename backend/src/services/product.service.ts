@@ -42,6 +42,13 @@ const productInclude = {
   images: { orderBy: { sortOrder: 'asc' as const } },
 };
 
+/** لیست‌ها / فید — بدون بار اضافه برای پنل و جزئیات کامل. */
+const productListInclude = {
+  category: { select: { id: true, name: true, slug: true } },
+  tag: { select: { id: true, name: true, slug: true, icon: true } },
+  images: { orderBy: { sortOrder: 'asc' as const }, take: 2 },
+};
+
 function uniqueIds(ids?: Array<string | null | undefined>) {
   return [...new Set((ids ?? []).map((id) => id?.trim()).filter(Boolean))] as string[];
 }
@@ -175,7 +182,7 @@ export class ProductService {
     if (needsCustomSort) {
       const allProducts = await prisma.product.findMany({
         where,
-        include: productInclude,
+        include: productListInclude,
       });
       const ordered = await this.applyCustomSort(allProducts, sortMode);
       const total = ordered.length;
@@ -197,7 +204,7 @@ export class ProductService {
     const [products, total] = await Promise.all([
       prisma.product.findMany({
         where,
-        include: productInclude,
+        include: productListInclude,
         orderBy,
         skip: (page - 1) * limit,
         take: limit,
@@ -412,13 +419,13 @@ export class ProductService {
     const [discounted, featured] = await Promise.all([
       prisma.product.findMany({
         where: { isHomeDeal: true },
-        include: productInclude,
+        include: productListInclude,
         orderBy: [{ homeDealSort: 'asc' }, { createdAt: 'desc' }],
         take: 10,
       }),
       prisma.product.findMany({
         where: { isHomeFeatured: true },
-        include: productInclude,
+        include: productListInclude,
         orderBy: [{ homeFeaturedSort: 'asc' }, { createdAt: 'desc' }],
         take: 10,
       }),
@@ -584,31 +591,31 @@ export class ProductService {
     const [featured, discounted, newProducts, homeDeals, homeFeatured] = await Promise.all([
       prisma.product.findMany({
         where: { isActive: true, isFeatured: true },
-        include: productInclude,
+        include: productListInclude,
         take: 8,
         orderBy: { createdAt: 'desc' },
       }),
       prisma.product.findMany({
         where: { isActive: true, discountPrice: { not: null } },
-        include: productInclude,
+        include: productListInclude,
         take: 8,
         orderBy: { updatedAt: 'desc' },
       }),
       prisma.product.findMany({
         where: { isActive: true, isNew: true },
-        include: productInclude,
+        include: productListInclude,
         take: 8,
         orderBy: { createdAt: 'desc' },
       }),
       prisma.product.findMany({
         where: { isActive: true, isHomeDeal: true },
-        include: productInclude,
+        include: productListInclude,
         take: 10,
         orderBy: [{ homeDealSort: 'asc' }, { createdAt: 'desc' }],
       }),
       prisma.product.findMany({
         where: { isActive: true, isHomeFeatured: true },
-        include: productInclude,
+        include: productListInclude,
         take: 10,
         orderBy: [{ homeFeaturedSort: 'asc' }, { createdAt: 'desc' }],
       }),
@@ -673,7 +680,7 @@ export class ProductService {
 
     const products = await prisma.product.findMany({
       where: { id: { in: productIds }, isActive: true },
-      include: productInclude,
+      include: productListInclude,
     });
 
     const productById = new Map(products.map((product) => [product.id, product]));
@@ -720,6 +727,10 @@ export class ProductService {
   }
 
   async getCategoryGroupedByTags(categorySlug: string) {
+    const cacheKey = `category-tag-groups:${categorySlug}`;
+    const cached = await cacheGet<{ category: unknown; groups: unknown[] }>(cacheKey);
+    if (cached) return cached;
+
     const category = await prisma.category.findUnique({
       where: { slug: categorySlug, isActive: true },
     });
@@ -736,7 +747,7 @@ export class ProductService {
         const [products, total] = await Promise.all([
           prisma.product.findMany({
             where,
-            include: productInclude,
+            include: productListInclude,
             orderBy: { createdAt: 'desc' },
             take: 8,
           }),
@@ -761,7 +772,7 @@ export class ProductService {
     const [untagged, untaggedTotal] = await Promise.all([
       prisma.product.findMany({
         where: untaggedWhere,
-        include: productInclude,
+        include: productListInclude,
         orderBy: { createdAt: 'desc' },
         take: 8,
       }),
@@ -785,7 +796,9 @@ export class ProductService {
       });
     }
 
-    return { category, groups: groups.filter((g) => g.products.length > 0) };
+    const result = { category, groups: groups.filter((g) => g.products.length > 0) };
+    await cacheSet(cacheKey, result, 300);
+    return result;
   }
 
   async getRelatedByTag(productSlug: string, limit = 8) {
@@ -811,7 +824,7 @@ export class ProductService {
 
     const related = await prisma.product.findMany({
       where,
-      include: productInclude,
+      include: productListInclude,
       take: limit,
       orderBy: { createdAt: 'desc' },
     });

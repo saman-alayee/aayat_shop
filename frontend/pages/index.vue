@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Category, Product, Slider, HomeCategorySection } from '~/types';
+import type { Product, HomeCategorySection, Slider } from '~/types';
 import { SITE_DESCRIPTION, SITE_NAME } from '~/constants/site';
 
 definePageMeta({ layout: 'home' });
@@ -7,75 +7,61 @@ definePageMeta({ layout: 'home' });
 const api = useApi();
 const catalogDemo = useCatalogDemo();
 
-const { data: categories } = await useAsyncData('categories', async () => {
-  try {
-    const { data } = await api.get<Category[]>('/categories');
-    return catalogDemo.categoriesForStore(data);
-  } catch {
-    catalogDemo.markDemo(true);
-    return catalogDemo.categoriesForStore([]);
-  }
-});
-
-const { data: topSliders, refresh: refreshTopSliders } = await useAsyncData('sliders-top', async () => {
-  try {
-    const { data } = await api.get<Slider[]>('/sliders?placement=HOME_TOP');
-    return data.filter((item) => item.isActive);
-  } catch {
-    return [] as Slider[];
-  }
-});
-
 const newestProducts = ref<Product[]>([]);
 const specialProducts = ref<Product[]>([]);
 const categorySections = ref<HomeCategorySection[]>([]);
 const sectionsLoading = ref(true);
 
-const homeCategories = computed(() => categories.value ?? []);
+const WP_HERO: Slider[] = [
+  {
+    id: 'wp-hero-1',
+    title: null,
+    image: '/wp-home/hero-1.webp',
+    linkUrl: '/categories/paperbacks-and-shirts',
+    sortOrder: 1,
+    placement: 'HOME_TOP',
+    isActive: true,
+  },
+  {
+    id: 'wp-hero-2',
+    title: null,
+    image: '/wp-home/hero-2.webp',
+    linkUrl: '/categories/woman-clothe',
+    sortOrder: 2,
+    placement: 'HOME_TOP',
+    isActive: true,
+  },
+];
 
-const displayTopSliders = computed(() =>
-  catalogDemo.slidersForStore(topSliders.value?.length ? topSliders.value : [])
-);
-
-/** ترتیب کالکشن مثل مرجع: مردانه، زنانه، پسرانه، دخترانه */
-const collectionTiles = computed(() => {
-  const list = homeCategories.value;
-  const order = ['mardane', 'zanane', 'pesarane', 'dokhtarane'];
-  const sorted = [...list].sort((a, b) => {
-    const ia = order.indexOf(a.slug);
-    const ib = order.indexOf(b.slug);
-    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
-  });
-  return sorted.length ? sorted : list;
-});
+const displayTopSliders = computed(() => WP_HERO);
 
 async function loadHomeSections() {
   sectionsLoading.value = true;
   try {
-    const [newestRes, dealRes, feedRes] = await Promise.all([
-      api.get<{ products: Product[] }>('/products?sort=newest&limit=12').catch(() => ({ data: { products: [] } })),
-      api.get<{ products: Product[] }>('/products?homeDeal=true&limit=12').catch(() => ({ data: { products: [] } })),
-      api.get<HomeCategorySection[]>('/products/home-feed').catch(() => ({ data: [] as HomeCategorySection[] })),
+    const [newestRes, specialRes, feedRes] = await Promise.all([
+      api.get<{ products: Product[] }>('/products?sort=newest&limit=12'),
+      api.get<{ products: Product[] }>('/products?discounted=1&limit=12'),
+      api.get<HomeCategorySection[]>('/products/home-feed'),
     ]);
-    newestProducts.value = newestRes.data.products;
-    specialProducts.value = dealRes.data.products;
-    if (!specialProducts.value.length) {
-      const disc = await api
-        .get<{ products: Product[] }>('/products?discounted=true&limit=12')
-        .catch(() => ({ data: { products: [] } }));
-      specialProducts.value = disc.data.products;
-    }
-    categorySections.value = feedRes.data;
 
-    const needsDemo =
-      catalogDemo.forceDemo.value ||
-      (!newestProducts.value.length && !specialProducts.value.length && !categorySections.value.length);
-    if (needsDemo) {
-      catalogDemo.markDemo(true);
+    const newest = newestRes.data?.products ?? [];
+    const special = specialRes.data?.products ?? [];
+    const feed = feedRes.data ?? [];
+
+    if (catalogDemo.useDemoForApi(newest.length > 0)) {
       newestProducts.value = catalogDemo.demoFeatured().slice(0, 12);
       specialProducts.value = catalogDemo.demoDiscounted().slice(0, 12);
       categorySections.value = catalogDemo.demoHomeFeed();
+    } else {
+      newestProducts.value = newest;
+      specialProducts.value = special.length ? special : newest.filter((p) => (p.discountPrice ?? 0) > 0);
+      categorySections.value = feed;
     }
+  } catch {
+    catalogDemo.markDemo(true);
+    newestProducts.value = catalogDemo.demoFeatured().slice(0, 12);
+    specialProducts.value = catalogDemo.demoDiscounted().slice(0, 12);
+    categorySections.value = catalogDemo.demoHomeFeed();
   } finally {
     sectionsLoading.value = false;
   }
@@ -83,7 +69,6 @@ async function loadHomeSections() {
 
 onMounted(() => {
   loadHomeSections();
-  if (!topSliders.value?.length) refreshTopSliders();
 });
 
 usePageSeo({
@@ -101,9 +86,9 @@ usePageSeo({
 
 <template>
   <div class="pb-10 bg-white">
-    <HomeHeroSlider v-if="displayTopSliders.length" :sliders="displayTopSliders" />
+    <HomeHeroSlider v-if="displayTopSliders.length" :sliders="displayTopSliders" :autoplay-ms="5000" layout="banner" />
 
-    <CollectionTileGrid :categories="collectionTiles" />
+    <HomeWpCategoryBanners />
 
     <section v-if="newestProducts.length" class="pt-8 md:pt-12 pb-6 md:pb-10">
       <HomeSection title="جدیدترین محصولات" to="/search?sort=newest" />

@@ -1,61 +1,98 @@
 <script setup lang="ts">
 import type { AddressFieldErrors } from '~/composables/useAddressFields';
+import { IRAN_PROVINCES } from '~/constants/iranLocations';
 
-defineProps<{
+const props = defineProps<{
   errors?: AddressFieldErrors;
   streetLabel?: string;
-  showHints?: boolean;
+  cityOptions?: string[];
 }>();
 
 const street = defineModel<string>('street', { default: '' });
 const plaque = defineModel<string>('plaque', { default: '' });
 const unit = defineModel<string>('unit', { default: '' });
+const province = defineModel<string>('province', { default: 'تهران' });
+const city = defineModel<string>('city', { default: 'تهران' });
+const postalCode = defineModel<string>('postalCode', { default: '' });
+
+const provinceOptions = IRAN_PROVINCES.map((item) => ({ value: item.name, label: item.name }));
+const citySelectOptions = computed(() =>
+  (props.cityOptions ?? []).map((name) => ({ value: name, label: name }))
+);
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="space-y-5">
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="field-label">استان</label>
+        <AppSelect v-model="province" :options="provinceOptions" :invalid="Boolean(errors?.province)" />
+        <AppFormError :message="errors?.province" />
+      </div>
+      <div>
+        <label class="field-label">شهر</label>
+        <AppSelect v-model="city" :options="citySelectOptions" :invalid="Boolean(errors?.city)" />
+        <AppFormError :message="errors?.city" />
+      </div>
+    </div>
+
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">{{ streetLabel || 'خیابان و محله *' }}</label>
+      <label class="field-label">{{ streetLabel || 'خیابان و محله' }}</label>
       <textarea
         v-model="street"
         required
-        rows="3"
+        rows="2"
         class="input-field resize-none"
-        :class="{ 'border-red-400 ring-1 ring-red-200': errors?.street }"
-        placeholder="شهر، محله، خیابان..."
+        :class="{ 'input-invalid': errors?.street }"
+        placeholder="محله، خیابان"
       />
       <AppFormError :message="errors?.street" />
-      <p v-if="showHints !== false" class="text-xs text-gray-400 mt-1">نام شهر، محله و خیابان را بنویسید</p>
     </div>
 
-    <div class="grid grid-cols-2 gap-3">
+    <div class="grid grid-cols-2 gap-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">پلاک *</label>
+        <label class="field-label">پلاک</label>
         <input
           v-model="plaque"
           type="text"
           required
           inputmode="numeric"
-          class="input-field min-h-[48px]"
-          :class="{ 'border-red-400 ring-1 ring-red-200': errors?.plaque }"
-          placeholder="مثلاً ۱۲"
+          class="input-field"
+          :class="{ 'input-invalid': errors?.plaque }"
+          placeholder="۱۲"
           dir="ltr"
         />
         <AppFormError :message="errors?.plaque" />
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">واحد *</label>
+        <label class="field-label">واحد</label>
         <input
           v-model="unit"
           type="text"
           required
-          class="input-field min-h-[48px]"
-          :class="{ 'border-red-400 ring-1 ring-red-200': errors?.unit }"
-          placeholder="مثلاً ۳"
+          class="input-field"
+          :class="{ 'input-invalid': errors?.unit }"
+          placeholder="۳"
           dir="ltr"
         />
         <AppFormError :message="errors?.unit" />
       </div>
+    </div>
+
+    <div>
+      <label class="field-label">کدپستی</label>
+      <input
+        v-model="postalCode"
+        type="text"
+        required
+        inputmode="numeric"
+        maxlength="10"
+        class="input-field"
+        :class="{ 'input-invalid': errors?.postalCode }"
+        placeholder="۱۰ رقم"
+        dir="ltr"
+      />
+      <AppFormError :message="errors?.postalCode" />
     </div>
   </div>
 </template>

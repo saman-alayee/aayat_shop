@@ -22,7 +22,7 @@ const loginPasswordSchema = z.object({
 });
 
 const setPasswordSchema = z.object({
-  password: z.string().min(6, 'رمز عبور باید حداقل ۶ کاراکتر باشد'),
+  password: z.string().min(8, 'رمز عبور باید حداقل ۸ حرفی باشد'),
   currentPassword: z.string().min(1).optional(),
   otpCode: z.string().min(4).max(6).optional(),
 });
@@ -31,6 +31,42 @@ const updateProfileSchema = z.object({
   firstName: z.string().min(2).optional(),
   lastName: z.string().min(2).optional(),
 });
+
+router.post(
+  '/start',
+  otpLimiter,
+  validate(z.object({
+    phone: z.string().min(10, 'شماره موبایل نامعتبر است'),
+    intent: z.enum(['otp', 'forgot']).optional(),
+  })),
+  asyncHandler(async (req, res) => {
+    const result = await authService.startAuth(req.body.phone, req.body.intent);
+    successResponse(res, result);
+  })
+);
+
+router.post(
+  '/forgot/verify',
+  authLimiter,
+  validate(verifyOtpSchema),
+  asyncHandler(async (req, res) => {
+    const result = await authService.verifyForgotOtp(req.body.phone, req.body.code);
+    successResponse(res, result, 'کد تایید شد');
+  })
+);
+
+router.post(
+  '/forgot/reset',
+  authLimiter,
+  validate(z.object({
+    resetToken: z.string().min(10),
+    password: z.string().min(8, 'رمز عبور باید حداقل ۸ حرفی باشد'),
+  })),
+  asyncHandler(async (req, res) => {
+    const result = await authService.resetPassword(req.body.resetToken, req.body.password);
+    successResponse(res, result, 'رمز عبور تغییر کرد');
+  })
+);
 
 router.post(
   '/send-otp',

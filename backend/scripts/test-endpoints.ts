@@ -69,7 +69,7 @@ async function main() {
   // --- Public GET ---
   await req('GET', '/health', { expect: [200] });
   await req('GET', '/categories');
-  await req('GET', '/categories/labaniat', { expect: [200, 404] });
+  await req('GET', '/categories/woman-clothe', { expect: [200, 404] });
   await req('GET', '/products?limit=5');
   await req('GET', '/products/home');
   await req('GET', '/products/home-feed');
@@ -95,12 +95,6 @@ async function main() {
   if (tagSlug) {
     await req('GET', `/tags/${tagSlug}/products?limit=5`, { expect: [200, 404] });
   }
-
-  // Geocode (may fail without API key — accept 200 or 502/503)
-  await req('GET', '/geocode/reverse?lat=36.9&lng=50.6', { expect: [200, 400, 502, 503] });
-  await req('GET', '/geocode/direction?origin=36.9,50.6&destination=36.91,50.61', {
-    expect: [200, 400, 502, 503],
-  });
 
   // --- Auth ---
   await req('POST', '/auth/send-otp', { body: { phone: '09129999999' }, expect: [200] });

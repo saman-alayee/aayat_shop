@@ -573,7 +573,7 @@ useHead({ title: 'محصولات - پنل مدیریت' });
 
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">نام محصول</label>
-            <input v-model="form.name" required placeholder="مثلاً شیر کم‌چرب ۱ لیتر" class="input-field" />
+            <input v-model="form.name" required placeholder="مثلاً بلوز بافت زنانه" class="input-field" />
           </div>
 
           <div>

@@ -35,6 +35,27 @@ export function useProductCardImages(productSource: Ref<Product> | Product) {
   }
 
   function onPrimaryError() {
+    if (primarySrc.value.includes('/uploads/wc/')) {
+      if (primarySrc.value.startsWith('http://') || primarySrc.value.startsWith('https://')) {
+        const relative = primarySrc.value.replace(/^https?:\/\/[^/]+/, '');
+        if (relative.startsWith('/uploads/')) {
+          primarySrc.value = relative;
+          return;
+        }
+      }
+      if (primarySrc.value.startsWith('/uploads/')) return;
+    }
+    if (primarySrc.value.startsWith('http') || primarySrc.value.startsWith('/demo-proxy')) {
+      const local = localPrimaryUrl(product.value);
+      if (primarySrc.value !== local) {
+        primarySrc.value = local;
+        return;
+      }
+      if (primarySrc.value !== PRODUCT_IMAGE_PLACEHOLDER) {
+        primarySrc.value = PRODUCT_IMAGE_PLACEHOLDER;
+      }
+      return;
+    }
     const local = localPrimaryUrl(product.value);
     if (primarySrc.value !== local) {
       primarySrc.value = local;
@@ -46,6 +67,12 @@ export function useProductCardImages(productSource: Ref<Product> | Product) {
   }
 
   function onHoverError() {
+    const current = hoverSrc.value ?? '';
+    if (current.includes('/uploads/wc/') || current.includes('aaytay.ir')) {
+      hoverSrc.value = null;
+      hoverReady.value = false;
+      return;
+    }
     const local = localHoverUrl(product.value);
     if (hoverSrc.value !== local && local !== primarySrc.value) {
       hoverSrc.value = local;

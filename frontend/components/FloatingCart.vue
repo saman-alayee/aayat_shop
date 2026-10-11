@@ -29,7 +29,7 @@ const show = computed(() => {
         class="flex items-center gap-2 rounded-xl bg-gray-900 px-3 py-2 text-white shadow-float md:gap-2.5 md:px-3.5 md:py-2.5"
       >
         <div class="relative shrink-0">
-          <AppIcon name="lucide:shopping-cart" size="md" />
+          <AppIcon name="lucide:shopping-bag" size="md" />
           <span class="absolute -top-1.5 -start-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary-600 px-0.5 text-[9px] font-bold text-white">
             {{ toPersianDigits(cartStore.totalItems) }}
           </span>

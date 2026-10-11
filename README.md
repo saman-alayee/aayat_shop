@@ -1,4 +1,4 @@
-# Aayat Shop (آتلیه مد)
+# Aayat Shop (عایت)
 
 فروشگاه اینترنتی پوشاک — فرانت **Nuxt 3** و API **Express + Prisma (MySQL)**.
 

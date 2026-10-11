@@ -133,10 +133,10 @@ watch(open, (isOpen) => {
       type="button"
       :disabled="disabled"
       :class="[
-        'input-field flex items-center justify-between gap-2 text-start transition-all min-h-[42px]',
-        open ? 'ring-2 ring-primary-500 border-transparent shadow-sm' : '',
-        disabled ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'cursor-pointer hover:border-gray-300',
-        !selectedOptions.length ? 'text-gray-400' : 'text-gray-800',
+        'input-field flex min-h-[42px] items-center justify-between gap-3 text-start',
+        open ? 'border-neutral-950' : 'hover:border-neutral-500',
+        disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer',
+        !selectedOptions.length ? 'text-neutral-400' : 'text-neutral-900',
       ]"
       @click.stop="toggle"
     >
@@ -144,7 +144,7 @@ watch(open, (isOpen) => {
       <AppIcon
         name="lucide:chevron-down"
         size="sm"
-        :class="['text-gray-400 shrink-0 transition-transform duration-200', open ? 'rotate-180' : '']"
+        :class="['shrink-0 text-neutral-400 transition-transform duration-200', open ? 'rotate-180 text-neutral-950' : '']"
       />
     </button>
 
@@ -153,7 +153,7 @@ watch(open, (isOpen) => {
         v-for="option in selectedOptions"
         :key="String(option.value)"
         type="button"
-        class="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-700"
+        class="inline-flex items-center gap-1 border border-neutral-300 px-2 py-1 text-[11px] tracking-wide text-neutral-800"
         @click="removeValue(String(option.value))"
       >
         {{ option.label }}
@@ -173,28 +173,21 @@ watch(open, (isOpen) => {
         <div
           v-if="open"
           :id="menuId"
-          class="fixed z-[9999] rounded-xl border border-gray-100 bg-white shadow-xl overflow-hidden"
+          class="fixed z-[9999] overflow-hidden border border-neutral-200 bg-white"
           :style="menuStyle"
         >
-          <div v-if="searchable" class="p-2 border-b border-gray-100">
-            <div class="relative">
-              <AppIcon
-                name="lucide:search"
-                size="sm"
-                class="absolute start-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-              <input
-                v-model="search"
-                type="search"
-                class="w-full rounded-lg border border-gray-200 py-2 ps-9 pe-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="جستجو..."
-                @click.stop
-              />
-            </div>
+          <div v-if="searchable" class="border-b border-neutral-200 px-3 py-2">
+            <input
+              v-model="search"
+              type="search"
+              class="input-field py-1.5 text-sm"
+              placeholder="جستجو"
+              @click.stop
+            />
           </div>
 
           <ul class="max-h-60 overflow-y-auto py-1">
-            <li v-if="!filteredOptions.length" class="px-4 py-3 text-sm text-gray-400 text-center">
+            <li v-if="!filteredOptions.length" class="px-3 py-3 text-center text-xs tracking-wide text-neutral-400">
               {{ emptyText }}
             </li>
             <li v-for="option in filteredOptions" :key="String(option.value)">
@@ -202,28 +195,26 @@ watch(open, (isOpen) => {
                 type="button"
                 :disabled="option.disabled"
                 :class="[
-                  'w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm text-start transition-colors',
+                  'flex w-full items-center justify-between gap-2 px-3 py-2.5 text-start text-sm transition-colors',
                   isSelected(option.value)
-                    ? 'bg-primary-50 text-primary-700 font-medium'
-                    : 'text-gray-700 hover:bg-gray-50',
-                  option.disabled ? 'opacity-40 cursor-not-allowed' : '',
+                    ? 'font-medium text-neutral-950'
+                    : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-950',
+                  option.disabled ? 'cursor-not-allowed opacity-40' : '',
                 ]"
                 @click="toggleOption(option)"
               >
-                <span class="flex items-center gap-2 min-w-0 truncate">
+                <span class="flex min-w-0 items-center gap-2 truncate">
                   <AppIcon
                     v-if="option.icon"
                     :name="option.icon"
                     size="sm"
-                    :class="isSelected(option.value) ? 'text-primary-600' : 'text-gray-400'"
+                    :class="isSelected(option.value) ? 'text-neutral-950' : 'text-neutral-400'"
                   />
                   {{ option.label }}
                 </span>
-                <AppIcon
+                <span
                   v-if="isSelected(option.value)"
-                  name="lucide:check"
-                  size="sm"
-                  class="text-primary-600 shrink-0"
+                  class="h-1.5 w-1.5 shrink-0 rounded-full bg-neutral-950"
                 />
               </button>
             </li>

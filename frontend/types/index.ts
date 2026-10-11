@@ -10,6 +10,7 @@ export interface Category {
   slug: string;
   image: string | null;
   sortOrder: number;
+  parentId?: string | null;
   feedSortMode?: 'MANUAL' | 'DISCOUNT' | 'NEWEST';
   isActive: boolean;
   _count?: { products: number };
@@ -286,7 +287,7 @@ export interface Order {
   status: OrderStatus;
   paymentMethod?: PaymentMethod;
   paymentDetails?: {
-    deliveryMethod?: 'FREE' | 'JET' | string;
+    deliveryMethod?: 'PICKUP' | 'NATIONWIDE' | 'FREE' | 'JET' | string;
     deliveryFee?: number | string;
     nationalId?: string;
     salaryCard?: string;
@@ -340,8 +341,9 @@ export interface Address {
   address: string;
   plaque: string | null;
   unit: string | null;
-  latitude: number | null;
-  longitude: number | null;
+  province: string | null;
+  city: string | null;
+  postalCode: string | null;
   isDefault: boolean;
 }
 

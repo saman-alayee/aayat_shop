@@ -1,10 +1,11 @@
 {
-  "name": "hypermarket-frontend",
+  "name": "aayat-shop-frontend",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev --port 3000 --host 127.0.0.1",
+    "dev:clean": "nuxt cleanup && nuxt dev --port 3000 --host 127.0.0.1",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare"

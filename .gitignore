@@ -11,6 +11,8 @@ dist/
 # Local databases
 *.db
 *.db-journal
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
 
 # Archives (too large for git)
 *.zip
@@ -43,6 +45,14 @@ deploy/**/.env
 # Deploy temp artifacts
 deploy/api-temp/dist/
 deploy/api-temp/node_modules/
+
+# Imported / uploaded media (local only)
+backend/uploads/wc/
+backend/uploads/*.jpg
+backend/uploads/*.jpeg
+backend/uploads/*.png
+backend/uploads/*.webp
+backend/uploads/*.gif
 
 # SSL private keys (never commit)
 deploy/ssl/

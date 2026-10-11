@@ -1,10 +1,29 @@
 import type { Category, HomeCategorySection, Product, Slider } from '~/types';
 import { demoMediaUrl } from '~/utils/productMedia';
 
-/** تصاویر پایدار برای دمو — در production از آپلود پنل استفاده کنید. */
+/** تصاویر فیک محلی `/demo-img` — همیشه از Nuxt لود می‌شوند (صفحه اصلی و دمو). */
 const D = (key: string, w: number, h: number) => demoMediaUrl(key, w, h);
-const productPrimary = (slug: string) => D(`product-${slug}-primary`, 534, 800);
-const productHover = (slug: string) => D(`product-${slug}-hover`, 534, 800);
+
+function productPhotos(baseKey: string) {
+  const primary = D(`${baseKey}-primary`, 534, 800);
+  const hover = D(`${baseKey}-hover`, 534, 800);
+  return { image: primary, images: [primary, hover] };
+}
+
+const P = {
+  kotAva: productPhotos('demo-kot-zanane-ava'),
+  hoodi: productPhotos('demo-hoodi-zanane'),
+  topBandi: productPhotos('demo-top-bandi-zanane'),
+  jeans: productPhotos('demo-jeans-mardane'),
+  shirtOxford: productPhotos('demo-shirt-mardane-oxford'),
+  kapson: productPhotos('demo-kapson-mardane'),
+  dress: productPhotos('demo-dress-dokhtarane'),
+  setSport: productPhotos('demo-set-dokhtarane'),
+  jogger: productPhotos('demo-jogger-pesarane'),
+  tshirt: productPhotos('demo-tshirt-pesarane'),
+  sneakers: productPhotos('demo-sneakers-zanane'),
+  headband: productPhotos('demo-headband-zanane'),
+} as const;
 
 export const DEMO_SLIDERS: Slider[] = [
   {
@@ -38,18 +57,18 @@ export const DEMO_SLIDERS: Slider[] = [
 
 export const DEMO_CATEGORIES: Category[] = [
   {
-    id: 'demo-cat-men',
-    name: 'لباس مردانه',
-    slug: 'mardane',
-    image: D('category-mardane', 800, 800),
-    sortOrder: 1,
-    isActive: true,
-  },
-  {
     id: 'demo-cat-women',
     name: 'لباس زنانه',
     slug: 'zanane',
     image: D('category-zanane', 800, 800),
+    sortOrder: 1,
+    isActive: true,
+  },
+  {
+    id: 'demo-cat-girls',
+    name: 'لباس دخترانه',
+    slug: 'dokhtarane',
+    image: D('category-dokhtarane', 800, 800),
     sortOrder: 2,
     isActive: true,
   },
@@ -62,10 +81,10 @@ export const DEMO_CATEGORIES: Category[] = [
     isActive: true,
   },
   {
-    id: 'demo-cat-girls',
-    name: 'لباس دخترانه',
-    slug: 'dokhtarane',
-    image: D('category-dokhtarane', 800, 800),
+    id: 'demo-cat-men',
+    name: 'لباس مردانه',
+    slug: 'mardane',
+    image: D('category-mardane', 800, 800),
     sortOrder: 4,
     isActive: true,
   },
@@ -86,8 +105,7 @@ export const DEMO_PRODUCTS: Product[] = [
     effectivePrice: 2_450_000,
     discountPercent: 15,
     stock: 12,
-    image: productPrimary('demo-kot-zanane-ava'),
-    images: [productPrimary('demo-kot-zanane-ava'), productHover('demo-kot-zanane-ava')],
+    ...P.kotAva,
     unit: 'پنبه ۸۰٪',
     isActive: true,
     isFeatured: true,
@@ -122,9 +140,8 @@ export const DEMO_PRODUCTS: Product[] = [
     effectivePrice: 1_650_000,
     discountPercent: 0,
     stock: 20,
-    image: productPrimary('demo-hoodi-zanane'),
-    images: [productPrimary('demo-hoodi-zanane'), productHover('demo-hoodi-zanane')],
-    unit: 'پنبه فleece',
+    ...P.hoodi,
+    unit: 'پنبه fleece',
     isActive: true,
     isFeatured: false,
     isNew: true,
@@ -145,8 +162,7 @@ export const DEMO_PRODUCTS: Product[] = [
     effectivePrice: 690_000,
     discountPercent: 22,
     stock: 30,
-    image: productPrimary('demo-top-bandi-zanane'),
-    images: [productPrimary('demo-top-bandi-zanane'), productHover('demo-top-bandi-zanane')],
+    ...P.topBandi,
     unit: 'نخ و الیاف طبیعی',
     isActive: true,
     isFeatured: true,
@@ -167,8 +183,7 @@ export const DEMO_PRODUCTS: Product[] = [
     effectivePrice: 1_750_000,
     discountPercent: 12,
     stock: 18,
-    image: productPrimary('demo-jeans-mardane'),
-    images: [productPrimary('demo-jeans-mardane'), productHover('demo-jeans-mardane')],
+    ...P.jeans,
     unit: 'دنیم',
     isActive: true,
     isFeatured: true,
@@ -194,8 +209,7 @@ export const DEMO_PRODUCTS: Product[] = [
     effectivePrice: 1_420_000,
     discountPercent: 0,
     stock: 25,
-    image: productPrimary('demo-shirt-mardane-oxford'),
-    images: [productPrimary('demo-shirt-mardane-oxford'), productHover('demo-shirt-mardane-oxford')],
+    ...P.shirtOxford,
     unit: 'پنبه Oxford',
     isActive: true,
     isFeatured: false,
@@ -215,8 +229,7 @@ export const DEMO_PRODUCTS: Product[] = [
     effectivePrice: 2_990_000,
     discountPercent: 17,
     stock: 8,
-    image: productPrimary('demo-kapson-mardane'),
-    images: [productPrimary('demo-kapson-mardane'), productHover('demo-kapson-mardane')],
+    ...P.kapson,
     unit: 'خز مصنوعی',
     isActive: true,
     isFeatured: true,
@@ -237,8 +250,7 @@ export const DEMO_PRODUCTS: Product[] = [
     effectivePrice: 990_000,
     discountPercent: 21,
     stock: 14,
-    image: productPrimary('demo-dress-dokhtarane'),
-    images: [productPrimary('demo-dress-dokhtarane'), productHover('demo-dress-dokhtarane')],
+    ...P.dress,
     unit: 'پنبه',
     isActive: true,
     isFeatured: false,
@@ -260,8 +272,7 @@ export const DEMO_PRODUCTS: Product[] = [
     effectivePrice: 780_000,
     discountPercent: 0,
     stock: 22,
-    image: productPrimary('demo-set-dokhtarane'),
-    images: [productPrimary('demo-set-dokhtarane'), productHover('demo-set-dokhtarane')],
+    ...P.setSport,
     unit: 'پلی‌استر',
     isActive: true,
     isFeatured: false,
@@ -281,8 +292,7 @@ export const DEMO_PRODUCTS: Product[] = [
     effectivePrice: 790_000,
     discountPercent: 14,
     stock: 16,
-    image: productPrimary('demo-jogger-pesarane'),
-    images: [productPrimary('demo-jogger-pesarane'), productHover('demo-jogger-pesarane')],
+    ...P.jogger,
     unit: 'پنبه',
     isActive: true,
     isFeatured: true,
@@ -303,8 +313,7 @@ export const DEMO_PRODUCTS: Product[] = [
     effectivePrice: 450_000,
     discountPercent: 0,
     stock: 40,
-    image: productPrimary('demo-tshirt-pesarane'),
-    images: [productPrimary('demo-tshirt-pesarane'), productHover('demo-tshirt-pesarane')],
+    ...P.tshirt,
     unit: 'پنبه ۱۰۰٪',
     isActive: true,
     isFeatured: false,
@@ -324,8 +333,7 @@ export const DEMO_PRODUCTS: Product[] = [
     effectivePrice: 1_890_000,
     discountPercent: 14,
     stock: 10,
-    image: productPrimary('demo-sneakers-zanane'),
-    images: [productPrimary('demo-sneakers-zanane'), productHover('demo-sneakers-zanane')],
+    ...P.sneakers,
     unit: 'چرم مصنوعی',
     isActive: true,
     isFeatured: true,
@@ -346,8 +354,7 @@ export const DEMO_PRODUCTS: Product[] = [
     effectivePrice: 250_000,
     discountPercent: 22,
     stock: 50,
-    image: productPrimary('demo-headband-zanane'),
-    images: [productPrimary('demo-headband-zanane'), productHover('demo-headband-zanane')],
+    ...P.headband,
     unit: 'ساتن',
     isActive: true,
     isFeatured: false,

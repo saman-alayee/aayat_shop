@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -84,7 +84,7 @@ model User {
 model AccessRole {
   id          String   @id @default(cuid())
   name        String
-  description String?  @db.VarChar(500)
+  description String?
   /** JSON array of permission keys, e.g. ["orders","products"] */
   permissions Json
   createdAt   DateTime @default(now())
@@ -306,7 +306,7 @@ model ContentPage {
   id          String   @id @default(cuid())
   slug        String   @unique
   title       String
-  body        String   @db.Text
+  body        String
   isPublished Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -420,11 +420,14 @@ model Order {
   paymentDetails    Json?
   customerName      String
   customerPhone     String
-  deliveryAddress   String
-  addressId         String?
-  addressTitle      String?
-  deliveryLatitude  Float?
-  deliveryLongitude Float?
+  deliveryAddress    String
+  addressId          String?
+  addressTitle       String?
+  deliveryProvince   String?
+  deliveryCity       String?
+  deliveryPostalCode String?
+  deliveryLatitude   Float?
+  deliveryLongitude  Float?
   notes             String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
@@ -462,11 +465,14 @@ model Address {
   id        String   @id @default(cuid())
   userId    String
   title     String?
-  address   String
-  plaque    String?
-  unit      String?
-  latitude  Float?
-  longitude Float?
+  address    String
+  plaque     String?
+  unit       String?
+  province   String?
+  city       String?
+  postalCode String?
+  latitude   Float?
+  longitude  Float?
   isDefault Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

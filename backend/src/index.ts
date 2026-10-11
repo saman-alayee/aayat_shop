@@ -18,7 +18,6 @@ import adminRoutes from './routes/admin.routes';
 import couponRoutes from './routes/coupon.routes';
 import contentRoutes from './routes/content.routes';
 import notificationRoutes from './routes/notification.routes';
-import geocodeRoutes from './routes/geocode.routes';
 import sliderRoutes from './routes/slider.routes';
 import tagRoutes from './routes/tag.routes';
 import favoriteRoutes from './routes/favorite.routes';
@@ -63,10 +62,12 @@ app.use((req, _res, next) => {
   next();
 });
 
-app.use('/uploads', express.static(path.join(process.cwd(), config.upload.dir)));
+const uploadStatic = express.static(path.join(process.cwd(), config.upload.dir));
+app.use('/uploads', uploadStatic);
+app.use('/api/uploads', uploadStatic);
 
 app.get('/api/health', (_req, res) => {
-  res.json({ success: true, message: 'Hyper Market API is running', timestamp: new Date().toISOString() });
+  res.json({ success: true, message: 'Aayat Shop API is running', timestamp: new Date().toISOString() });
 });
 
 app.use('/api/auth', authRoutes);
@@ -75,7 +76,6 @@ app.use('/api/products', productRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/addresses', addressRoutes);
-app.use('/api/geocode', geocodeRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/notifications', notificationRoutes);
@@ -88,20 +88,25 @@ app.use(notFound);
 app.use(errorHandler);
 
 async function start() {
+  const dbUrl = config.databaseUrl ?? '';
+  if (!dbUrl.startsWith('mysql://') && !dbUrl.startsWith('file:')) {
+    console.error('❌ DATABASE_URL must be mysql://... or file:... (see backend/.env.example)');
+    process.exit(1);
+  }
   await connectRedis();
 
   const passenger = (global as { PhusionPassenger?: { configure: (opts: object) => void } }).PhusionPassenger;
   if (passenger) {
     passenger.configure({ autoInstall: false });
     app.listen('passenger' as unknown as number, () => {
-      console.log('🚀 Hyper Market API running on Passenger');
+      console.log('🚀 Aayat Shop API running on Passenger');
       console.log(`📦 Environment: ${config.nodeEnv}`);
     });
     return;
   }
 
   app.listen(config.port, '0.0.0.0', () => {
-    console.log(`🚀 Hyper Market API running on port ${config.port}`);
+    console.log(`🚀 Aayat Shop API running on port ${config.port}`);
     console.log(`📦 Environment: ${config.nodeEnv}`);
   });
 }

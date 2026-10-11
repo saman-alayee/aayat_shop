@@ -6,17 +6,27 @@ const props = defineProps<{ error: NuxtError }>();
 
 const is404 = computed(() => props.error?.statusCode === 404);
 
-const title = computed(() => (is404.value ? 'صفحه پیدا نشد' : 'خطایی رخ داد'));
+const title = computed(() =>
+  is404.value ? 'این استایل پیدا نشد' : 'یک دوخت از دست رفت'
+);
 
 const description = computed(() => {
   if (is404.value) {
-    return 'آدرس وارد شده وجود ندارد یا منتقل شده است.';
+    return 'انگار این لباس از رگال برداشته شده. بروید کالکشن‌ها را ببینید یا به فروشگاه برگردید.';
   }
-  return props.error?.statusMessage || props.error?.message || 'مشکلی پیش آمده است. لطفاً دوباره تلاش کنید.';
+  return (
+    props.error?.statusMessage ||
+    props.error?.message ||
+    'مشکلی پیش آمد. لطفاً دوباره تلاش کنید.'
+  );
 });
 
 function goHome() {
   clearError({ redirect: '/' });
+}
+
+function goCategories() {
+  clearError({ redirect: '/categories' });
 }
 
 function goBack() {
@@ -30,28 +40,31 @@ function goBack() {
 </script>
 
 <template>
-  <div class="error-page min-h-screen flex flex-col items-center justify-center px-6 text-center">
-    <img src="/logo.png" :alt="SITE_NAME" class="w-16 h-16 object-contain mb-6" />
-
-    <p class="text-6xl font-bold text-primary-600 tabular-nums tracking-tight">
-      {{ error?.statusCode || 404 }}
-    </p>
-    <h1 class="mt-3 text-xl font-semibold text-gray-900">{{ title }}</h1>
-    <p class="mt-2 text-sm text-gray-500 max-w-sm leading-relaxed">{{ description }}</p>
-
-    <div class="mt-8 flex flex-col sm:flex-row gap-3 w-full max-w-xs">
-      <button type="button" class="btn-primary w-full" @click="goHome">
-        بازگشت به فروشگاه
+  <ErrorFashionScene
+    :code="error?.statusCode || 404"
+    :title="title"
+    :description="description"
+    :eyebrow="is404 ? 'OUT OF STOCK · PAGE' : 'ALTERATION NEEDED'"
+    :show-categories="is404"
+    @home="goHome"
+    @categories="goCategories"
+    @back="goBack"
+  >
+    <template #brand>
+      <button
+        type="button"
+        class="mb-8 inline-flex items-center gap-2 opacity-90 transition-opacity hover:opacity-100"
+        @click="goHome"
+      >
+        <img
+          src="/logo.png"
+          :alt="SITE_NAME"
+          class="h-11 w-11 rounded-full object-cover ring-1 ring-primary-200/80"
+          width="44"
+          height="44"
+        />
+        <span class="text-sm font-semibold tracking-wide text-primary-900">{{ SITE_NAME }}</span>
       </button>
-      <button type="button" class="btn-secondary w-full" @click="goBack">
-        صفحه قبل
-      </button>
-    </div>
-  </div>
+    </template>
+  </ErrorFashionScene>
 </template>
-
-<style scoped>
-.error-page {
-  background: linear-gradient(180deg, #ffffff 0%, #ecfdf5 55%, #dbeafe 100%);
-}
-</style>

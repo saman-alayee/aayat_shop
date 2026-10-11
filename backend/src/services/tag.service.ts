@@ -23,6 +23,10 @@ export class TagService {
   }
 
   async getByCategorySlug(categorySlug: string) {
+    const cacheKey = `tags-by-category:${categorySlug}`;
+    const cached = await cacheGet<{ category: unknown; tags: unknown[] }>(cacheKey);
+    if (cached) return cached;
+
     const category = await prisma.category.findUnique({
       where: { slug: categorySlug, isActive: true },
     });
@@ -36,7 +40,9 @@ export class TagService {
       },
     });
 
-    return { category, tags };
+    const result = { category, tags };
+    await cacheSet(cacheKey, result, 600);
+    return result;
   }
 
   async getById(id: string) {
@@ -64,6 +70,8 @@ export class TagService {
     });
 
     await cacheDel('tags:*');
+    await cacheDel('tags-by-category:*');
+    await cacheDel('category-tag-groups:*');
     return tag;
   }
 
@@ -81,6 +89,8 @@ export class TagService {
     });
 
     await cacheDel('tags:*');
+    await cacheDel('tags-by-category:*');
+    await cacheDel('category-tag-groups:*');
     return tag;
   }
 
@@ -89,6 +99,8 @@ export class TagService {
     await prisma.product.updateMany({ where: { tagId: id }, data: { tagId: null } });
     await prisma.tag.delete({ where: { id } });
     await cacheDel('tags:*');
+    await cacheDel('tags-by-category:*');
+    await cacheDel('category-tag-groups:*');
   }
 }
 

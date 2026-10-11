@@ -1,56 +1,57 @@
 <script setup lang="ts">
-import { SITE_NAME } from '~/constants/site';
+import { CONTACT_PHONE, ENAMAD, SITE_NAME, SOCIAL_LINKS, STORE_HOURS } from '~/constants/site';
 
-const { neshanMapsLink } = useGeocoding();
-
-const STORE_LAT = 37.419493;
-const STORE_LNG = 49.946101;
-const address = 'کیاشهر، خیابان امام، ساختمان دیلی مارکت';
-const phones = [
-  { label: 'سفارش و پشتیبانی', value: '02191559543', href: 'tel:02191559543' },
-  { label: 'پشتیبانی', value: '01342820303', href: 'tel:01342820303' },
+const channels = [
+  { label: 'واتساپ', value: CONTACT_PHONE, href: SOCIAL_LINKS.whatsapp },
+  { label: 'آیدی ادمین در روبیکا', value: 'Aytay_irr', href: SOCIAL_LINKS.rubikaAdmin },
+  { label: 'کانال روبیکا', value: 'aytayir', href: SOCIAL_LINKS.rubikaChannel },
+  { label: 'گروه واتساپ', value: 'ورود به گروه', href: SOCIAL_LINKS.whatsappGroup },
 ];
 
 useHead({ title: `تماس با ما - ${SITE_NAME}` });
 </script>
 
 <template>
-  <div class="px-4 py-6 max-w-lg mx-auto pb-24">
+  <div class="mx-auto max-w-lg px-4 py-6 pb-24">
     <h1 class="section-title">تماس با ما</h1>
-    <p class="text-sm text-gray-600 mb-6 leading-relaxed">
-      برای ثبت سفارش تلفنی، پیگیری سفارش یا پشتیبانی با شماره‌های زیر تماس بگیرید.
+    <p class="mb-6 text-sm leading-relaxed text-gray-600">
+      برای ارتباط با ما و دریافت پاسخ سریع، لطفاً از طریق واتساپ و روبیکا پیام بدید. با کمال میل پاسخگوی شما هستیم.
     </p>
 
-    <div class="card p-4 space-y-4 mb-4">
-      <div>
-        <p class="text-xs text-gray-500 mb-1">آدرس فروشگاه</p>
-        <p class="text-sm font-medium text-gray-800 leading-relaxed">{{ address }}</p>
-        <a
-          :href="neshanMapsLink(STORE_LAT, STORE_LNG)"
-          target="_blank"
-          rel="noopener"
-          class="inline-flex items-center gap-1 text-xs text-primary-600 mt-2 font-medium"
-        >
-          <AppIcon name="lucide:map-pin" size="sm" />
-          مشاهده روی نقشه نشان
+    <div class="card mb-4 space-y-4 p-4">
+      <div v-for="channel in channels" :key="channel.href" class="border-b border-gray-100 pb-3 last:border-0 last:pb-0">
+        <p class="mb-1 text-xs text-gray-500">{{ channel.label }}</p>
+        <a :href="channel.href" target="_blank" rel="noopener noreferrer" class="text-base font-bold text-primary-700" dir="ltr">
+          {{ channel.value }}
         </a>
-        <AppMapPicker
-          :latitude="STORE_LAT"
-          :longitude="STORE_LNG"
-          readonly
-          height="200px"
-          :zoom="16"
-          class="mt-3"
-        />
       </div>
 
-      <div v-for="phone in phones" :key="phone.href" class="border-t border-gray-100 pt-3">
-        <p class="text-xs text-gray-500 mb-1">{{ phone.label }}</p>
-        <a :href="phone.href" class="text-lg font-bold text-primary-700" dir="ltr">{{ phone.value }}</a>
+      <div class="border-t border-gray-100 pt-3">
+        <p class="mb-1 text-xs text-gray-500">آدرس حضوری</p>
+        <p class="text-sm leading-relaxed text-gray-800">جهت ارسال آدرس حضوری در روبیکا پیام دهید.</p>
+      </div>
+
+      <div class="border-t border-gray-100 pt-3">
+        <p class="mb-1 text-xs text-gray-500">ساعات کاری فروشگاه</p>
+        <p class="text-sm font-medium leading-relaxed text-gray-800">{{ STORE_HOURS }}</p>
       </div>
     </div>
 
-    <NuxtLink to="/" class="btn-secondary w-full inline-flex justify-center min-h-[48px] items-center">
+    <p class="mb-4 text-sm leading-relaxed text-gray-600">
+      برای اینکه زودتر از رسیدن بارهای جدید و شارژهای تازه باخبر بشین، حتماً عضو گروه واتساپ و کانال روبیکا بشین.
+    </p>
+
+    <a
+      :href="ENAMAD.href"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="mb-6 inline-block"
+      aria-label="نماد اعتماد الکترونیکی"
+    >
+      <img src="/enamad.png" alt="نماد اعتماد الکترونیکی" width="125" height="136" class="h-28 w-auto" />
+    </a>
+
+    <NuxtLink to="/" class="btn-secondary inline-flex min-h-[48px] w-full items-center justify-center">
       بازگشت به فروشگاه
     </NuxtLink>
   </div>

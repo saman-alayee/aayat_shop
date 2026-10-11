@@ -219,7 +219,7 @@ useHead({ title: 'اسلایدر - پنل مدیریت' });
         </li>
         <li>
           <b>بنر میانی:</b> بعد از ردیف محصولات یک دسته نمایش داده می‌شود. هنگام ساخت، دسته را انتخاب کنید
-          (مثلاً «لبنیات» → بنر دقیقاً بعد از بخش لبنیات می‌آید).
+          (مثلاً «زنانه» → بنر دقیقاً بعد از بخش همان دسته می‌آید).
         </li>
         <li>سایز پیشنهادی بنر میانی: <b>۱۶۰۰ × ۵۶۰</b> پیکسل — افقی و بدون متن مهم در گوشه‌ها.</li>
         <li>
@@ -229,7 +229,7 @@ useHead({ title: 'اسلایدر - پنل مدیریت' });
         <li>متن مهم را وسط تصویر نگذارید؛ در موبایل ممکن است بریده شود.</li>
         <li>حداکثر <b>۴ اسلاید فعال</b> در هر جایگاه روی سایت نمایش داده می‌شود (بر اساس «ترتیب نمایش»).</li>
         <li>
-          لینک اختیاری: مثلاً <span dir="ltr">/categories/labaniat</span> — با لمس بنر همان صفحه باز می‌شود.
+          لینک اختیاری: مثلاً <span dir="ltr">/categories/woman-clothe</span> — با لمس بنر همان صفحه باز می‌شود.
         </li>
       </ul>
     </div>
@@ -293,7 +293,7 @@ useHead({ title: 'اسلایدر - پنل مدیریت' });
       <form class="bg-white rounded-2xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto" @submit.prevent="save">
         <h2 class="font-bold text-lg">{{ editingId ? 'ویرایش اسلایدر' : 'اسلایدر جدید' }}</h2>
 
-        <input v-model="form.title" required class="input-field" placeholder="عنوان (مثلاً تخفیف لبنیات)" />
+        <input v-model="form.title" required class="input-field" placeholder="عنوان (مثلاً کالکشن پاییز)" />
 
         <div>
           <label class="block text-sm font-medium mb-1">جایگاه بنر</label>
@@ -319,7 +319,7 @@ useHead({ title: 'اسلایدر - پنل مدیریت' });
 
         <p class="text-xs text-primary-700 bg-primary-50 rounded-lg px-3 py-2">{{ sizeHint }}</p>
 
-        <input v-model="form.linkUrl" class="input-field" placeholder="لینک اختیاری مثل /categories/labaniat" dir="ltr" />
+        <input v-model="form.linkUrl" class="input-field" placeholder="لینک اختیاری مثل /categories/woman-clothe" dir="ltr" />
         <input v-model.number="form.sortOrder" type="number" class="input-field" placeholder="ترتیب نمایش (عدد کوچک‌تر = زودتر)" />
         <AppSwitch v-model="form.isActive" label="نمایش در سایت" />
 

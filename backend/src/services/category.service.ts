@@ -4,15 +4,17 @@ import { AppError } from '../utils/errors';
 import { slugify } from '../utils/helpers';
 
 export class CategoryService {
-  async getAll(includeInactive = false) {
-    const cacheKey = `categories:${includeInactive}`;
+  async getAll(includeInactive = false, lite = false) {
+    const cacheKey = `categories:${includeInactive}:${lite ? 'lite' : 'full'}`;
     const cached = await cacheGet<unknown>(cacheKey);
     if (cached) return cached;
 
     const categories = await prisma.category.findMany({
       where: includeInactive ? {} : { isActive: true },
       orderBy: { sortOrder: 'asc' },
-      include: { _count: { select: { products: { where: { isActive: true } } } } },
+      ...(lite
+        ? {}
+        : { include: { _count: { select: { products: { where: { isActive: true } } } } } }),
     });
 
     await cacheSet(cacheKey, categories, 600);

@@ -7,14 +7,6 @@ import { paramId } from '../utils/params';
 
 const router = Router();
 
-const paymentMethodEnum = z.enum([
-  'CASH_AT_DOOR',
-  'RETIREMENT_FUND',
-  'SOCIAL_SECURITY',
-  'TARA',
-  'OTHER_WALLET',
-]);
-
 const createOrderSchema = z
   .object({
     customerName: z.string().min(3, 'نام و نام خانوادگی الزامی است'),
@@ -24,23 +16,23 @@ const createOrderSchema = z
     street: z.string().min(3).optional(),
     plaque: z.string().optional(),
     unit: z.string().optional(),
+    province: z.string().min(2, 'استان الزامی است').optional(),
+    city: z.string().min(2, 'شهر الزامی است').optional(),
+    postalCode: z.string().regex(/^\d{10}$/, 'کدپستی باید ۱۰ رقم باشد').optional(),
     addressId: z.string().optional(),
     addressTitle: z.string().optional(),
-    deliveryLatitude: z.coerce.number().min(-90).max(90).optional(),
-    deliveryLongitude: z.coerce.number().min(-180).max(180).optional(),
     notes: z.string().optional(),
     couponCode: z.string().optional(),
-    paymentMethod: paymentMethodEnum.default('CASH_AT_DOOR'),
-    deliveryMethod: z.enum(['FREE', 'JET']).default('FREE'),
-    paymentDetails: z.record(z.unknown()).optional(),
+    deliveryMethod: z.enum(['PICKUP', 'NATIONWIDE']),
   })
   .refine(
     (data) =>
       Boolean(data.addressId) ||
-      Boolean(data.deliveryAddress?.trim()) ||
-      Boolean(data.address?.trim()) ||
-      Boolean(data.street?.trim()),
-    { message: 'آدرس ارسال الزامی است (addressId، deliveryAddress یا street)' }
+      (Boolean(data.province?.trim()) &&
+        Boolean(data.city?.trim()) &&
+        Boolean(data.postalCode?.trim()) &&
+        (Boolean(data.deliveryAddress?.trim()) || Boolean(data.address?.trim()) || Boolean(data.street?.trim()))),
+    { message: 'استان، شهر، کدپستی و آدرس ارسال الزامی است' }
   );
 
 router.use(sessionMiddleware);

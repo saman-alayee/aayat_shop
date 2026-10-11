@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import type { AdminCustomer, CustomerGroup, PaymentMethod } from '~/types';
-import { PAYMENT_METHOD_LABELS } from '~/types';
+import type { AdminCustomer, CustomerGroup } from '~/types';
 
 definePageMeta({ layout: 'admin', middleware: 'admin' });
 
@@ -13,7 +12,6 @@ const groups = ref<CustomerGroup[]>([]);
 const loading = ref(true);
 const search = ref('');
 const groupFilter = ref('');
-const paymentFilter = ref<PaymentMethod | ''>('');
 const selectedCustomer = ref<AdminCustomer | null>(null);
 const detailLoading = ref(false);
 
@@ -22,15 +20,6 @@ const showGroupForm = ref(false);
 
 const newCustomer = reactive({ phone: '', firstName: '', lastName: '', customerGroupId: '' });
 const newGroup = reactive({ name: '', description: '' });
-
-const paymentOptions = [
-  { value: '', label: 'همه روش‌ها', icon: 'lucide:credit-card' },
-  ...Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => ({
-    value,
-    label,
-    icon: 'lucide:wallet',
-  })),
-];
 
 const groupOptions = computed(() => [
   { value: '', label: 'همه گروه‌ها', icon: 'lucide:users' },
@@ -47,7 +36,6 @@ function queryParams() {
   const params = new URLSearchParams();
   if (search.value.trim()) params.set('search', search.value.trim());
   if (groupFilter.value) params.set('customerGroupId', groupFilter.value);
-  if (paymentFilter.value) params.set('paymentMethod', paymentFilter.value);
   params.set('limit', '100');
   return params;
 }
@@ -165,7 +153,7 @@ useHead({ title: 'مشتریان - پنل مدیریت' });
       </div>
     </div>
 
-    <div class="grid md:grid-cols-3 gap-3 mb-4">
+    <div class="grid md:grid-cols-2 gap-3 mb-4">
       <input
         v-model="search"
         type="search"
@@ -174,7 +162,6 @@ useHead({ title: 'مشتریان - پنل مدیریت' });
         @keyup.enter="loadData"
       />
       <AppSelect v-model="groupFilter" :options="groupOptions" placeholder="گروه مشتری" @update:model-value="loadData" />
-      <AppSelect v-model="paymentFilter" :options="paymentOptions" placeholder="روش پرداخت" @update:model-value="loadData" />
     </div>
 
     <button class="btn-primary text-sm mb-4" @click="loadData">اعمال فیلتر</button>
@@ -275,9 +262,6 @@ useHead({ title: 'مشتریان - پنل مدیریت' });
                   <span>{{ formatPrice(order.totalPrice) }}</span>
                   <span>{{ new Date(order.createdAt).toLocaleDateString('fa-IR') }}</span>
                 </div>
-                <p v-if="order.paymentMethod" class="text-xs text-gray-400 mt-1">
-                  {{ PAYMENT_METHOD_LABELS[order.paymentMethod] }}
-                </p>
                 <p v-if="order.deliveryAddress" class="text-xs text-gray-400 mt-1">{{ order.deliveryAddress }}</p>
               </div>
             </div>

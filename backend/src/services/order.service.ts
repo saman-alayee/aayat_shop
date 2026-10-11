@@ -2,11 +2,12 @@ import type { PaymentMethod, Prisma } from '@prisma/client';
 import prisma from '../config/database';
 import { AppError } from '../utils/errors';
 import { generateOrderNumber } from '../utils/helpers';
+import { normalizePhone } from '../utils/normalize';
 import { cartService } from './cart.service';
 import { couponService } from './coupon.service';
 import { notificationService } from './notification.service';
 import { smsService } from './sms.service';
-import { normalizePhone } from '../utils/normalize';
+import { isShippingMethod, SHIPPING_METHODS, type ShippingMethod } from '../config/shipping';
 
 export type OrderStatus =
   | 'NEW'
@@ -15,21 +16,6 @@ export type OrderStatus =
   | 'SHIPPED'
   | 'DELIVERED'
   | 'CANCELLED';
-
-const PAYMENT_METHOD_FA: Record<PaymentMethod, string> = {
-  CASH_AT_DOOR: 'پرداخت در محل',
-  RETIREMENT_FUND: 'صندوق بازنشستگی',
-  SOCIAL_SECURITY: 'تامین اجتماعی',
-  TARA: 'کیف پول تارا',
-  OTHER_WALLET: 'سایر کیف پول‌ها',
-};
-
-const INSTALLMENT_METHODS: PaymentMethod[] = [
-  'RETIREMENT_FUND',
-  'SOCIAL_SECURITY',
-  'TARA',
-  'OTHER_WALLET',
-];
 
 const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   NEW: ['PREPARING', 'CANCELLED'],
@@ -47,19 +33,15 @@ interface CreateOrderInput {
   street?: string;
   plaque?: string;
   unit?: string;
+  province?: string;
+  city?: string;
+  postalCode?: string;
   addressId?: string;
   addressTitle?: string;
-  deliveryLatitude?: number;
-  deliveryLongitude?: number;
-  deliveryMethod?: 'FREE' | 'JET';
+  deliveryMethod?: ShippingMethod;
   notes?: string;
   couponCode?: string;
-  paymentMethod: PaymentMethod;
-  paymentDetails?: Record<string, unknown>;
 }
-
-const FREE_SHIPPING_MIN = 200_000;
-const JET_DELIVERY_FEE = 50_000;
 
 function buildDeliveryAddress(input: CreateOrderInput & { address?: string }): string {
   if (input.deliveryAddress?.trim()) {
@@ -70,8 +52,14 @@ function buildDeliveryAddress(input: CreateOrderInput & { address?: string }): s
     return input.address.trim();
   }
 
-  const parts = [input.street?.trim(), input.plaque ? `پلاک ${input.plaque}` : '', input.unit ? `واحد ${input.unit}` : '']
-    .filter(Boolean);
+  const parts = [
+    input.province?.trim() ? `استان ${input.province.trim()}` : '',
+    input.city?.trim() ? `شهر ${input.city.trim()}` : '',
+    input.street?.trim(),
+    input.plaque ? `پلاک ${input.plaque}` : '',
+    input.unit ? `واحد ${input.unit}` : '',
+    input.postalCode ? `کدپستی ${input.postalCode}` : '',
+  ].filter(Boolean);
 
   return parts.join('، ');
 }
@@ -134,32 +122,24 @@ export class OrderService {
       couponCode = validation.code;
     }
 
-    const deliveryMethod = input.deliveryMethod ?? 'FREE';
-    let deliveryFee = 0;
-    if (deliveryMethod === 'JET') {
-      deliveryFee = JET_DELIVERY_FEE;
-    } else if (totalPrice < FREE_SHIPPING_MIN) {
-      throw new AppError(400, 'برای ارسال رایگان سفارش باید حداقل ۲۰۰٬۰۰۰ تومان باشد یا گزینه ارسال جت را انتخاب کنید');
+    if (!isShippingMethod(input.deliveryMethod)) {
+      throw new AppError(400, 'روش ارسال را انتخاب کنید');
     }
+    const deliveryMethod = input.deliveryMethod;
+    const deliveryFee = SHIPPING_METHODS[deliveryMethod].fee;
     totalPrice += deliveryFee;
 
-    const paymentDetailsToStore: Record<string, unknown> = {
-      ...(input.paymentDetails ?? {}),
+    const paymentDetailsToStore = {
       deliveryMethod,
       deliveryFee,
     };
 
-    const cleanedPaymentDetails = Object.fromEntries(
-      Object.entries(paymentDetailsToStore).filter(
-        ([, value]) => value != null && (typeof value === 'number' || String(value).trim() !== '')
-      )
-    );
-
     let deliveryAddress = buildDeliveryAddress(input);
     let addressId: string | null = input.addressId ?? null;
     let addressTitle = input.addressTitle ?? null;
-    let deliveryLatitude = input.deliveryLatitude ?? null;
-    let deliveryLongitude = input.deliveryLongitude ?? null;
+    let deliveryProvince = input.province?.trim() || null;
+    let deliveryCity = input.city?.trim() || null;
+    let deliveryPostalCode = input.postalCode?.trim() || null;
 
     if (input.addressId && userId) {
       const savedAddress = await prisma.address.findFirst({
@@ -172,15 +152,14 @@ export class OrderService {
       deliveryAddress = savedAddress.address;
       addressId = savedAddress.id;
       addressTitle = savedAddress.title;
-      deliveryLatitude = savedAddress.latitude;
-      deliveryLongitude = savedAddress.longitude;
+      deliveryProvince = savedAddress.province;
+      deliveryCity = savedAddress.city;
+      deliveryPostalCode = savedAddress.postalCode;
     } else if (!deliveryAddress) {
       throw new AppError(400, 'آدرس ارسال الزامی است');
     }
 
-    const initialStatus: OrderStatus = INSTALLMENT_METHODS.includes(input.paymentMethod)
-      ? 'REVIEWING'
-      : 'NEW';
+    const initialStatus: OrderStatus = 'NEW';
 
     const orderNumber = generateOrderNumber();
 
@@ -195,17 +174,15 @@ export class OrderService {
           couponCode: couponCode ?? null,
           couponId: couponId ?? null,
           status: initialStatus,
-          paymentMethod: input.paymentMethod,
-          paymentDetails: Object.keys(cleanedPaymentDetails).length
-            ? (cleanedPaymentDetails as Prisma.InputJsonValue)
-            : undefined,
+          paymentDetails: paymentDetailsToStore as Prisma.InputJsonValue,
           customerName: input.customerName,
           customerPhone: input.customerPhone,
           deliveryAddress,
           addressId,
           addressTitle,
-          deliveryLatitude,
-          deliveryLongitude,
+          deliveryProvince,
+          deliveryCity,
+          deliveryPostalCode,
           notes: input.notes,
           items: {
             create: cart.items.map((item) => ({
@@ -218,10 +195,7 @@ export class OrderService {
           statusLogs: {
             create: {
               status: initialStatus,
-              note:
-                initialStatus === 'REVIEWING'
-                  ? `نوع پرداخت: ${PAYMENT_METHOD_FA[input.paymentMethod]} — در سیستم فروشگاه ثبت شود`
-                  : 'سفارش ثبت شد',
+              note: `نوع ارسال: ${SHIPPING_METHODS[deliveryMethod].label}`,
             },
           },
         },
@@ -272,7 +246,6 @@ export class OrderService {
       totalPrice: Number(order.totalPrice),
       couponCode: order.couponCode,
       status: order.status,
-      paymentMethod: order.paymentMethod,
       customerName: order.customerName,
       createdAt: order.createdAt,
     };

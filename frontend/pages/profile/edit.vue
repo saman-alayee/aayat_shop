@@ -69,11 +69,11 @@ useHead({ title: `تنظیمات حساب - ${SITE_NAME}` });
         <AppAlertBanner :message="formError" />
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">نام</label>
+          <label class="field-label">نام</label>
           <input v-model="form.firstName" type="text" class="input-field" placeholder="نام خود را وارد کنید" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">نام خانوادگی</label>
+          <label class="field-label">نام خانوادگی</label>
           <input v-model="form.lastName" type="text" class="input-field" placeholder="نام خانوادگی" />
         </div>
 

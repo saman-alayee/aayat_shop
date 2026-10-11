@@ -1,15 +1,21 @@
 import bcrypt from 'bcryptjs';
 import prisma from '../config/database';
 import { config } from '../config';
-import { generateOtpCode, generateToken, isPanelRole, type UserRole } from '../utils/helpers';
+import {
+  generateOtpCode,
+  generatePasswordResetToken,
+  generateToken,
+  isPanelRole,
+  verifyPasswordResetToken,
+  type UserRole,
+} from '../utils/helpers';
+import { passwordPolicyError } from '../utils/password';
 import { AppError } from '../utils/errors';
 import { normalizeDigits, normalizePhone } from '../utils/normalize';
 import { smsService } from './sms.service';
 import { permissionsForRole } from '../utils/permissions';
 
 export type { UserRole };
-
-const PASSWORD_MIN_LENGTH = 6;
 
 export class AuthService {
   async sendOtp(phone: string) {
@@ -29,6 +35,71 @@ export class AuthService {
     });
 
     return { message: 'کد تأیید ارسال شد', devCode: config.otp.devMode ? code : undefined };
+  }
+
+  async startAuth(phone: string, intent?: 'otp' | 'forgot') {
+    const normalizedPhone = this.normalizePhone(phone);
+    const user = await prisma.user.findUnique({
+      where: { phone: normalizedPhone },
+      select: { id: true, passwordHash: true, isActive: true },
+    });
+
+    if (user && !user.isActive) {
+      throw new AppError(403, 'حساب کاربری غیرفعال است');
+    }
+
+    if (intent === 'forgot') {
+      if (!user) throw new AppError(400, 'حسابی با این شماره یافت نشد');
+      const sent = await this.sendOtp(normalizedPhone);
+      return {
+        step: 'forgotPassword' as const,
+        hasPassword: true,
+        message: `کد تایید به شماره ${normalizedPhone} پیامک شد`,
+        devCode: sent.devCode,
+      };
+    }
+
+    if (intent === 'otp' || !user?.passwordHash) {
+      const sent = await this.sendOtp(normalizedPhone);
+      return {
+        step: user ? ('loginByOtp' as const) : ('signIn' as const),
+        hasPassword: Boolean(user?.passwordHash),
+        message: `کد تایید به شماره ${normalizedPhone} پیامک شد`,
+        devCode: sent.devCode,
+      };
+    }
+
+    return { step: 'loginByPassword' as const, hasPassword: true, message: '' };
+  }
+
+  async verifyForgotOtp(phone: string, code: string) {
+    const normalizedPhone = this.normalizePhone(phone);
+    await this.consumeValidOtp(normalizedPhone, code);
+    const user = await prisma.user.findUnique({ where: { phone: normalizedPhone } });
+    if (!user || !user.isActive) {
+      throw new AppError(400, 'حسابی با این شماره یافت نشد');
+    }
+    return { resetToken: generatePasswordResetToken(user.id, normalizedPhone) };
+  }
+
+  async resetPassword(resetToken: string, password: string) {
+    const policyError = passwordPolicyError(password || '');
+    if (policyError) throw new AppError(400, policyError);
+
+    let reset: { userId: string };
+    try {
+      reset = verifyPasswordResetToken(resetToken);
+    } catch {
+      throw new AppError(400, 'درخواست منقضی شده است. دوباره کد تایید بگیرید');
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await prisma.user.update({
+      where: { id: reset.userId },
+      data: { passwordHash },
+    });
+
+    return await this.buildAuthResponse(user);
   }
 
   async verifyOtp(phone: string, code: string, options?: { requireAdmin?: boolean }) {
@@ -97,8 +168,9 @@ export class AuthService {
     userId: string,
     data: { password: string; currentPassword?: string; otpCode?: string }
   ) {
-    if (!data.password || data.password.length < PASSWORD_MIN_LENGTH) {
-      throw new AppError(400, `رمز عبور باید حداقل ${PASSWORD_MIN_LENGTH} کاراکتر باشد`);
+    const policyError = passwordPolicyError(data.password || '');
+    if (policyError) {
+      throw new AppError(400, policyError);
     }
 
     const user = await prisma.user.findUnique({ where: { id: userId } });

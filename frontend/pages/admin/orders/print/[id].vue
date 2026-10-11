@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Order } from '~/types';
 import { SITE_NAME } from '~/constants/site';
+import { shippingLabel } from '~/constants/shipping';
 
 definePageMeta({ layout: 'print', middleware: 'admin' });
 
@@ -40,6 +41,10 @@ useHead({ title: computed(() => (order.value ? `فیش ${order.value.orderNumber
         <p dir="ltr"><b>موبایل:</b> {{ order.customerPhone }}</p>
         <p v-if="order.addressTitle"><b>عنوان آدرس:</b> {{ order.addressTitle }}</p>
         <p><b>آدرس:</b> {{ order.deliveryAddress }}</p>
+        <p><b>نوع ارسال:</b> {{ shippingLabel(order.paymentDetails?.deliveryMethod) }}</p>
+        <p v-if="order.paymentDetails?.deliveryFee != null">
+          <b>هزینه ارسال:</b> {{ formatPrice(Number(order.paymentDetails.deliveryFee)) }}
+        </p>
       </section>
 
       <table class="w-full text-sm border-collapse">

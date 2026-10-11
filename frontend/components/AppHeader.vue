@@ -12,14 +12,14 @@ const { toPersianDigits } = useFormat();
 
 const searchQuery = ref('');
 const showSearch = ref(false);
-const mobileMenuOpen = ref(false);
+const catalogNavOpen = ref(false);
 const solidHeader = ref(false);
 
 function handleSearch() {
   if (searchQuery.value.trim()) {
     navigateTo(`/search?q=${encodeURIComponent(searchQuery.value.trim())}`);
     showSearch.value = false;
-    mobileMenuOpen.value = false;
+    catalogNavOpen.value = false;
   }
 }
 
@@ -62,9 +62,9 @@ onUnmounted(() => {
               type="button"
               :class="['p-2 -ms-1', isLightOnHero ? 'text-white' : 'text-gray-900']"
               aria-label="منو"
-              @click="mobileMenuOpen = !mobileMenuOpen"
+              @click="catalogNavOpen = !catalogNavOpen"
             >
-              <AppIcon :name="mobileMenuOpen ? 'lucide:x' : 'lucide:menu'" size="lg" />
+              <AppIcon :name="catalogNavOpen ? 'lucide:x' : 'lucide:menu'" size="lg" />
             </button>
           </div>
 
@@ -110,7 +110,7 @@ onUnmounted(() => {
               ]"
             >
               <AppIcon name="lucide:user" size="md" />
-              <span class="hidden lg:inline">ورود / عضویت</span>
+              <span class="hidden lg:inline">ورود | ثبت‌نام</span>
             </NuxtLink>
             <NuxtLink
               v-else
@@ -131,7 +131,7 @@ onUnmounted(() => {
               v-model="searchQuery"
               type="search"
               :placeholder="`جستجو در ${SITE_NAME}...`"
-              class="input-field pe-12 bg-white border-gray-200"
+              class="input-field pe-8"
               autofocus
             />
             <button type="submit" class="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary-700">
@@ -140,33 +140,9 @@ onUnmounted(() => {
           </form>
         </div>
 
-        <nav
-          v-if="mobileMenuOpen"
-          class="md:hidden border-t border-white/10 py-3 space-y-1 text-sm bg-white text-gray-900 rounded-b-lg shadow-lg mb-2"
-          aria-label="منوی موبایل"
-        >
-          <NuxtLink to="/categories" class="block px-3 py-2.5 hover:bg-gray-50" @click="mobileMenuOpen = false">
-            کالکشن‌ها
-          </NuxtLink>
-          <NuxtLink
-            to="/search?sort=newest"
-            class="block px-3 py-2.5 hover:bg-gray-50"
-            @click="mobileMenuOpen = false"
-          >
-            جدیدترین
-          </NuxtLink>
-          <NuxtLink
-            to="/search?discounted=1"
-            class="block px-3 py-2.5 hover:bg-gray-50"
-            @click="mobileMenuOpen = false"
-          >
-            پیشنهاد ویژه
-          </NuxtLink>
-          <NuxtLink to="/auth/login" class="block px-3 py-2.5 hover:bg-gray-50" @click="mobileMenuOpen = false">
-            ورود / عضویت
-          </NuxtLink>
-        </nav>
       </div>
     </header>
+
+    <CatalogNavDrawer :open="catalogNavOpen" @close="catalogNavOpen = false" />
   </div>
 </template>

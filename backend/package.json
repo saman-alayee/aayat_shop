@@ -1,7 +1,7 @@
 {
-  "name": "hypermarket-backend",
+  "name": "aayat-shop-backend",
   "version": "1.0.0",
-  "description": "Hyper Market Online Supermarket API",
+  "description": "Aayat Shop — clothing store API (Express + Prisma)",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
@@ -15,6 +15,9 @@
     "db:seed:clothing-demo": "tsx prisma/seed-clothing-demo.ts",
     "db:ensure-admins": "tsx scripts/ensure-admin.ts",
     "test:endpoints": "tsx scripts/test-endpoints.ts",
+    "import:woocommerce": "tsx scripts/import-woocommerce-store.ts",
+    "import:woocommerce:images": "tsx scripts/import-woocommerce-store.ts --download-only",
+    "db:purge-test-catalog": "tsx scripts/purge-test-catalog.ts",
     "db:studio": "prisma studio",
     "lint": "eslint src --ext .ts"
   },

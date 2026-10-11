@@ -1,4 +1,9 @@
 import { formatJalaliDate, formatJalaliMonthYear, getTodayJalali } from '~/utils/jalali';
+import {
+  getCategoryImage,
+  getProductImage,
+  resolveMediaUrl,
+} from '~/utils/mediaUrl';
 
 export function toPersianDigits(num: number | string): string {
   const persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
@@ -35,26 +40,6 @@ export function formatMonthYear(date: string | Date): string {
 
 export function formatJalaliYear(): string {
   return toPersianDigits(getTodayJalali().year);
-}
-
-export function resolveMediaUrl(image: string): string {
-  if (image.startsWith('http')) return image;
-  if (image.startsWith('/uploads/')) {
-    const config = useRuntimeConfig();
-    const baseUrl = config.public.apiBase.replace('/api', '');
-    return `${baseUrl}${image}`;
-  }
-  return image;
-}
-
-export function getProductImage(image: string | null): string {
-  if (!image) return '/images/placeholder-product.svg';
-  return resolveMediaUrl(image);
-}
-
-export function getCategoryImage(image: string | null): string {
-  if (!image) return '/images/placeholder-product.svg';
-  return resolveMediaUrl(image);
 }
 
 export function useFormat() {

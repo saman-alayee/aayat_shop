@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { SITE_NAME, SITE_TAGLINE, CONTACT_PHONE, CONTACT_EMAIL } from '~/constants/site';
+import {
+  CONTACT_PHONE,
+  ENAMAD,
+  SITE_NAME,
+  SITE_TAGLINE,
+  SOCIAL_LINKS,
+  STORE_HOURS,
+} from '~/constants/site';
 
 const { formatJalaliYear } = useFormat();
 
@@ -15,18 +22,34 @@ const shopLinks = [
   { to: '/search?discounted=1', label: 'پیشنهاد ویژه' },
   { to: '/profile/orders', label: 'پیگیری سفارش' },
 ];
+
+const channels = [
+  { href: SOCIAL_LINKS.whatsapp, label: 'واتساپ' },
+  { href: SOCIAL_LINKS.whatsappGroup, label: 'گروه واتساپ' },
+  { href: SOCIAL_LINKS.rubikaChannel, label: 'کانال روبیکا' },
+  { href: SOCIAL_LINKS.rubikaAdmin, label: 'ادمین روبیکا' },
+];
 </script>
 
 <template>
-  <footer class="hidden md:block bg-surface-muted border-t border-gray-200 mt-12">
+  <footer class="mt-12 border-t border-gray-200 bg-surface-muted pb-24 md:pb-0">
     <div class="max-w-store mx-auto px-4 py-10">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
-        <div class="md:col-span-1">
+      <div class="grid grid-cols-1 gap-8 md:grid-cols-4">
+        <div>
           <AppLogo size="sm" />
-          <p class="text-sm text-gray-600 mt-3 leading-relaxed">{{ SITE_TAGLINE }}</p>
+          <p class="mt-3 text-sm leading-relaxed text-gray-600">{{ SITE_TAGLINE }}</p>
+          <a
+            :href="ENAMAD.href"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="mt-4 inline-block"
+            aria-label="نماد اعتماد الکترونیکی"
+          >
+            <img src="/enamad.png" alt="نماد اعتماد الکترونیکی" width="125" height="136" class="h-24 w-auto" />
+          </a>
         </div>
         <div>
-          <h3 class="text-sm font-bold text-gray-900 mb-3">فروشگاه</h3>
+          <h3 class="mb-3 text-sm font-bold text-gray-900">فروشگاه</h3>
           <nav class="flex flex-col gap-2 text-sm text-gray-600">
             <NuxtLink v-for="link in shopLinks" :key="link.to" :to="link.to" class="hover:text-primary-700">
               {{ link.label }}
@@ -34,7 +57,7 @@ const shopLinks = [
           </nav>
         </div>
         <div>
-          <h3 class="text-sm font-bold text-gray-900 mb-3">اطلاعات</h3>
+          <h3 class="mb-3 text-sm font-bold text-gray-900">اطلاعات</h3>
           <nav class="flex flex-col gap-2 text-sm text-gray-600">
             <NuxtLink v-for="link in aboutLinks" :key="link.to" :to="link.to" class="hover:text-primary-700">
               {{ link.label }}
@@ -42,17 +65,26 @@ const shopLinks = [
           </nav>
         </div>
         <div>
-          <h3 class="text-sm font-bold text-gray-900 mb-3">پشتیبانی</h3>
-          <p class="text-sm text-gray-600">هر روز هفته ۸ تا ۲۰</p>
-          <a :href="`tel:${CONTACT_PHONE}`" class="text-sm text-primary-700 mt-2 block hover:underline">
+          <h3 class="mb-3 text-sm font-bold text-gray-900">پشتیبانی و کانال‌ها</h3>
+          <p class="text-sm leading-relaxed text-gray-600">{{ STORE_HOURS }}</p>
+          <a :href="`tel:${CONTACT_PHONE}`" class="mt-2 block text-sm text-primary-700 hover:underline" dir="ltr">
             {{ CONTACT_PHONE }}
           </a>
-          <a v-if="CONTACT_EMAIL" :href="`mailto:${CONTACT_EMAIL}`" class="text-sm text-gray-600 mt-1 block hover:text-primary-700">
-            {{ CONTACT_EMAIL }}
-          </a>
+          <nav class="mt-3 flex flex-col gap-2 text-sm text-gray-600">
+            <a
+              v-for="channel in channels"
+              :key="channel.href"
+              :href="channel.href"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="hover:text-primary-700"
+            >
+              {{ channel.label }}
+            </a>
+          </nav>
         </div>
       </div>
-      <p class="text-xs text-gray-400 mt-10 pt-6 border-t border-gray-200">
+      <p class="mt-10 border-t border-gray-200 pt-6 text-xs text-gray-400">
         © {{ formatJalaliYear() }} {{ SITE_NAME }}
       </p>
     </div>

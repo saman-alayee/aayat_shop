@@ -4,10 +4,16 @@ import { SITE_NAME } from '~/constants/site';
 
 const api = useApi();
 const route = useRoute();
+const catalogDemo = useCatalogDemo();
 
 const { data: categories } = await useAsyncData('all-categories', async () => {
-  const { data } = await api.get<Category[]>('/categories');
-  return data;
+  try {
+    const { data } = await api.get<Category[]>('/categories?lite=1');
+    return catalogDemo.categoriesForStore(data);
+  } catch {
+    catalogDemo.markDemo(true);
+    return catalogDemo.categoriesForStore([]);
+  }
 });
 
 const categorySections = ref<HomeCategorySection[]>([]);
@@ -17,9 +23,14 @@ async function loadCategorySections() {
   loading.value = true;
   try {
     const { data } = await api.get<HomeCategorySection[]>('/products/home-feed');
-    categorySections.value = data;
+    if (catalogDemo.useDemoForApi(!data?.length)) {
+      categorySections.value = catalogDemo.demoHomeFeed();
+    } else {
+      categorySections.value = data;
+    }
   } catch {
-    categorySections.value = [];
+    catalogDemo.markDemo(true);
+    categorySections.value = catalogDemo.demoHomeFeed();
   } finally {
     loading.value = false;
   }

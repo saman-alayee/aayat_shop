@@ -122,7 +122,7 @@ useHead({ title: 'برچسب‌ها - پنل مدیریت' });
     <div v-if="showForm" class="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4 bg-black/40">
       <form class="bg-white rounded-2xl w-full max-w-md p-6 space-y-4" @submit.prevent="save">
         <h2 class="font-bold text-lg">{{ editingId ? 'ویرایش برچسب' : 'برچسب جدید' }}</h2>
-        <input v-model="form.name" required class="input-field" placeholder="نام برچسب (مثلاً ماست)" />
+        <input v-model="form.name" required class="input-field" placeholder="نام برچسب (مثلاً بلوز)" />
         <select v-model="form.categoryId" required class="input-field">
           <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
         </select>

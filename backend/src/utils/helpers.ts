@@ -26,6 +26,22 @@ export function verifyToken(token: string): JwtPayload {
   return jwt.verify(token, config.jwt.secret) as JwtPayload;
 }
 
+export function generatePasswordResetToken(userId: string, phone: string): string {
+  return jwt.sign({ userId, phone, purpose: 'password-reset' }, config.jwt.secret, { expiresIn: '10m' });
+}
+
+export function verifyPasswordResetToken(token: string): { userId: string; phone: string } {
+  const payload = jwt.verify(token, config.jwt.secret) as {
+    userId?: string;
+    phone?: string;
+    purpose?: string;
+  };
+  if (payload.purpose !== 'password-reset' || !payload.userId || !payload.phone) {
+    throw new Error('INVALID_RESET_TOKEN');
+  }
+  return { userId: payload.userId, phone: payload.phone };
+}
+
 export function generateOtpCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
