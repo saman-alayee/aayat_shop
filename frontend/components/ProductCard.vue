@@ -64,6 +64,7 @@ onUnmounted(() => {
   sarakImageObserver = null;
 });
 
+const outOfStock = computed(() => !props.product.inStock);
 const quantity = computed(() => cartStore.getItemQuantity(props.product.id));
 const isAdding = computed(() => cartStore.addingProductId === props.product.id);
 const favorited = computed(() => isFavorite(props.product.id));
@@ -116,12 +117,16 @@ async function handleDecrease(event: Event) {
 
 <template>
   <!-- سبک sarak-co.com -->
-  <article v-if="isSarak" class="product-card product-card--sarak relative flex h-full w-full flex-col bg-white">
+  <article
+    v-if="isSarak"
+    class="product-card product-card--sarak relative flex h-full w-full flex-col bg-white"
+    :class="{ 'is-out': outOfStock }"
+  >
     <NuxtLink
       ref="sarakMediaRef"
       :to="`/products/${product.slug}`"
       :class="[
-        'product-card-sarak-media relative block aspect-[354/531] w-full overflow-hidden bg-neutral-100',
+        'product-card-sarak-media relative block aspect-[3/4] w-full overflow-hidden bg-neutral-100',
         cardHasSwapHover ? 'product-card-sarak-media--swap' : 'product-card-sarak-media--lift',
       ]"
       draggable="false"
@@ -189,7 +194,15 @@ async function handleDecrease(event: Event) {
         {{ product.name }}
       </NuxtLink>
 
-      <div class="mt-2 flex flex-wrap items-baseline gap-x-1.5 text-sm font-normal leading-tight">
+      <ProductRating
+        v-if="product.ratingCount"
+        class="mt-1.5"
+        :value="product.ratingAvg || 0"
+        :count="product.ratingCount"
+      />
+
+      <p v-if="outOfStock" class="product-card-oos mt-2">ناموجود</p>
+      <div v-else class="mt-2 flex flex-wrap items-baseline gap-x-1.5 text-sm font-normal leading-tight">
         <span
           v-if="product.discountPrice"
           class="price-text text-neutral-400 line-through decoration-neutral-400"
@@ -208,6 +221,7 @@ async function handleDecrease(event: Event) {
     :class="[
       'product-card group relative flex h-full w-full flex-col overflow-hidden bg-white',
       isCompact ? 'rounded-lg border border-gray-100/90' : 'rounded-xl border border-gray-100',
+      outOfStock ? 'is-out' : '',
     ]"
   >
     <div class="relative shrink-0 overflow-hidden bg-neutral-50 aspect-[4/5]">
@@ -275,11 +289,8 @@ async function handleDecrease(event: Event) {
         />
       </button>
 
-      <div v-if="isCompact && !isClothingStore" class="absolute bottom-1.5 end-1.5 z-20">
-        <div v-if="!product.inStock" class="rounded bg-white/95 px-1.5 py-0.5 text-[8px] font-medium text-red-500">
-          ناموجود
-        </div>
-        <div v-else-if="quantity === 0">
+      <div v-if="isCompact && !isClothingStore && product.inStock" class="absolute bottom-1.5 end-1.5 z-20">
+        <div v-if="quantity === 0">
           <button
             type="button"
             class="flex h-7 w-7 items-center justify-center rounded-full bg-primary-600 text-white shadow-md transition-all hover:bg-primary-700 active:scale-95"
@@ -328,34 +339,42 @@ async function handleDecrease(event: Event) {
       >
         {{ fabricLabel }}
       </p>
+      <ProductRating
+        v-if="product.ratingCount"
+        class="mt-1"
+        :value="product.ratingAvg || 0"
+        :count="product.ratingCount"
+      />
 
       <div :class="isCompact ? 'mt-auto pt-1' : 'mt-auto flex flex-col gap-2.5 pt-2'">
         <div :class="isCompact ? 'shrink-0' : 'h-[2.6rem] shrink-0'">
-          <p
-            v-if="product.discountPrice"
-            :class="[
-              'price-text line-through text-gray-400',
-              isCompact ? 'mb-0 h-[10px] text-[9px] leading-[10px]' : 'mb-0.5 h-[15px] text-[11px] leading-[15px]',
-            ]"
-          >
-            {{ formatPriceCompact(product.price) }}
-          </p>
-          <p
-            :class="[
-              'price-text font-bold leading-tight text-gray-900',
-              isCompact ? 'text-[11px]' : 'text-base',
-            ]"
-          >
-            {{ formatPriceCompact(product.effectivePrice) }}
-            <span :class="isCompact ? 'text-[9px] font-medium text-gray-500' : 'text-[11px] font-medium text-gray-500'">
-              تومان
-            </span>
-          </p>
+          <p v-if="outOfStock" class="product-card-oos">ناموجود</p>
+          <template v-else>
+            <p
+              v-if="product.discountPrice"
+              :class="[
+                'price-text line-through text-gray-400',
+                isCompact ? 'mb-0 h-[10px] text-[9px] leading-[10px]' : 'mb-0.5 h-[15px] text-[11px] leading-[15px]',
+              ]"
+            >
+              {{ formatPriceCompact(product.price) }}
+            </p>
+            <p
+              :class="[
+                'price-text font-bold leading-tight text-gray-900',
+                isCompact ? 'text-[11px]' : 'text-base',
+              ]"
+            >
+              {{ formatPriceCompact(product.effectivePrice) }}
+              <span :class="isCompact ? 'text-[9px] font-medium text-gray-500' : 'text-[11px] font-medium text-gray-500'">
+                تومان
+              </span>
+            </p>
+          </template>
         </div>
 
-        <div v-if="!isCompact && !isClothingStore" class="flex h-10 shrink-0 items-center justify-end">
-          <div v-if="!product.inStock" class="text-[11px] font-medium text-red-500">ناموجود</div>
-          <div v-else-if="quantity === 0">
+        <div v-if="!isCompact && !isClothingStore && product.inStock" class="flex h-10 shrink-0 items-center justify-end">
+          <div v-if="quantity === 0">
             <button
               class="flex h-10 w-10 items-center justify-center rounded-full bg-primary-600 text-white transition-all hover:bg-primary-700 active:scale-95"
               :disabled="isAdding"
@@ -381,6 +400,18 @@ async function handleDecrease(event: Event) {
 </template>
 
 <style scoped>
+.product-card-oos {
+  align-self: flex-start;
+  width: fit-content;
+  border-radius: 4px;
+  background: #fde8e6;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.6;
+  color: #b42318;
+}
+
 .product-card-sarak-media {
   isolation: isolate;
 }
@@ -516,16 +547,16 @@ async function handleDecrease(event: Event) {
   animation: product-fav-pop 0.52s cubic-bezier(0.22, 1.4, 0.36, 1);
 }
 
-.product-card-fav__icon :deep(svg) {
+.product-card-fav :deep(svg.product-card-fav__icon path) {
   stroke-width: 2.35;
   fill: transparent;
   transition:
     fill 0.18s ease,
-    stroke 0.18s ease,
-    transform 0.18s ease;
+    stroke 0.18s ease;
 }
 
-.product-card-fav.is-on .product-card-fav__icon :deep(svg) {
+.product-card-fav.is-on :deep(svg.product-card-fav__icon),
+.product-card-fav.is-on :deep(svg.product-card-fav__icon path) {
   fill: #ef394e !important;
   stroke: #ef394e !important;
   color: #ef394e !important;

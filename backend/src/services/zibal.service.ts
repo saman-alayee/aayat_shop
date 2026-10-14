@@ -3,7 +3,6 @@ import { config } from '../config';
 import { AppError } from '../utils/errors';
 import { cartService } from './cart.service';
 import { notificationService } from './notification.service';
-import { smsService } from './sms.service';
 
 const REQUEST_URL = 'https://gateway.zibal.ir/v1/request';
 const VERIFY_URL = 'https://gateway.zibal.ir/v1/verify';
@@ -21,10 +20,16 @@ type PaymentDetails = {
 type ZibalResponse = {
   result?: number;
   message?: string;
+  status?: number | string;
   trackId?: number | string;
   amount?: number;
   refNumber?: string | number;
 };
+
+function isPaidStatus(status: unknown): boolean {
+  const value = String(status ?? '');
+  return value === '1' || value === '2';
+}
 
 function asDetails(value: unknown): PaymentDetails {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
@@ -140,6 +145,7 @@ export class ZibalService {
 
   async handleCallback(query: {
     success?: string;
+    status?: string;
     trackId?: string;
     orderId?: string;
   }): Promise<string> {
@@ -156,7 +162,9 @@ export class ZibalService {
 
     const details = asDetails(order.paymentDetails);
     if (details.paymentStatus === 'paid') return successPage(order.orderNumber);
-    if (query.success !== '1' || !query.trackId) {
+    const callbackPaid = query.success === '1' && Boolean(query.trackId) && isPaidStatus(query.status);
+    if (!callbackPaid) {
+      console.error('Zibal callback rejected:', query.success, query.status, query.orderId);
       await this.failOrder(order.id);
       return `${failPage}&number=${encodeURIComponent(order.orderNumber)}`;
     }
@@ -182,8 +190,9 @@ export class ZibalService {
 
     const data = (await response.json().catch(() => ({}))) as ZibalResponse;
     const verified = data.result === 100 || data.result === 201;
+    const statusOk = data.status == null || data.status === '' || isPaidStatus(data.status);
     const expectedRial = order.totalPrice * 10;
-    if (!verified || Number(data.amount) !== expectedRial) {
+    if (!verified || !statusOk || Number(data.amount) !== expectedRial) {
       console.error('Zibal verify rejected:', data.result, data.message);
       await this.failOrder(order.id);
       return `${failPage}&number=${encodeURIComponent(order.orderNumber)}`;
@@ -203,7 +212,7 @@ export class ZibalService {
       },
     });
     await prisma.orderStatusLog.create({
-      data: { orderId: order.id, status: 'NEW', note: 'پرداخت زیبال تأیید شد' },
+      data: { orderId: order.id, status: 'NEW', note: 'پرداخت شد و تا درخواست ارسال مشتری نگه داشته شد' },
     });
 
     if (order.userId) {
@@ -214,15 +223,6 @@ export class ZibalService {
         status: 'NEW',
       });
     }
-
-    await smsService
-      .sendPaidOrderNotices({
-        phone: order.customerPhone,
-        customerName: order.customerName,
-        orderNumber: order.orderNumber,
-        itemNames: order.items.map((item) => item.name),
-      })
-      .catch((error) => console.error('Paid-order SMS failed:', error));
 
     return successPage(order.orderNumber);
   }

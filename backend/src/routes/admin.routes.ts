@@ -17,6 +17,7 @@ import { paramId } from '../utils/params';
 import { accessRoleService } from '../services/access-role.service';
 import { settingsService } from '../services/settings.service';
 import { backupService } from '../services/backup.service';
+import { reviewService } from '../services/review.service';
 import { PANEL_PERMISSIONS } from '../utils/permissions';
 import { AppError } from '../utils/errors';
 
@@ -657,6 +658,7 @@ router.delete(
 const sliderSchema = z.object({
   title: z.string().min(2),
   image: z.string().min(1),
+  mobileImage: z.string().optional().nullable(),
   linkUrl: z.string().optional().nullable(),
   sortOrder: z.number().optional(),
   placement: z.enum(['HOME_TOP', 'HOME_MID']).optional(),
@@ -957,6 +959,23 @@ router.get(
       if (error instanceof AppError) throw error;
       throw new AppError(500, error instanceof Error ? error.message : 'خطا در بکاپ دیتابیس');
     }
+  })
+);
+
+router.get(
+  '/reviews',
+  asyncHandler(async (req, res) => {
+    const page = req.query.page ? parseInt(req.query.page as string) : 1;
+    const result = await reviewService.adminList(page);
+    successResponse(res, result);
+  })
+);
+
+router.delete(
+  '/reviews/:id',
+  asyncHandler(async (req, res) => {
+    await reviewService.adminRemove(paramId(req.params.id));
+    successResponse(res, null, 'نظر حذف شد');
   })
 );
 

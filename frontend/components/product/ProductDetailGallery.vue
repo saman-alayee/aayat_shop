@@ -3,10 +3,12 @@ const props = defineProps<{
   images: string[];
   activeIndex: number;
   productName: string;
+  favorited: boolean;
 }>();
 
 const emit = defineEmits<{
   'update:activeIndex': [index: number];
+  toggleFavorite: [];
 }>();
 
 const { getProductImage } = useFormat();
@@ -35,6 +37,16 @@ function step(delta: number) {
           class="block h-auto w-full"
           loading="eager"
         />
+        <button
+          type="button"
+          class="product-fav-btn absolute top-3 left-3 z-20 flex h-11 w-11 items-center justify-center rounded-full"
+          :class="{ 'is-on': favorited }"
+          :aria-pressed="favorited"
+          :aria-label="favorited ? 'حذف از ذخیره‌ها' : 'ذخیره محصول'"
+          @click="emit('toggleFavorite')"
+        >
+          <AppIcon name="lucide:bookmark" size="md" class="product-fav-btn__icon" />
+        </button>
         <template v-if="hasMany">
           <button
             type="button"
@@ -80,3 +92,47 @@ function step(delta: number) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.product-fav-btn {
+  color: #3f3f46;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(26, 15, 18, 0.1);
+  transition:
+    transform 0.18s ease,
+    color 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.product-fav-btn:hover {
+  transform: scale(1.05);
+  color: #652a3b;
+}
+
+.product-fav-btn.is-on {
+  color: #ef394e;
+  background: #fff5f6;
+  border-color: rgba(239, 57, 78, 0.35);
+  animation: product-fav-pop 0.45s cubic-bezier(0.22, 1.4, 0.36, 1);
+}
+
+.product-fav-btn :deep(svg.product-fav-btn__icon path) {
+  stroke-width: 2.35;
+  fill: transparent;
+}
+
+.product-fav-btn.is-on :deep(svg.product-fav-btn__icon),
+.product-fav-btn.is-on :deep(svg.product-fav-btn__icon path) {
+  fill: #ef394e !important;
+  stroke: #ef394e !important;
+  color: #ef394e !important;
+}
+
+@keyframes product-fav-pop {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+</style>

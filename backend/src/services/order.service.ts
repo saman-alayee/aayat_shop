@@ -2,7 +2,6 @@ import type { PaymentMethod, Prisma } from '@prisma/client';
 import prisma from '../config/database';
 import { AppError } from '../utils/errors';
 import { generateOrderNumber } from '../utils/helpers';
-import { normalizePhone } from '../utils/normalize';
 import { cartService } from './cart.service';
 import { couponService } from './coupon.service';
 import { notificationService } from './notification.service';
@@ -66,33 +65,8 @@ function buildDeliveryAddress(input: CreateOrderInput & { address?: string }): s
   return parts.join('، ');
 }
 
-async function ensureCustomerUser(input: CreateOrderInput, existingUserId?: string) {
-  if (existingUserId) return existingUserId;
-
-  const phone = normalizePhone(input.customerPhone);
-  const parts = input.customerName.trim().split(/\s+/).filter(Boolean);
-  const firstName = parts[0];
-  const lastName = parts.slice(1).join(' ') || undefined;
-
-  const user = await prisma.user.upsert({
-    where: { phone },
-    update: {
-      ...(firstName ? { firstName } : {}),
-      ...(lastName ? { lastName } : {}),
-    },
-    create: {
-      phone,
-      firstName,
-      lastName,
-      role: 'CUSTOMER',
-    },
-  });
-
-  return user.id;
-}
-
 export class OrderService {
-  async createOrder(input: CreateOrderInput, userId?: string, sessionId?: string) {
+  async createOrder(input: CreateOrderInput, userId: string, sessionId?: string) {
     const cart = await cartService.getCart(userId, sessionId);
 
     if (cart.items.length === 0) {
@@ -104,8 +78,6 @@ export class OrderService {
         throw new AppError(400, `موجودی ${item.name} کافی نیست`);
       }
     }
-
-    const resolvedUserId = await ensureCustomerUser(input, userId);
 
     const subtotal = cart.totalPrice;
     let discountAmount = 0;
@@ -176,7 +148,7 @@ export class OrderService {
       const newOrder = await tx.order.create({
         data: {
           orderNumber,
-          userId: resolvedUserId,
+          userId,
           subtotal,
           discountAmount,
           totalPrice,
@@ -226,9 +198,7 @@ export class OrderService {
         });
       }
 
-      if (resolvedUserId) {
-        await tx.cartItem.deleteMany({ where: { cart: { userId: resolvedUserId } } });
-      }
+      await tx.cartItem.deleteMany({ where: { cart: { userId } } });
       if (sessionId) {
         await tx.cartItem.deleteMany({ where: { cart: { sessionId } } });
       }
@@ -236,9 +206,9 @@ export class OrderService {
       return newOrder;
     });
 
-    if (!payWithZibal && resolvedUserId) {
+    if (!payWithZibal) {
       await notificationService.notifyOrderStatusChange({
-        userId: resolvedUserId,
+        userId,
         orderId: order.id,
         orderNumber: order.orderNumber,
         status: initialStatus,
@@ -276,6 +246,73 @@ export class OrderService {
       paymentUrl,
       customerName: order.customerName,
       createdAt: order.createdAt,
+    };
+  }
+
+  async listHeldOrders(userId: string) {
+    const orders = await prisma.order.findMany({
+      where: { userId, status: 'NEW' },
+      include: { items: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return orders.map((order) => this.formatOrder(order));
+  }
+
+  async requestShipment(userId: string, shipDate: string) {
+    const requestedShipDate = assertShipDate(shipDate);
+    const orders = await prisma.order.findMany({
+      where: { userId, status: 'NEW' },
+      include: { items: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (!orders.length) {
+      throw new AppError(400, 'لباس خریداری‌شده‌ای برای ارسال ندارید');
+    }
+
+    await prisma.$transaction(async (tx) => {
+      for (const order of orders) {
+        const details =
+          order.paymentDetails && typeof order.paymentDetails === 'object' && !Array.isArray(order.paymentDetails)
+            ? (order.paymentDetails as Record<string, unknown>)
+            : {};
+        await tx.order.update({
+          where: { id: order.id },
+          data: {
+            status: 'PREPARING',
+            paymentDetails: { ...details, requestedShipDate } as Prisma.InputJsonValue,
+          },
+        });
+        await tx.orderStatusLog.create({
+          data: {
+            orderId: order.id,
+            status: 'PREPARING',
+            note: `مشتری درخواست ارسال داد. روز مراجعه: ${requestedShipDate}`,
+          },
+        });
+      }
+    });
+
+    for (const order of orders) {
+      await notificationService.notifyOrderStatusChange({
+        userId,
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        status: 'PREPARING',
+      });
+      await smsService
+        .sendPaidOrderNotices({
+          phone: order.customerPhone,
+          customerName: order.customerName,
+          orderNumber: order.orderNumber,
+          itemNames: order.items.map((item) => item.name),
+        })
+        .catch((error) => console.error('Shipment SMS failed:', error));
+    }
+
+    return {
+      count: orders.length,
+      orderNumbers: orders.map((order) => order.orderNumber),
+      requestedShipDate,
     };
   }
 
@@ -499,6 +536,27 @@ export class OrderService {
       })),
     };
   }
+}
+
+function assertShipDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new AppError(400, 'روز مراجعه را انتخاب کنید');
+  }
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+    throw new AppError(400, 'تاریخ نامعتبر است');
+  }
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tehran',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+  if (value < today) {
+    throw new AppError(400, 'روز مراجعه نمی‌تواند گذشته باشد');
+  }
+  return value;
 }
 
 export const orderService = new OrderService();

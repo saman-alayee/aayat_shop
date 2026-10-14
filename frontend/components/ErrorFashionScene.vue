@@ -63,40 +63,28 @@ const emit = defineEmits<{
           <circle cx="312" cy="28" r="4" fill="#652a3b" fill-opacity="0.35" />
 
           <g class="err-hanger">
-            <line
-              x1="180"
-              y1="28"
-              x2="180"
-              y2="52"
-              stroke="#652a3b"
-              stroke-width="2.5"
-              stroke-linecap="round"
-            />
             <path
-              d="M180 52c0-10 10-16 18-10"
+              d="M180 28c0-14 18-14 18 2 0 10-8 14-12 20"
               stroke="#652a3b"
-              stroke-width="2.5"
+              stroke-width="3"
               stroke-linecap="round"
               fill="none"
             />
             <path
-              d="M96 78c28-22 56-28 84-28s56 6 84 28"
-              stroke="#652a3b"
-              stroke-width="3.2"
-              stroke-linecap="round"
+              d="M186 50 112 118c-6 8 2 14 10 14h128c8 0 16-6 10-14L186 50z"
               fill="none"
-            />
-            <line
-              x1="96"
-              y1="78"
-              x2="264"
-              y2="78"
               stroke="#652a3b"
-              stroke-width="3.2"
+              stroke-width="3"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M132 122h96"
+              stroke="#652a3b"
+              stroke-width="2.4"
               stroke-linecap="round"
             />
 
-            <g class="err-garment">
+            <g class="err-garment" transform="translate(0 42)">
               <path
                 d="M126 86c10 8 22 12 54 12s44-4 54-12l18 22c-8 6-14 18-14 34v78c0 8-6 14-14 14H136c-8 0-14-6-14-14v-78c0-16-6-28-14-34l18-22z"
                 fill="#652a3b"

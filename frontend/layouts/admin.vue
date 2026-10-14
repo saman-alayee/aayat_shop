@@ -18,6 +18,7 @@ const allNavItems = [
   { to: '/admin/orders', label: 'سفارش‌ها', icon: 'lucide:package' },
   { to: '/admin/sales', label: 'گزارش فروش', icon: 'lucide:bar-chart-3' },
   { to: '/admin/products', label: 'محصولات', icon: 'lucide:shopping-basket' },
+  { to: '/admin/reviews', label: 'نظرات', icon: 'lucide:star' },
   { to: '/admin/home-picks', label: 'صفحه اول', icon: 'lucide:sparkles' },
   { to: '/admin/category-feed', label: 'محصولات دسته', icon: 'lucide:list-ordered' },
   { to: '/admin/categories', label: 'دسته‌بندی', icon: 'lucide:layers' },

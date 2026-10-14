@@ -1,7 +1,15 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { productService } from '../services/product.service';
-import { asyncHandler, successResponse } from '../utils/errors';
+import { reviewService } from '../services/review.service';
+import { asyncHandler, successResponse, validate } from '../utils/errors';
+import { authenticate } from '../middleware/auth';
 import { paramId } from '../utils/params';
+
+const reviewSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  body: z.string().trim().max(500).optional().default(''),
+});
 
 const router = Router();
 
@@ -72,6 +80,48 @@ router.get(
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 8;
     const related = await productService.getRelatedByTag(paramId(req.params.slug), limit);
     successResponse(res, related);
+  })
+);
+
+router.get(
+  '/:slug/reviews',
+  asyncHandler(async (req, res) => {
+    const page = req.query.page ? parseInt(req.query.page as string) : 1;
+    const result = await reviewService.list(paramId(req.params.slug), page);
+    successResponse(res, result);
+  })
+);
+
+router.get(
+  '/:slug/reviews/mine',
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const review = await reviewService.mine(paramId(req.params.slug), req.user!.userId);
+    successResponse(res, review);
+  })
+);
+
+router.post(
+  '/:slug/reviews',
+  authenticate,
+  validate(reviewSchema),
+  asyncHandler(async (req, res) => {
+    const result = await reviewService.save(
+      paramId(req.params.slug),
+      req.user!.userId,
+      req.body.rating,
+      req.body.body,
+    );
+    successResponse(res, result, 'نظر شما ثبت شد');
+  })
+);
+
+router.delete(
+  '/:slug/reviews/mine',
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const summary = await reviewService.removeMine(paramId(req.params.slug), req.user!.userId);
+    successResponse(res, summary, 'نظر حذف شد');
   })
 );
 

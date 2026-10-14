@@ -77,8 +77,14 @@ export default defineNuxtConfig({
     size: '20px',
     class: 'icon',
     mode: 'svg',
+    // آیکون‌ها از پکیج محلی @iconify-json می‌آیند، نه از api.iconify.design
+    fallbackToApi: false,
     serverBundle: {
       collections: ['lucide', 'heroicons'],
+    },
+    clientBundle: {
+      scan: true,
+      sizeLimitKb: 1024,
     },
   },
 

@@ -35,6 +35,7 @@ export interface Slider {
   id: string;
   title: string | null;
   image: string;
+  mobileImage?: string | null;
   linkUrl: string | null;
   sortOrder: number;
   placement: SliderPlacement;
@@ -189,6 +190,17 @@ export interface Product {
   category?: { id: string; name: string; slug: string };
   tag?: Tag | null;
   inStock: boolean;
+  ratingAvg?: number;
+  ratingCount?: number;
+}
+
+export interface ProductReview {
+  id: string;
+  rating: number;
+  body: string;
+  createdAt: string;
+  authorName: string;
+  mine?: boolean;
 }
 
 export interface CartItem {
@@ -294,6 +306,7 @@ export interface Order {
     salaryCard?: string;
     taraId?: string;
     walletNote?: string;
+    requestedShipDate?: string;
     otpVerified?: boolean | string;
     [key: string]: unknown;
   } | null;
@@ -393,9 +406,9 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
 };
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  NEW: 'سفارش جدید',
+  NEW: 'خریداری شده',
   REVIEWING: 'در حال بررسی',
-  PREPARING: 'در حال آماده‌سازی',
+  PREPARING: 'درخواست ارسال',
   SHIPPED: 'ارسال شده',
   DELIVERED: 'تحویل داده شده',
   CANCELLED: 'لغو شده',

@@ -3,18 +3,18 @@ import { AppError } from '../utils/errors';
 import type { NotificationType, OrderStatus } from '@prisma/client';
 
 const ORDER_STATUS_MESSAGES: Record<OrderStatus, string> = {
-  NEW: 'سفارش جدید شما ثبت شد و در انتظار بررسی است.',
+  NEW: 'خرید شما ذخیره شد. هر وقت خواستید از سبد خرید دکمهٔ ارسال را بزنید.',
   REVIEWING: 'سفارش شما در انتظار بررسی روش پرداخت است.',
-  PREPARING: 'سفارش شما در حال آماده‌سازی است.',
+  PREPARING: 'درخواست ارسال ثبت شد و لباس‌ها در حال بسته‌بندی هستند.',
   SHIPPED: 'پیک سفارش شما را ارسال کرد. به زودی به دستتان می‌رسد.',
   DELIVERED: 'سفارش شما با موفقیت تحویل داده شد.',
   CANCELLED: 'سفارش شما لغو شد.',
 };
 
 const ORDER_STATUS_TITLES: Record<OrderStatus, string> = {
-  NEW: 'ثبت سفارش',
+  NEW: 'خرید ذخیره شد',
   REVIEWING: 'بررسی پرداخت',
-  PREPARING: 'آماده‌سازی سفارش',
+  PREPARING: 'درخواست ارسال',
   SHIPPED: 'ارسال با پیک',
   DELIVERED: 'تحویل سفارش',
   CANCELLED: 'لغو سفارش',

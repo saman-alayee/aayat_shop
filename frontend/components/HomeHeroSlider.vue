@@ -48,7 +48,7 @@ onUnmounted(stopAutoplay);
     :class="[
       'relative w-full overflow-hidden bg-neutral-100',
       layout === 'banner'
-        ? 'h-[100dvh] max-h-none md:h-auto md:max-h-[520px] md:aspect-[2560/936]'
+        ? 'aspect-[4/5] max-h-[85dvh] md:aspect-[2560/936] md:max-h-[520px]'
         : 'h-[100dvh] min-h-[520px] max-h-[1080px] bg-neutral-900',
     ]"
     @mouseenter="stopAutoplay"
@@ -67,11 +67,18 @@ onUnmounted(stopAutoplay);
           class="relative block h-full w-full shrink-0 grow-0 basis-full"
         >
           <img
-            :src="resolveMediaUrl(slider.image)"
+            :src="resolveMediaUrl(slider.mobileImage || slider.image)"
             :alt="slider.title || 'بنر'"
-            class="h-full w-full object-cover object-center"
+            class="h-full w-full object-cover object-center md:hidden"
             :loading="index === 0 ? 'eager' : 'lazy'"
             fetchpriority="high"
+            @error="(e) => { const t = e.target as HTMLImageElement; if (t && !t.src.endsWith('placeholder-product.svg')) t.src = '/images/placeholder-product.svg'; }"
+          />
+          <img
+            :src="resolveMediaUrl(slider.image)"
+            :alt="slider.title || 'بنر'"
+            class="hidden h-full w-full object-cover object-center md:block"
+            :loading="index === 0 ? 'eager' : 'lazy'"
             @error="(e) => { const t = e.target as HTMLImageElement; if (t && !t.src.endsWith('placeholder-product.svg')) t.src = '/images/placeholder-product.svg'; }"
           />
           <div

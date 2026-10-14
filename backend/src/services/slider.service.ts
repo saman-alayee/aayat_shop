@@ -9,6 +9,7 @@ type SliderBase = {
   id: string;
   title: string;
   image: string;
+  mobileImage: string | null;
   linkUrl: string | null;
   sortOrder: number;
   placement: SliderPlacement;
@@ -25,6 +26,7 @@ export type SliderWithCategory = SliderBase & {
 function normalizeSliderInput(data: {
   title?: string;
   image?: string;
+  mobileImage?: string | null;
   linkUrl?: string | null;
   sortOrder?: number;
   placement?: SliderPlacement;
@@ -116,6 +118,7 @@ export class SliderService {
   async create(data: {
     title: string;
     image: string;
+    mobileImage?: string | null;
     linkUrl?: string | null;
     sortOrder?: number;
     placement?: SliderPlacement;
@@ -132,6 +135,7 @@ export class SliderService {
       data: {
         title: data.title,
         image: data.image,
+        mobileImage: data.mobileImage || null,
         linkUrl: data.linkUrl ?? null,
         sortOrder: data.sortOrder ?? 0,
         placement: data.placement ?? 'HOME_TOP',
@@ -148,6 +152,8 @@ export class SliderService {
     const merged = {
       title: (data.title as string | undefined) ?? existing.title,
       image: (data.image as string | undefined) ?? existing.image,
+      mobileImage:
+        data.mobileImage !== undefined ? ((data.mobileImage as string | null) || null) : existing.mobileImage,
       linkUrl: data.linkUrl !== undefined ? (data.linkUrl as string | null) : existing.linkUrl,
       sortOrder: (data.sortOrder as number | undefined) ?? existing.sortOrder,
       placement: (data.placement as SliderPlacement | undefined) ?? existing.placement,

@@ -75,6 +75,7 @@ model User {
   otpCodes      OtpCode[]
   notifications Notification[]
   favorites     Favorite[]
+  reviews       ProductReview[]
 
   @@index([customerGroupId])
   @@index([accessRoleId])
@@ -225,6 +226,8 @@ model Product {
   homeDealSort     Int       @default(0)
   isHomeFeatured   Boolean   @default(false)
   homeFeaturedSort Int       @default(0)
+  ratingAvg        Float     @default(0)
+  ratingCount      Int       @default(0)
   categoryId       String
   tagId          String?
   createdAt      DateTime  @default(now())
@@ -240,6 +243,7 @@ model Product {
   discounts  Discount[]
   images     ProductImage[]
   favorites  Favorite[]
+  reviews    ProductReview[]
 
   @@index([categoryId])
   @@index([tagId])
@@ -251,6 +255,23 @@ model Product {
   @@index([isActive, isHomeDeal, homeDealSort])
   @@index([isActive, isHomeFeatured, homeFeaturedSort])
   @@map("products")
+}
+
+model ProductReview {
+  id        String   @id @default(cuid())
+  productId String
+  userId    String
+  rating    Int
+  body      String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, userId])
+  @@index([productId, createdAt])
+  @@map("product_reviews")
 }
 
 model ProductImage {
@@ -347,9 +368,10 @@ model OrderStatusLog {
 
 model Slider {
   id         String          @id @default(cuid())
-  title      String
-  image      String
-  linkUrl    String?
+  title       String
+  image       String
+  mobileImage String?
+  linkUrl     String?
   sortOrder  Int             @default(0)
   placement  SliderPlacement @default(HOME_TOP)
   /** For HOME_MID: show banner after this category section on the homepage */

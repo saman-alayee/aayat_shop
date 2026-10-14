@@ -138,24 +138,21 @@ const centerIcon = computed(() => {
             <line x1="48" y1="58" x2="112" y2="58" stroke="#652a3b" stroke-width="2.4" stroke-linecap="round" />
             <circle cx="48" cy="58" r="2.8" fill="#652a3b" fill-opacity="0.45" />
             <circle cx="112" cy="58" r="2.8" fill="#652a3b" fill-opacity="0.45" />
-            <!-- قلاب جالباسی -->
-            <line x1="80" y1="58" x2="80" y2="70" stroke="#652a3b" stroke-width="2" stroke-linecap="round" />
             <path
-              d="M80 70c0-7 7-11 12-7"
-              stroke="#652a3b"
-              stroke-width="2"
-              stroke-linecap="round"
-              fill="none"
-            />
-            <!-- شانه جالباسی -->
-            <path
-              d="M54 84c10-10 18-12 26-12s16 2 26 12"
+              d="M80 58c0-8 10-8 10 1 0 6-5 8-7 11"
               stroke="#652a3b"
               stroke-width="2.2"
               stroke-linecap="round"
               fill="none"
             />
-            <line x1="54" y1="84" x2="106" y2="84" stroke="#652a3b" stroke-width="2.2" stroke-linecap="round" />
+            <path
+              d="M83 70 58 96c-3 4 1 8 5 8h40c4 0 8-4 5-8L83 70z"
+              fill="none"
+              stroke="#652a3b"
+              stroke-width="2"
+              stroke-linejoin="round"
+            />
+            <path d="M66 98h28" stroke="#652a3b" stroke-width="1.6" stroke-linecap="round" />
             <!-- جای خالی لباس (نقطه‌چین) -->
             <path
               d="M62 88c5 4 11 6 18 6s13-2 18-6"

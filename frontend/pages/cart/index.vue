@@ -1,16 +1,33 @@
 <script setup lang="ts">
-import type { Product } from '~/types';
+import type { Order, Product } from '~/types';
 import { SITE_NAME } from '~/constants/site';
+import { getTodayGregorianIso } from '~/utils/jalali';
 
 const cartStore = useCartStore();
+const authStore = useAuthStore();
 const api = useApi();
-const { formatPrice, getProductImage, toPersianDigits } = useFormat();
+const { formatPrice, getProductImage, toPersianDigits, formatShortDate } = useFormat();
 
 const suggestedProducts = ref<Product[]>([]);
 const suggestionsLoading = ref(false);
 const busyId = ref<string | null>(null);
 const clearing = ref(false);
 const actionError = ref('');
+const heldOrders = ref<Order[]>([]);
+const heldLoading = ref(false);
+const requestingShip = ref(false);
+const shipMessage = ref('');
+const shipDate = ref<string | null>(null);
+const todayIso = getTodayGregorianIso();
+
+const heldItems = computed(() =>
+  heldOrders.value.flatMap((order) =>
+    (order.items || []).map((item) => ({
+      ...item,
+      orderNumber: order.orderNumber,
+    }))
+  )
+);
 
 const pieceLabel = computed(() => {
   const count = cartStore.totalItems;
@@ -19,6 +36,46 @@ const pieceLabel = computed(() => {
 
 function hasDiscount(price: number, effectivePrice: number) {
   return price > effectivePrice;
+}
+
+async function loadHeldOrders() {
+  authStore.init();
+  if (!authStore.isLoggedIn) {
+    heldOrders.value = [];
+    return;
+  }
+  heldLoading.value = true;
+  try {
+    const { data } = await api.get<Order[]>('/orders/held');
+    heldOrders.value = data;
+  } catch {
+    heldOrders.value = [];
+  } finally {
+    heldLoading.value = false;
+  }
+}
+
+async function requestShipment() {
+  if (requestingShip.value || !heldOrders.value.length) return;
+  if (!shipDate.value) {
+    actionError.value = 'روز مراجعه را انتخاب کنید';
+    return;
+  }
+  requestingShip.value = true;
+  actionError.value = '';
+  shipMessage.value = '';
+  try {
+    const { data } = await api.post<{ count: number; requestedShipDate: string }>('/orders/request-shipment', {
+      shipDate: shipDate.value,
+    });
+    heldOrders.value = [];
+    shipDate.value = null;
+    shipMessage.value = `${toPersianDigits(data.count)} سفارش برای ${formatShortDate(data.requestedShipDate)} ثبت شد.`;
+  } catch (e: unknown) {
+    actionError.value = e instanceof Error ? e.message : 'ثبت درخواست ارسال انجام نشد';
+  } finally {
+    requestingShip.value = false;
+  }
 }
 
 async function loadSuggestions() {
@@ -65,6 +122,15 @@ async function removeItem(productId: string) {
   }
 }
 
+function continueCheckout() {
+  authStore.init();
+  if (!authStore.isLoggedIn) {
+    navigateTo(`/auth/login?redirect=${encodeURIComponent('/checkout')}`);
+    return;
+  }
+  navigateTo('/checkout');
+}
+
 async function clearCart() {
   if (clearing.value || cartStore.isEmpty) return;
   clearing.value = true;
@@ -79,7 +145,7 @@ async function clearCart() {
 }
 
 onMounted(async () => {
-  await cartStore.fetchCart();
+  await Promise.all([cartStore.fetchCart(), loadHeldOrders()]);
   await loadSuggestions();
 });
 
@@ -112,6 +178,40 @@ useHead({ title: `سبد خرید - ${SITE_NAME}` });
           حذف همه
         </button>
       </div>
+
+      <p v-if="shipMessage" class="mb-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800">{{ shipMessage }}</p>
+
+      <section v-if="heldItems.length" class="mb-6 rounded-3xl bg-white p-4 shadow-card sm:p-5">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 class="text-base font-bold text-[#23254e]">لباس‌های خریداری‌شده</h2>
+            <p class="mt-1 text-sm leading-6 text-gray-500">
+              پول پرداخت شده است. روزی که می‌خواهید لباس‌ها بیاید را انتخاب کنید، بعد ارسال را بزنید.
+            </p>
+          </div>
+        </div>
+        <label class="mt-4 block max-w-xs">
+          <span class="mb-1.5 block text-sm text-[#23254e]">چه روزی بیاید؟</span>
+          <AppDatePicker v-model="shipDate" :min="todayIso" placeholder="انتخاب روز" :clearable="false" />
+        </label>
+        <button
+          type="button"
+          class="btn-primary mt-4 h-11 px-5 text-sm"
+          :disabled="requestingShip || !shipDate"
+          @click="requestShipment"
+        >
+          {{ requestingShip ? 'در حال ثبت...' : 'ارسال' }}
+        </button>
+        <ul class="mt-4 divide-y divide-[#f0ebe8]">
+          <li v-for="item in heldItems" :key="item.id" class="flex items-center justify-between gap-3 py-3 text-sm">
+            <span class="min-w-0">
+              <span class="block truncate font-medium text-[#23254e]">{{ item.name }}</span>
+              <span class="text-xs text-gray-400">{{ toPersianDigits(item.quantity) }} عدد · {{ item.orderNumber }}</span>
+            </span>
+            <span class="shrink-0 font-bold text-[#23254e]">{{ formatPrice(item.price * item.quantity) }}</span>
+          </li>
+        </ul>
+      </section>
 
       <LoadingSpinner :show="cartStore.loading && cartStore.isEmpty" />
       <p v-if="actionError" class="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{{ actionError }}</p>
@@ -204,9 +304,9 @@ useHead({ title: `سبد خرید - ${SITE_NAME}` });
             </div>
           </dl>
           <p class="mt-3 text-xs leading-6 text-gray-500">هزینه ارسال در مرحله بعد محاسبه می‌شود.</p>
-          <NuxtLink to="/checkout" class="btn-primary btn-action mt-5 hidden w-full lg:inline-flex">
+          <button type="button" class="btn-primary btn-action mt-5 hidden w-full lg:inline-flex" @click="continueCheckout">
             ادامه و ثبت سفارش
-          </NuxtLink>
+          </button>
           <NuxtLink to="/categories" class="btn-secondary btn-action mt-3 hidden w-full lg:inline-flex">
             ادامه خرید
           </NuxtLink>
@@ -238,9 +338,9 @@ useHead({ title: `سبد خرید - ${SITE_NAME}` });
           <p class="text-xs text-gray-500">قابل پرداخت</p>
           <p class="truncate text-sm font-bold text-[#23254e]">{{ formatPrice(cartStore.totalPrice) }}</p>
         </div>
-        <NuxtLink to="/checkout" class="btn-primary inline-flex h-12 flex-1 items-center justify-center rounded-xl text-sm font-bold">
+        <button type="button" class="btn-primary inline-flex h-12 flex-1 items-center justify-center rounded-xl text-sm font-bold" @click="continueCheckout">
           ادامه و ثبت سفارش
-        </NuxtLink>
+        </button>
       </div>
     </div>
   </div>

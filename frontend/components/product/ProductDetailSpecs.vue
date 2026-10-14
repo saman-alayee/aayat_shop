@@ -8,7 +8,8 @@ const props = defineProps<{
   inStockDisplay: boolean;
   canPurchase: boolean;
   quantity: number;
-  favorited: boolean;
+  adding?: boolean;
+  justAdded?: boolean;
 }>();
 
 const selectedColor = defineModel<string | undefined>('selectedColor');
@@ -19,7 +20,6 @@ const emit = defineEmits<{
   decreaseQty: [];
   increaseQty: [];
   removeFromCart: [];
-  toggleFavorite: [];
 }>();
 
 const { formatPrice } = useFormat();
@@ -40,38 +40,36 @@ function share(kind: 'whatsapp' | 'telegram' | 'twitter' | 'facebook') {
 
 <template>
   <div class="mt-5 flex min-w-0 flex-col md:mt-1">
-    <div class="flex items-start gap-3">
-      <h1 class="flex-1 text-[19px] font-bold leading-8 text-[#23254e] md:text-xl">
-        {{ product.name }}
-      </h1>
-      <button
-        type="button"
-        class="product-fav-btn mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
-        :class="{ 'is-on': favorited }"
-        :aria-pressed="favorited"
-        :aria-label="favorited ? 'حذف از ذخیره‌ها' : 'ذخیره محصول'"
-        @click="emit('toggleFavorite')"
-      >
-        <AppIcon name="lucide:bookmark" size="md" class="product-fav-btn__icon" />
-      </button>
-    </div>
+    <h1 class="text-[19px] font-bold leading-8 text-[#23254e] md:text-xl">
+      {{ product.name }}
+    </h1>
+    <ProductRating
+      v-if="product.ratingCount"
+      class="mt-2"
+      :value="product.ratingAvg || 0"
+      :count="product.ratingCount"
+      size="md"
+    />
 
-    <div class="mt-4 flex flex-wrap items-end gap-x-3 gap-y-1">
+    <div class="mt-4 flex flex-wrap items-end gap-x-3 gap-y-2">
       <p class="text-[22px] font-bold leading-none text-[#23254e]">
         {{ formatPrice(product.effectivePrice) }}
       </p>
       <p v-if="product.discountPrice" class="text-sm text-gray-400 line-through">
         {{ formatPrice(product.price) }}
       </p>
+      <span
+        v-if="!isDemoProduct && !inStockDisplay"
+        class="inline-flex w-fit items-center rounded bg-[#fde8e6] px-1.5 py-px text-[11px] font-semibold leading-5 text-[#b42318]"
+      >
+        ناموجود
+      </span>
     </div>
 
     <p v-if="isDemoProduct" class="mt-2 text-xs text-gray-500">موجود — فقط نمایشی</p>
-    <EmptyCatalogScene
-      v-else-if="!inStockDisplay"
-      variant="stock"
-      compact
-      class="mt-4"
-    />
+    <p v-else-if="!inStockDisplay" class="mt-2 text-sm text-neutral-500">
+      این محصول فعلاً موجود نیست؛ مشخصات را می‌توانید ببینید.
+    </p>
 
     <div
       v-if="clothingMeta?.sizes?.length || clothingMeta?.colors?.length"
@@ -96,27 +94,30 @@ function share(kind: 'whatsapp' | 'telegram' | 'twitter' | 'facebook') {
 
     <div class="mt-5 hidden items-center gap-3 md:flex">
       <button
+        v-if="quantity === 0 || justAdded || adding"
         type="button"
-        class="inline-flex h-12 min-w-[190px] items-center justify-center rounded-lg bg-[#ef394e] px-6 text-sm text-white transition-colors hover:bg-[#d63245] disabled:cursor-not-allowed disabled:bg-gray-300"
-        :disabled="!canPurchase"
+        class="inline-flex h-12 min-w-[190px] items-center justify-center gap-2 rounded-lg px-6 text-sm text-white transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-gray-300"
+        :class="justAdded ? 'bg-[#1f8a4c]' : 'bg-[#ef394e] hover:bg-[#d63245]'"
+        :disabled="!canPurchase || adding"
         @click="emit('addToCart')"
       >
-        {{ canPurchase ? 'افزودن به سبد خرید' : 'ناموجود' }}
+        <AppIcon v-if="justAdded" name="lucide:check" size="sm" />
+        {{ !canPurchase ? 'ناموجود' : adding ? 'در حال افزودن…' : justAdded ? 'به سبد اضافه شد' : 'افزودن به سبد خرید' }}
       </button>
 
-      <div v-if="quantity > 0" class="flex items-center gap-2 rounded-lg border border-gray-200 px-2 py-1">
+      <div v-else class="inline-flex h-12 min-w-[190px] items-center justify-between gap-3 rounded-lg bg-[#1f8a4c] px-3 text-white">
         <button
           type="button"
-          class="flex h-8 w-8 items-center justify-center text-gray-600"
+          class="flex h-8 w-8 items-center justify-center rounded-md bg-white/15"
           aria-label="کم کردن"
           @click="quantity <= 1 ? emit('removeFromCart') : emit('decreaseQty')"
         >
           <AppIcon name="lucide:minus" size="sm" />
         </button>
-        <span class="min-w-[1.5rem] text-center text-sm font-bold text-[#23254e]">{{ quantity }}</span>
+        <span class="text-sm font-bold">{{ quantity }} در سبد</span>
         <button
           type="button"
-          class="flex h-8 w-8 items-center justify-center text-gray-600"
+          class="flex h-8 w-8 items-center justify-center rounded-md bg-white/15"
           aria-label="زیاد کردن"
           @click="emit('increaseQty')"
         >
@@ -153,45 +154,3 @@ function share(kind: 'whatsapp' | 'telegram' | 'twitter' | 'facebook') {
     </div>
   </div>
 </template>
-
-<style scoped>
-.product-fav-btn {
-  color: #3f3f46;
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 2px 8px rgba(26, 15, 18, 0.1);
-  transition:
-    transform 0.18s ease,
-    color 0.18s ease,
-    background-color 0.18s ease,
-    border-color 0.18s ease;
-}
-
-.product-fav-btn:hover {
-  transform: scale(1.05);
-  color: #652a3b;
-}
-
-.product-fav-btn.is-on {
-  color: #ef394e;
-  background: #fff5f6;
-  border-color: rgba(239, 57, 78, 0.35);
-  animation: product-fav-pop 0.45s cubic-bezier(0.22, 1.4, 0.36, 1);
-}
-
-.product-fav-btn__icon :deep(svg) {
-  stroke-width: 2.35;
-  fill: transparent;
-}
-
-.product-fav-btn.is-on .product-fav-btn__icon :deep(svg) {
-  fill: #ef394e !important;
-  stroke: #ef394e !important;
-}
-
-@keyframes product-fav-pop {
-  0% { transform: scale(1); }
-  30% { transform: scale(1.22); }
-  100% { transform: scale(1); }
-}
-</style>

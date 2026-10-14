@@ -166,33 +166,33 @@
   }
 
   .product-card-slot-sarak {
-    flex: 0 0 161px;
-    width: 161px;
+    flex: 0 0 140px;
+    width: 140px;
     min-width: 0;
     @apply flex self-stretch;
   }
 
   @media (min-width: 768px) {
     .product-card-slot-sarak {
-      flex: 0 0 clamp(280px, 18.4vw, 354px);
-      width: clamp(280px, 18.4vw, 354px);
+      flex: 0 0 clamp(160px, 12vw, 210px);
+      width: clamp(160px, 12vw, 210px);
     }
   }
 
   .product-card-grid-sarak {
-    @apply grid gap-4 md:gap-5 px-5 md:px-8 lg:px-10;
+    @apply grid gap-3 md:gap-4 px-4 md:px-6 lg:px-8;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   @media (min-width: 640px) {
     .product-card-grid-sarak {
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
     }
   }
 
   @media (min-width: 1280px) {
     .product-card-grid-sarak {
-      grid-template-columns: repeat(auto-fill, minmax(300px, 354px));
+      grid-template-columns: repeat(auto-fill, minmax(180px, 210px));
       justify-content: start;
     }
   }

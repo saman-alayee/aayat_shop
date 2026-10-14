@@ -70,18 +70,15 @@ function switchMode(next: 'password' | 'otp') {
   password.value = '';
 }
 
-useHead({ title: `ورود ادمین - ${SITE_NAME}` });
+useHead({
+  title: `ورود ادمین - ${SITE_NAME}`,
+  meta: [{ name: 'robots', content: 'noindex, nofollow' }],
+});
 definePageMeta({ layout: false });
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center px-4 bg-gray-900">
-    <div class="w-full max-w-sm">
-      <div class="flex justify-center mb-8">
-        <AppLogo size="lg" />
-      </div>
-
-      <div class="bg-white rounded-2xl p-6 shadow-xl">
+  <AuthAtelierFrame variant="staff" back-label="فروشگاه">
         <h1 class="text-lg font-bold text-gray-800 mb-1">ورود پنل مدیریت</h1>
         <p class="text-sm text-gray-500 mb-4">فقط برای مدیران سیستم</p>
 
@@ -184,11 +181,5 @@ definePageMeta({ layout: false });
             </button>
           </form>
         </template>
-      </div>
-
-      <p class="text-center text-sm text-gray-400 mt-4">
-        <NuxtLink to="/auth/login" class="hover:text-white">ورود مشتریان</NuxtLink>
-      </p>
-    </div>
-  </div>
+  </AuthAtelierFrame>
 </template>

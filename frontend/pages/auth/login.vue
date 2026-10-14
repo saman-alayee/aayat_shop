@@ -186,13 +186,7 @@ definePageMeta({ layout: false });
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center px-4 bg-gray-50">
-    <div class="w-full max-w-sm">
-      <div class="flex justify-center mb-8">
-        <AppLogo size="lg" />
-      </div>
-
-      <div class="card p-6">
+  <AuthAtelierFrame>
         <button
           v-if="step !== 'authenticate'"
           type="button"
@@ -348,12 +342,5 @@ definePageMeta({ layout: false });
           <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
           <button type="submit" class="btn-primary w-full" :disabled="authStore.loading">تایید</button>
         </form>
-      </div>
-
-      <p class="text-center text-sm text-gray-400 mt-4 space-y-1">
-        <NuxtLink to="/" class="block hover:text-primary-600">بازگشت به فروشگاه</NuxtLink>
-        <NuxtLink to="/admin/login" class="block hover:text-primary-600">ورود مدیران</NuxtLink>
-      </p>
-    </div>
-  </div>
+  </AuthAtelierFrame>
 </template>

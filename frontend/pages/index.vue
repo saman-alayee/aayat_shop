@@ -33,16 +33,21 @@ const WP_HERO: Slider[] = [
   },
 ];
 
-const displayTopSliders = computed(() => WP_HERO);
+const apiTopSliders = ref<Slider[]>([]);
+
+const displayTopSliders = computed(() => (apiTopSliders.value.length ? apiTopSliders.value : WP_HERO));
 
 async function loadHomeSections() {
   sectionsLoading.value = true;
   try {
-    const [newestRes, specialRes, feedRes] = await Promise.all([
+    const [newestRes, specialRes, feedRes, sliderRes] = await Promise.all([
       api.get<{ products: Product[] }>('/products?sort=newest&limit=12'),
       api.get<{ products: Product[] }>('/products?discounted=1&limit=12'),
       api.get<HomeCategorySection[]>('/products/home-feed'),
+      api.get<Slider[]>('/sliders?placement=HOME_TOP').catch(() => ({ data: [] as Slider[] })),
     ]);
+
+    apiTopSliders.value = sliderRes.data ?? [];
 
     const newest = newestRes.data?.products ?? [];
     const special = specialRes.data?.products ?? [];

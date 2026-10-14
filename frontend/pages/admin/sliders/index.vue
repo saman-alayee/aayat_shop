@@ -19,6 +19,7 @@ const uploading = ref(false);
 const form = reactive({
   title: '',
   image: '',
+  mobileImage: '',
   linkUrl: '',
   sortOrder: 0,
   placement: 'HOME_TOP' as 'HOME_TOP' | 'HOME_MID',
@@ -52,7 +53,7 @@ const filteredSliders = computed(() =>
 
 const sizeHint = computed(() =>
   form.placement === 'HOME_TOP'
-    ? 'سایز پیشنهادی بنر بالا: ۱۶۰۰ × ۷۰۰ پیکسل (نسبت حدود ۲ به ۱)'
+    ? 'دسکتاپ ۲۵۶۰×۹۳۶ و گوشی ۱۰۸۰×۱۳۵۰. دو فایل جدا آپلود کنید.'
     : 'سایز پیشنهادی بنر میانی: ۱۶۰۰ × ۵۶۰ پیکسل (نسبت حدود ۱۶ به ۷)'
 );
 
@@ -103,6 +104,7 @@ function openForm(slider?: Slider) {
     Object.assign(form, {
       title: slider.title || '',
       image: slider.image,
+      mobileImage: slider.mobileImage || '',
       linkUrl: slider.linkUrl || '',
       sortOrder: slider.sortOrder,
       placement: slider.placement,
@@ -114,6 +116,7 @@ function openForm(slider?: Slider) {
     Object.assign(form, {
       title: '',
       image: '',
+      mobileImage: '',
       linkUrl: '',
       sortOrder: sliders.value.length + 1,
       placement: 'HOME_TOP',
@@ -131,7 +134,7 @@ watch(
   }
 );
 
-async function uploadImage(e: Event) {
+async function uploadImage(e: Event, target: 'image' | 'mobileImage' = 'image') {
   const input = e.target as HTMLInputElement;
   const file = input.files?.[0];
   if (!file) return;
@@ -151,7 +154,7 @@ async function uploadImage(e: Event) {
   uploading.value = true;
   try {
     const { data } = await api.upload<{ url: string }>('/admin/sliders/upload', file);
-    form.image = data.url;
+    form[target] = data.url;
     toast.success('تصویر آپلود شد');
   } catch (err: unknown) {
     toast.error(err instanceof Error ? err.message : 'خطا در آپلود');
@@ -167,8 +170,9 @@ async function save() {
     return;
   }
   try {
-    const payload = {
+      const payload = {
       ...form,
+      mobileImage: form.mobileImage || null,
       linkUrl: form.linkUrl || null,
       categoryId: form.placement === 'HOME_MID' ? form.categoryId : null,
     };
@@ -215,7 +219,7 @@ useHead({ title: 'اسلایدر - پنل مدیریت' });
       </p>
       <ul class="list-disc pr-5 space-y-1.5">
         <li>
-          <b>بنر بالای صفحه:</b> اولین تصویر که مشتری می‌بیند. سایز پیشنهادی <b>۱۶۰۰ × ۷۰۰</b> پیکسل.
+          <b>بنر بالای صفحه:</b> دو فایل جدا لازم است. دسکتاپ <b>۲۵۶۰ × ۹۳۶</b> و گوشی <b>۱۰۸۰ × ۱۳۵۰</b>. موضوع اصلی وسط کادر باشد.
         </li>
         <li>
           <b>بنر میانی:</b> بعد از ردیف محصولات یک دسته نمایش داده می‌شود. هنگام ساخت، دسته را انتخاب کنید
@@ -226,7 +230,7 @@ useHead({ title: 'اسلایدر - پنل مدیریت' });
           <b>آپلود تصویر:</b> فرمت JPG یا PNG یا WebP، حجم کمتر از <b>۱٫۵ مگابایت</b>. تصویر را از دکمه «انتخاب
           فایل» بگذارید؛ بعد از آپلود پیش‌نمایش را ببینید و سپس ذخیره کنید.
         </li>
-        <li>متن مهم را وسط تصویر نگذارید؛ در موبایل ممکن است بریده شود.</li>
+        <li>یک عکس را برای هر دو اندازه نکشید. اگر فقط عکس دسکتاپ باشد، گوشی همان را برش می‌دهد.</li>
         <li>حداکثر <b>۴ اسلاید فعال</b> در هر جایگاه روی سایت نمایش داده می‌شود (بر اساس «ترتیب نمایش»).</li>
         <li>
           لینک اختیاری: مثلاً <span dir="ltr">/categories/woman-clothe</span> — با لمس بنر همان صفحه باز می‌شود.
@@ -324,28 +328,39 @@ useHead({ title: 'اسلایدر - پنل مدیریت' });
         <AppSwitch v-model="form.isActive" label="نمایش در سایت" />
 
         <div class="rounded-xl border border-gray-100 bg-gray-50/80 p-4 space-y-3">
-          <label class="block text-sm font-medium">تصویر بنر</label>
-          <p class="text-xs text-gray-500 leading-relaxed">
-            ۱) تصویر افقی با سایز پیشنهادی بالا آماده کنید.
-            ۲) فایل را انتخاب کنید (JPG/PNG/WebP، حداکثر ۱٫۵MB).
-            ۳) منتظر پیش‌نمایش بمانید، بعد «ذخیره» بزنید.
-          </p>
+          <label class="block text-sm font-medium">عکس دسکتاپ</label>
+          <p class="text-xs text-gray-500 leading-relaxed">افقی، حدود ۲۵۶۰×۹۳۶. JPG/PNG/WebP، حداکثر ۱٫۵MB.</p>
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp,image/gif"
             class="text-sm w-full"
             :disabled="uploading"
-            @change="uploadImage"
+            @change="uploadImage($event, 'image')"
           />
-          <p class="text-xs" :class="uploading ? 'text-primary-600' : 'text-gray-400'">
-            {{ uploading ? 'در حال آپلود… لطفاً صبر کنید' : 'عکس افقی با نسبت حدود ۲ به ۱' }}
-          </p>
           <img
             v-if="form.image"
             :src="resolveMediaUrl(form.image)"
-            class="w-full aspect-[16/7] rounded-lg object-cover bg-gray-100 border border-gray-200"
-            alt="پیش‌نمایش بنر"
+            class="w-full aspect-[2560/936] rounded-lg object-cover bg-gray-100 border border-gray-200"
+            alt="پیش‌نمایش دسکتاپ"
           />
+          <label class="block pt-2 text-sm font-medium">عکس گوشی</label>
+          <p class="text-xs text-gray-500 leading-relaxed">عمودی، حدود ۱۰۸۰×۱۳۵۰. اگر خالی بماند، عکس دسکتاپ در گوشی برش می‌خورد.</p>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            class="text-sm w-full"
+            :disabled="uploading"
+            @change="uploadImage($event, 'mobileImage')"
+          />
+          <img
+            v-if="form.mobileImage"
+            :src="resolveMediaUrl(form.mobileImage)"
+            class="mx-auto w-40 aspect-[4/5] rounded-lg object-cover bg-gray-100 border border-gray-200"
+            alt="پیش‌نمایش گوشی"
+          />
+          <p class="text-xs" :class="uploading ? 'text-primary-600' : 'text-gray-400'">
+            {{ uploading ? 'در حال آپلود… لطفاً صبر کنید' : 'هر دو عکس را جدا آپلود کنید، بعد ذخیره بزنید.' }}
+          </p>
         </div>
 
         <div class="flex gap-2">

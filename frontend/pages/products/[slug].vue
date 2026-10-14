@@ -9,6 +9,7 @@ const route = useRoute();
 const api = useApi();
 const catalogDemo = useCatalogDemo();
 const cartStore = useCartStore();
+const toast = useToast();
 const { formatPrice, getProductImage } = useFormat();
 const { isFavorite, toggleFavorite } = useFavorites();
 
@@ -122,6 +123,32 @@ const variantStock = computed(() => {
 
 const inStockDisplay = computed(() => variantStock.value > 0);
 const canPurchase = computed(() => !isDemoProduct.value && inStockDisplay.value);
+const addingToCart = ref(false);
+const justAdded = ref(false);
+let addedTimer: ReturnType<typeof setTimeout> | null = null;
+
+async function addToCart() {
+  if (!product.value || !canPurchase.value || addingToCart.value) return;
+  addingToCart.value = true;
+  justAdded.value = false;
+  try {
+    await cartStore.addItem(product.value.id);
+    justAdded.value = true;
+    toast.success('به سبد خرید اضافه شد');
+    if (addedTimer) clearTimeout(addedTimer);
+    addedTimer = setTimeout(() => {
+      justAdded.value = false;
+    }, 1600);
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'افزودن به سبد انجام نشد');
+  } finally {
+    addingToCart.value = false;
+  }
+}
+
+onUnmounted(() => {
+  if (addedTimer) clearTimeout(addedTimer);
+});
 
 watch(galleryImages, (images) => {
   if (activeImageIndex.value >= images.length) {
@@ -207,12 +234,14 @@ usePageSeo(() => ({
           <span v-else class="text-neutral-900" aria-current="page">{{ crumb.label }}</span>
         </template>
       </nav>
-      <div class="md:grid md:grid-cols-[minmax(280px,440px)_minmax(0,1fr)] md:items-start md:gap-10 lg:gap-14">
+      <div class="md:grid md:grid-cols-[minmax(220px,320px)_minmax(0,1fr)] md:items-start md:gap-8 lg:gap-12">
         <ProductDetailGallery
           :images="galleryImages"
           :active-index="activeImageIndex"
           :product-name="product.name"
+          :favorited="favorited"
           @update:active-index="activeImageIndex = $event"
+          @toggle-favorite="toggleFavorite(product.id)"
         />
 
         <ProductDetailSpecs
@@ -224,15 +253,17 @@ usePageSeo(() => ({
           :in-stock-display="inStockDisplay"
           :can-purchase="canPurchase"
           :quantity="quantity"
-          :favorited="favorited"
-          @add-to-cart="cartStore.addItem(product.id)"
+          :adding="addingToCart"
+          :just-added="justAdded"
+          @add-to-cart="addToCart"
           @decrease-qty="cartStore.updateQuantity(product.id, quantity - 1)"
           @increase-qty="cartStore.updateQuantity(product.id, quantity + 1)"
           @remove-from-cart="cartStore.removeItem(product.id)"
-          @toggle-favorite="toggleFavorite(product.id)"
         />
       </div>
     </div>
+
+    <ProductReviews v-if="product" :slug="product.slug" />
 
     <section v-if="relatedProducts.length" class="mx-auto mt-6 max-w-[1240px] border-t border-gray-100 px-4 pb-6 pt-8">
       <h2 class="mb-4 text-base font-bold text-[#23254e]">محصولات مشابه</h2>
@@ -242,14 +273,42 @@ usePageSeo(() => ({
     <div class="fixed inset-x-0 bottom-16 z-[55] border-t border-gray-100 bg-white px-4 py-3 md:hidden">
       <div class="mx-auto flex max-w-lg items-center gap-3">
         <button
+          v-if="quantity === 0 || justAdded || addingToCart"
           type="button"
-          class="inline-flex h-12 flex-1 items-center justify-center rounded-lg bg-[#ef394e] px-4 text-sm text-white disabled:cursor-not-allowed disabled:bg-gray-300"
-          :disabled="!canPurchase"
-          @click="cartStore.addItem(product.id)"
+          class="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-lg px-4 text-sm text-white transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-gray-300"
+          :class="justAdded ? 'bg-[#1f8a4c]' : 'bg-[#ef394e]'"
+          :disabled="!canPurchase || addingToCart"
+          @click="addToCart"
         >
-          {{ canPurchase ? 'افزودن به سبد خرید' : 'ناموجود' }}
+          <AppIcon v-if="justAdded" name="lucide:check" size="sm" />
+          {{ !canPurchase ? 'ناموجود' : addingToCart ? 'در حال افزودن…' : justAdded ? 'به سبد اضافه شد' : 'افزودن به سبد خرید' }}
         </button>
-        <p class="shrink-0 text-base font-bold text-[#23254e]">
+        <div v-else class="inline-flex h-12 flex-1 items-center justify-between gap-3 rounded-lg bg-[#1f8a4c] px-3 text-white">
+          <button
+            type="button"
+            class="flex h-8 w-8 items-center justify-center rounded-md bg-white/15"
+            aria-label="کم کردن"
+            @click="quantity <= 1 ? cartStore.removeItem(product.id) : cartStore.updateQuantity(product.id, quantity - 1)"
+          >
+            <AppIcon name="lucide:minus" size="sm" />
+          </button>
+          <span class="text-sm font-bold">{{ quantity }} در سبد</span>
+          <button
+            type="button"
+            class="flex h-8 w-8 items-center justify-center rounded-md bg-white/15"
+            aria-label="زیاد کردن"
+            @click="cartStore.updateQuantity(product.id, quantity + 1)"
+          >
+            <AppIcon name="lucide:plus" size="sm" />
+          </button>
+        </div>
+        <p
+          v-if="!canPurchase"
+          class="shrink-0 rounded bg-[#fde8e6] px-1.5 py-px text-[11px] font-semibold leading-5 text-[#b42318]"
+        >
+          ناموجود
+        </p>
+        <p v-else class="shrink-0 text-base font-bold text-[#23254e]">
           {{ formatPrice(product.effectivePrice) }}
         </p>
       </div>

@@ -909,6 +909,8 @@ export class ProductService {
     images?: { url: string; sortOrder: number }[];
     createdAt: Date;
     updatedAt: Date;
+    ratingAvg?: number | null;
+    ratingCount?: number | null;
   }) {
     const price = Number(product.price);
     const discountPrice = product.discountPrice ? Number(product.discountPrice) : null;
@@ -940,6 +942,8 @@ export class ProductService {
       effectivePrice,
       discountPercent,
       inStock: product.stock > 0,
+      ratingAvg: Math.round(Number(product.ratingAvg ?? 0) * 10) / 10,
+      ratingCount: Number(product.ratingCount ?? 0),
       categories,
       tags,
       categoryIds,

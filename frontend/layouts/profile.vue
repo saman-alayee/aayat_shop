@@ -16,7 +16,6 @@ onMounted(() => {
 <template>
   <div class="min-h-screen flex flex-col bg-gray-50">
     <AppHeader />
-    <ProfileSubNav />
     <main class="flex-1 safe-bottom">
       <div class="max-w-3xl mx-auto px-4 py-5">
         <slot />

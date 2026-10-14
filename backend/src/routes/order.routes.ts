@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { orderService } from '../services/order.service';
 import { asyncHandler, successResponse, validate } from '../utils/errors';
-import { authenticate, optionalAuth, sessionMiddleware } from '../middleware/auth';
+import { authenticate, sessionMiddleware } from '../middleware/auth';
 import { paramId } from '../utils/params';
 
 const router = Router();
@@ -40,12 +40,12 @@ router.use(sessionMiddleware);
 
 router.post(
   '/',
-  optionalAuth,
+  authenticate,
   validate(createOrderSchema),
   asyncHandler(async (req, res) => {
     const order = await orderService.createOrder(
       req.body,
-      req.user?.userId,
+      req.user!.userId,
       req.sessionId
     );
     successResponse(res, order, 'سفارش با موفقیت ثبت شد', 201);
@@ -57,6 +57,25 @@ router.get(
   asyncHandler(async (req, res) => {
     const order = await orderService.getOrderByNumber(paramId(req.params.orderNumber));
     successResponse(res, order);
+  })
+);
+
+router.get(
+  '/held',
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const orders = await orderService.listHeldOrders(req.user!.userId);
+    successResponse(res, orders);
+  })
+);
+
+router.post(
+  '/request-shipment',
+  authenticate,
+  validate(z.object({ shipDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'روز مراجعه را انتخاب کنید') })),
+  asyncHandler(async (req, res) => {
+    const result = await orderService.requestShipment(req.user!.userId, req.body.shipDate);
+    successResponse(res, result, 'درخواست ارسال برای بسته‌بندی ثبت شد');
   })
 );
 

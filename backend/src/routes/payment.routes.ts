@@ -6,6 +6,7 @@ const router = Router();
 router.get('/zibal/callback', async (req, res) => {
   const destination = await zibalService.handleCallback({
     success: typeof req.query.success === 'string' ? req.query.success : undefined,
+    status: typeof req.query.status === 'string' ? req.query.status : undefined,
     trackId: typeof req.query.trackId === 'string' ? req.query.trackId : undefined,
     orderId: typeof req.query.orderId === 'string' ? req.query.orderId : undefined,
   });

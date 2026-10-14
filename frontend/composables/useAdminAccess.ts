@@ -19,6 +19,7 @@ const PATH_PERMISSIONS: Array<{ prefix: string; permission: PanelPermission }> =
   { prefix: '/admin/sliders', permission: 'sliders' },
   { prefix: '/admin/home-picks', permission: 'products' },
   { prefix: '/admin/category-feed', permission: 'products' },
+  { prefix: '/admin/reviews', permission: 'products' },
   { prefix: '/admin/products', permission: 'products' },
   { prefix: '/admin/orders', permission: 'orders' },
   { prefix: '/admin', permission: 'dashboard' },

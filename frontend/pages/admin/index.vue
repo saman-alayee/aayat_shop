@@ -24,8 +24,8 @@ onMounted(async () => {
 const { navVisible, isFullAdmin } = useAdminAccess();
 
 const quickLinks = [
-  { to: '/admin/orders?status=NEW', label: 'سفارش‌های جدید', desc: 'بررسی و تأیید', icon: 'lucide:inbox' },
-  { to: '/admin/orders?status=PREPARING', label: 'در حال آماده‌سازی', desc: 'آماده برای ارسال', icon: 'lucide:chef-hat' },
+  { to: '/admin/orders?status=NEW', label: 'منتظر ارسال مشتری', desc: 'پرداخت شده؛ هنوز پست نشود', icon: 'lucide:inbox' },
+  { to: '/admin/orders?status=PREPARING', label: 'درخواست ارسال', desc: 'بسته‌بندی و پست کنید', icon: 'lucide:package' },
   { to: '/admin/products', label: 'محصولات', desc: 'افزودن و ویرایش کالا', icon: 'lucide:shopping-basket' },
   { to: '/admin/home-picks', label: 'صفحه اول', desc: 'انتخاب دستی تخفیف‌دار و ویژه', icon: 'lucide:sparkles' },
   { to: '/admin/category-feed', label: 'محصولات دسته', desc: 'ترتیب نمایش هر دسته در صفحه اول', icon: 'lucide:list-ordered' },

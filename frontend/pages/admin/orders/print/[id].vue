@@ -42,6 +42,9 @@ useHead({ title: computed(() => (order.value ? `فیش ${order.value.orderNumber
         <p v-if="order.addressTitle"><b>عنوان آدرس:</b> {{ order.addressTitle }}</p>
         <p><b>آدرس:</b> {{ order.deliveryAddress }}</p>
         <p><b>نوع ارسال:</b> {{ shippingLabel(order.paymentDetails?.deliveryMethod) }}</p>
+        <p v-if="order.paymentDetails?.requestedShipDate">
+          <b>روز مراجعه:</b> {{ formatDate(String(order.paymentDetails.requestedShipDate)) }}
+        </p>
         <p v-if="order.paymentDetails?.deliveryFee != null">
           <b>هزینه ارسال:</b> {{ formatPrice(Number(order.paymentDetails.deliveryFee)) }}
         </p>

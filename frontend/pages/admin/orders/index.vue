@@ -33,9 +33,9 @@ const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus[]>> = {
 
 const STATUS_HINTS: Partial<Record<OrderStatus, string>> = {
   REVIEWING: 'سفارش در حال بررسی است',
-  NEW: 'آماده آماده‌سازی',
+  NEW: 'پرداخت شده است. تا وقتی مشتری ارسال را نزند پست نشود',
   SHIPPED: 'پیام «تحویل به پیک» به مشتری ارسال می‌شود',
-  PREPARING: 'پیام «بسته‌بندی شد» به مشتری ارسال می‌شود',
+  PREPARING: 'مشتری ارسال را زده. بسته‌بندی کنید و پست کنید',
   DELIVERED: 'سفارش تکمیل شد',
   CANCELLED: 'سفارش لغو می‌شود',
 };
@@ -269,6 +269,9 @@ useHead({ title: 'سفارش‌ها - پنل مدیریت' });
           <div class="rounded-xl border border-primary-100 bg-primary-50/50 p-3">
             <p class="text-xs text-gray-500 mb-0.5">نوع ارسال</p>
             <p class="font-bold text-primary-800">{{ deliveryLabel(selectedOrder) }}</p>
+            <p v-if="selectedOrder.paymentDetails?.requestedShipDate" class="mt-1 text-sm text-primary-900">
+              روز مراجعه مشتری: {{ formatDate(String(selectedOrder.paymentDetails.requestedShipDate)) }}
+            </p>
             <p
               v-if="selectedOrder.paymentDetails?.deliveryFee != null"
               class="text-xs text-gray-600 mt-1"
