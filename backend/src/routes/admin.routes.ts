@@ -918,6 +918,34 @@ router.post(
   })
 );
 
+const maintenanceSchema = z.object({
+  enabled: z.boolean(),
+  message: z.string().min(2).max(280).optional(),
+});
+
+router.get(
+  '/settings/maintenance',
+  permSettings,
+  asyncHandler(async (_req, res) => {
+    const settings = await settingsService.getMaintenance();
+    successResponse(res, settings);
+  })
+);
+
+router.put(
+  '/settings/maintenance',
+  permSettings,
+  validate(maintenanceSchema),
+  asyncHandler(async (req, res) => {
+    const settings = await settingsService.updateMaintenance(req.body);
+    successResponse(
+      res,
+      settings,
+      settings.enabled ? 'حالت تعمیر فروشگاه روشن شد' : 'فروشگاه دوباره باز شد'
+    );
+  })
+);
+
 /** Full database dump (gzip). Main ADMIN only. */
 router.get(
   '/backup/database',

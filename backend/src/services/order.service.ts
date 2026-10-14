@@ -7,6 +7,7 @@ import { cartService } from './cart.service';
 import { couponService } from './coupon.service';
 import { notificationService } from './notification.service';
 import { smsService } from './sms.service';
+import { zibalService } from './zibal.service';
 import { isShippingMethod, SHIPPING_METHODS, type ShippingMethod } from '../config/shipping';
 
 export type OrderStatus =
@@ -41,6 +42,7 @@ interface CreateOrderInput {
   deliveryMethod?: ShippingMethod;
   notes?: string;
   couponCode?: string;
+  paymentMethod?: PaymentMethod;
 }
 
 function buildDeliveryAddress(input: CreateOrderInput & { address?: string }): string {
@@ -129,9 +131,16 @@ export class OrderService {
     const deliveryFee = SHIPPING_METHODS[deliveryMethod].fee;
     totalPrice += deliveryFee;
 
+    const paymentMethod: PaymentMethod = input.paymentMethod === 'ZIBAL' || !input.paymentMethod ? 'ZIBAL' : input.paymentMethod;
+    const payWithZibal = paymentMethod === 'ZIBAL';
+    if (payWithZibal) zibalService.assertConfigured();
+
     const paymentDetailsToStore = {
       deliveryMethod,
       deliveryFee,
+      ...(payWithZibal
+        ? { provider: 'zibal', paymentStatus: 'pending' as const, sessionId: sessionId || undefined }
+        : {}),
     };
 
     let deliveryAddress = buildDeliveryAddress(input);
@@ -159,7 +168,7 @@ export class OrderService {
       throw new AppError(400, 'آدرس ارسال الزامی است');
     }
 
-    const initialStatus: OrderStatus = 'NEW';
+    const initialStatus: OrderStatus = payWithZibal ? 'REVIEWING' : 'NEW';
 
     const orderNumber = generateOrderNumber();
 
@@ -174,6 +183,7 @@ export class OrderService {
           couponCode: couponCode ?? null,
           couponId: couponId ?? null,
           status: initialStatus,
+          paymentMethod,
           paymentDetails: paymentDetailsToStore as Prisma.InputJsonValue,
           customerName: input.customerName,
           customerPhone: input.customerPhone,
@@ -226,7 +236,7 @@ export class OrderService {
       return newOrder;
     });
 
-    if (resolvedUserId) {
+    if (!payWithZibal && resolvedUserId) {
       await notificationService.notifyOrderStatusChange({
         userId: resolvedUserId,
         orderId: order.id,
@@ -235,8 +245,24 @@ export class OrderService {
       });
     }
 
-    // Fire-and-forget operator alarm (SMS); UI also polls for sound
-    void smsService.notifyOperatorsNewOrder(order.orderNumber, order.customerName);
+    if (!payWithZibal) {
+      void smsService.notifyOperatorsNewOrder(order.orderNumber, order.customerName);
+    }
+
+    let paymentUrl: string | undefined;
+    if (payWithZibal) {
+      try {
+        paymentUrl = await zibalService.requestPayment({
+          id: order.id,
+          orderNumber: order.orderNumber,
+          totalPrice: Number(order.totalPrice),
+          customerPhone: order.customerPhone,
+        });
+      } catch (error) {
+        await zibalService.failOrder(order.id);
+        throw error;
+      }
+    }
 
     return {
       id: order.id,
@@ -246,6 +272,8 @@ export class OrderService {
       totalPrice: Number(order.totalPrice),
       couponCode: order.couponCode,
       status: order.status,
+      paymentMethod,
+      paymentUrl,
       customerName: order.customerName,
       createdAt: order.createdAt,
     };

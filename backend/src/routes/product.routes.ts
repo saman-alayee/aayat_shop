@@ -35,6 +35,7 @@ router.get(
       homeDeal,
       homeFeatured,
       isNew,
+      listing,
       sort,
       page,
       limit,
@@ -56,19 +57,12 @@ router.get(
       homeDeal: homeDeal === 'true',
       homeFeatured: homeFeatured === 'true',
       isNew: isNew === 'true',
+      listing: listing === 'discount' || listing === 'new' || listing === 'other' ? listing : undefined,
       sort: sort as string,
       page: page ? parseInt(page as string) : 1,
       limit: Math.min(parsedLimit, idList?.length ? 100 : 50),
     });
     successResponse(res, result);
-  })
-);
-
-router.get(
-  '/category/:slug/by-tags',
-  asyncHandler(async (req, res) => {
-    const grouped = await productService.getCategoryGroupedByTags(paramId(req.params.slug));
-    successResponse(res, grouped);
   })
 );
 

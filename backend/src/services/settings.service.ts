@@ -6,6 +6,7 @@ import { AppError } from '../utils/errors';
 import { normalizePhone } from '../utils/normalize';
 
 export const NEW_ORDER_SMS_KEY = 'new_order_sms';
+export const MAINTENANCE_KEY = 'maintenance';
 
 export const DEFAULT_NEW_ORDER_SMS_TEMPLATE =
   `سفارش جدید {orderNumber}\nمشتری: {customerName}\n${SITE_NAME}`;
@@ -51,6 +52,26 @@ function normalizeSettings(raw: unknown): NewOrderSmsSettings {
     phones: parsePhones(data.phones),
     includePanelStaff: data.includePanelStaff === true,
     messageTemplate: template,
+  };
+}
+
+export interface MaintenanceSettings {
+  enabled: boolean;
+  message: string;
+}
+
+const DEFAULT_MAINTENANCE_MESSAGE =
+  'آتلیه در حال دوخت و پرداخت است. چند لحظه دیگر برمی‌گردیم.';
+
+function normalizeMaintenance(raw: unknown): MaintenanceSettings {
+  const data = isRecord(raw) ? raw : {};
+  const message =
+    typeof data.message === 'string' && data.message.trim()
+      ? data.message.trim().slice(0, 280)
+      : DEFAULT_MAINTENANCE_MESSAGE;
+  return {
+    enabled: data.enabled === true,
+    message,
   };
 }
 
@@ -167,6 +188,31 @@ export class SettingsService {
     await smsService.broadcast([phone], preview);
 
     return { phone, preview, stub };
+  }
+
+  async getMaintenance(): Promise<MaintenanceSettings> {
+    const row = await prisma.appSetting.findUnique({ where: { key: MAINTENANCE_KEY } });
+    if (!row) return { enabled: false, message: DEFAULT_MAINTENANCE_MESSAGE };
+    return normalizeMaintenance(row.value);
+  }
+
+  async updateMaintenance(input: Partial<MaintenanceSettings>): Promise<MaintenanceSettings> {
+    const current = await this.getMaintenance();
+    const next: MaintenanceSettings = {
+      enabled: input.enabled ?? current.enabled,
+      message:
+        typeof input.message === 'string' && input.message.trim()
+          ? input.message.trim().slice(0, 280)
+          : current.message,
+    };
+
+    await prisma.appSetting.upsert({
+      where: { key: MAINTENANCE_KEY },
+      create: { key: MAINTENANCE_KEY, value: next as unknown as Prisma.InputJsonValue },
+      update: { value: next as unknown as Prisma.InputJsonValue },
+    });
+
+    return next;
   }
 }
 

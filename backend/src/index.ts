@@ -15,12 +15,14 @@ import cartRoutes from './routes/cart.routes';
 import orderRoutes from './routes/order.routes';
 import addressRoutes from './routes/address.routes';
 import adminRoutes from './routes/admin.routes';
+import settingsRoutes from './routes/settings.routes';
 import couponRoutes from './routes/coupon.routes';
 import contentRoutes from './routes/content.routes';
 import notificationRoutes from './routes/notification.routes';
 import sliderRoutes from './routes/slider.routes';
 import tagRoutes from './routes/tag.routes';
 import favoriteRoutes from './routes/favorite.routes';
+import paymentRoutes from './routes/payment.routes';
 
 const app = express();
 
@@ -75,6 +77,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/payments', paymentRoutes);
 app.use('/api/addresses', addressRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/content', contentRoutes);
@@ -83,6 +86,7 @@ app.use('/api/sliders', sliderRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/favorites', favoriteRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/settings', settingsRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

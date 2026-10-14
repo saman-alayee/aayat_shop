@@ -24,6 +24,7 @@ const createOrderSchema = z
     notes: z.string().optional(),
     couponCode: z.string().optional(),
     deliveryMethod: z.enum(['PICKUP', 'NATIONWIDE']),
+    paymentMethod: z.literal('ZIBAL').optional(),
   })
   .refine(
     (data) =>

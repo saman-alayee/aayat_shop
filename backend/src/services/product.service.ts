@@ -19,6 +19,8 @@ interface ProductFilters {
   homeDeal?: boolean;
   homeFeatured?: boolean;
   isNew?: boolean;
+  /** Storefront listing bucket: discounted, newest slice, or the rest. */
+  listing?: 'discount' | 'new' | 'other';
   /** newest | discount | bestsellers */
   sort?: string;
   page?: number;
@@ -122,6 +124,7 @@ export class ProductService {
       homeDeal,
       homeFeatured,
       isNew,
+      listing,
       sort,
       page = 1,
       limit = 20,
@@ -147,7 +150,7 @@ export class ProductService {
     }
     if (featured) where.isFeatured = true;
     if (isNew) where.isNew = true;
-    if (discounted) where.discountPrice = { not: null };
+    if (discounted || listing === 'discount') where.discountPrice = { not: null };
     if (homeDeal) where.isHomeDeal = true;
     if (homeFeatured) where.isHomeFeatured = true;
     if (barcode?.trim()) {
@@ -169,7 +172,8 @@ export class ProductService {
     if (andFilters.length) where.AND = andFilters;
 
     const sortMode = this.normalizeSort(sort);
-    const skipCache = Boolean(search || includeInactive || barcode || sortMode !== 'newest');
+    const listingBucket = listing === 'new' || listing === 'other';
+    const skipCache = Boolean(search || includeInactive || barcode || sortMode !== 'newest' || listingBucket);
     const cacheKey = `products:${JSON.stringify(filters)}`;
     if (!skipCache) {
       const cached = await cacheGet<unknown>(cacheKey);
@@ -177,14 +181,18 @@ export class ProductService {
     }
 
     const curatedList = Boolean(homeDeal || homeFeatured || featured);
-    const needsCustomSort = sortMode === 'discount' || sortMode === 'bestsellers';
+    const needsCustomSort = sortMode === 'discount' || sortMode === 'bestsellers' || listingBucket;
 
     if (needsCustomSort) {
       const allProducts = await prisma.product.findMany({
         where,
         include: productListInclude,
+        orderBy: { createdAt: 'desc' },
       });
-      const ordered = await this.applyCustomSort(allProducts, sortMode);
+      const bucketed = listingBucket ? this.applyListingBucket(allProducts, listing) : allProducts;
+      const ordered = sortMode === 'newest'
+        ? bucketed
+        : await this.applyCustomSort(bucketed, sortMode);
       const total = ordered.length;
       const pageItems = ordered.slice((page - 1) * limit, page * limit);
       return {
@@ -223,6 +231,16 @@ export class ProductService {
       await cacheSet(cacheKey, result, 300);
     }
     return result;
+  }
+
+  private applyListingBucket<T extends { id: string; discountPrice: unknown | null }>(
+    products: T[],
+    listing: 'new' | 'other'
+  ) {
+    const freshCount = Math.max(1, Math.round(products.length * 0.2));
+    const freshIds = new Set(products.slice(0, freshCount).map((product) => product.id));
+    if (listing === 'new') return products.filter((product) => freshIds.has(product.id));
+    return products.filter((product) => !freshIds.has(product.id) && product.discountPrice == null);
   }
 
   private normalizeSort(sort?: string): 'newest' | 'discount' | 'bestsellers' {
@@ -724,81 +742,6 @@ export class ProductService {
 
     await cacheSet(cacheKey, feed, 300);
     return feed;
-  }
-
-  async getCategoryGroupedByTags(categorySlug: string) {
-    const cacheKey = `category-tag-groups:${categorySlug}`;
-    const cached = await cacheGet<{ category: unknown; groups: unknown[] }>(cacheKey);
-    if (cached) return cached;
-
-    const category = await prisma.category.findUnique({
-      where: { slug: categorySlug, isActive: true },
-    });
-    if (!category) throw new AppError(404, 'دسته‌بندی یافت نشد');
-
-    const tags = await prisma.tag.findMany({
-      where: { categoryId: category.id },
-      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-    });
-
-    const groups = await Promise.all(
-      tags.map(async (tag) => {
-        const where = { isActive: true, ...tagFilter(tag.id) };
-        const [products, total] = await Promise.all([
-          prisma.product.findMany({
-            where,
-            include: productListInclude,
-            orderBy: { createdAt: 'desc' },
-            take: 8,
-          }),
-          prisma.product.count({ where }),
-        ]);
-        return {
-          tag,
-          total,
-          products: this.sortByDiscountPercent(products.map((p) => this.formatProduct(p))),
-        };
-      })
-    );
-
-    const untaggedWhere = {
-      isActive: true,
-      AND: [
-        categoryFilter(category.id),
-        { tagId: null },
-        { productTags: { none: {} } },
-      ],
-    };
-    const [untagged, untaggedTotal] = await Promise.all([
-      prisma.product.findMany({
-        where: untaggedWhere,
-        include: productListInclude,
-        orderBy: { createdAt: 'desc' },
-        take: 8,
-      }),
-      prisma.product.count({ where: untaggedWhere }),
-    ]);
-
-    if (untaggedTotal) {
-      groups.push({
-        tag: {
-          id: 'other',
-          categoryId: category.id,
-          name: 'سایر محصولات',
-          slug: 'other',
-          icon: null,
-          sortOrder: 999,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        total: untaggedTotal,
-        products: this.sortByDiscountPercent(untagged.map((p) => this.formatProduct(p))),
-      });
-    }
-
-    const result = { category, groups: groups.filter((g) => g.products.length > 0) };
-    await cacheSet(cacheKey, result, 300);
-    return result;
   }
 
   async getRelatedByTag(productSlug: string, limit = 8) {

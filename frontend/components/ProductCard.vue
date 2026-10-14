@@ -68,18 +68,22 @@ const quantity = computed(() => cartStore.getItemQuantity(props.product.id));
 const isAdding = computed(() => cartStore.addingProductId === props.product.id);
 const favorited = computed(() => isFavorite(props.product.id));
 const favLoading = ref(false);
-
-const heartIconClass = computed(() =>
-  favorited.value ? 'text-red-500 fill-red-500 stroke-red-500' : 'text-gray-500 fill-none stroke-current'
-);
+const heartPop = ref(false);
 
 async function handleFavorite(event: Event) {
   event.preventDefault();
   event.stopPropagation();
   if (favLoading.value) return;
+  const wasOn = favorited.value;
   favLoading.value = true;
   try {
     await toggleFavorite(props.product.id);
+    if (!wasOn) {
+      heartPop.value = true;
+      window.setTimeout(() => {
+        heartPop.value = false;
+      }, 520);
+    }
   } finally {
     favLoading.value = false;
   }
@@ -166,18 +170,14 @@ async function handleDecrease(event: Event) {
 
     <button
       type="button"
-      class="absolute top-3 end-3 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-neutral-700 shadow-sm transition-colors hover:text-neutral-950 disabled:opacity-60"
-      :class="favorited ? 'text-red-500' : ''"
+      class="product-card-fav absolute top-2.5 end-2.5 z-20 flex h-10 w-10 items-center justify-center rounded-full disabled:opacity-60"
+      :class="{ 'is-on': favorited, 'is-pop': heartPop }"
       :disabled="favLoading"
       :aria-pressed="favorited"
-      :aria-label="favorited ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'"
+      :aria-label="favorited ? 'حذف از ذخیره‌ها' : 'ذخیره محصول'"
       @click="handleFavorite"
     >
-      <AppIcon
-        name="lucide:heart"
-        size="sm"
-        :class="favorited ? 'fill-current product-card-heart-active' : ''"
-      />
+      <AppIcon name="lucide:bookmark" size="md" class="product-card-fav__icon" />
     </button>
 
     <div class="flex flex-col pt-3 pb-1 min-h-[4.5rem]">
@@ -258,21 +258,20 @@ async function handleDecrease(event: Event) {
 
       <button
         type="button"
+        class="product-card-fav absolute z-20 disabled:opacity-60"
         :class="[
-          'absolute z-20 flex items-center justify-center rounded-full shadow-sm transition-all bg-white/95',
-          isCompact
-            ? 'bottom-1.5 start-1.5 h-6 w-6'
-            : 'bottom-2 end-2 h-8 w-8 hover:bg-white',
-          favorited ? 'ring-1 ring-red-100' : '',
+          isCompact ? 'bottom-1.5 start-1.5 h-8 w-8' : 'bottom-2 end-2 h-10 w-10',
+          { 'is-on': favorited, 'is-pop': heartPop },
         ]"
         :disabled="favLoading"
-        aria-label="علاقه‌مندی"
+        :aria-pressed="favorited"
+        :aria-label="favorited ? 'حذف از ذخیره‌ها' : 'ذخیره محصول'"
         @click="handleFavorite"
       >
         <AppIcon
-          name="lucide:heart"
-          :size="isCompact ? 'xs' : 'sm'"
-          :class="[heartIconClass, favorited ? 'product-card-heart-active' : '']"
+          name="lucide:bookmark"
+          :size="isCompact ? 'sm' : 'md'"
+          class="product-card-fav__icon"
         />
       </button>
 
@@ -481,9 +480,75 @@ async function handleDecrease(event: Event) {
   }
 }
 
-:deep(.product-card-heart-active svg) {
-  fill: #ef4444 !important;
-  stroke: #ef4444 !important;
-  color: #ef4444 !important;
+.product-card-fav {
+  border-radius: 9999px;
+  background: #fff;
+  color: #3f3f46;
+  box-shadow:
+    0 1px 2px rgba(26, 15, 18, 0.12),
+    0 6px 16px rgba(26, 15, 18, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  transition:
+    transform 0.18s ease,
+    background-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.product-card-fav:hover {
+  transform: scale(1.06);
+  color: #652a3b;
+  box-shadow:
+    0 2px 4px rgba(26, 15, 18, 0.14),
+    0 10px 22px rgba(101, 42, 59, 0.18);
+}
+
+.product-card-fav.is-on {
+  color: #ef394e;
+  background: #fff5f6;
+  border-color: rgba(239, 57, 78, 0.28);
+  box-shadow:
+    0 1px 2px rgba(239, 57, 78, 0.16),
+    0 8px 18px rgba(239, 57, 78, 0.22);
+}
+
+.product-card-fav.is-pop {
+  animation: product-fav-pop 0.52s cubic-bezier(0.22, 1.4, 0.36, 1);
+}
+
+.product-card-fav__icon :deep(svg) {
+  stroke-width: 2.35;
+  fill: transparent;
+  transition:
+    fill 0.18s ease,
+    stroke 0.18s ease,
+    transform 0.18s ease;
+}
+
+.product-card-fav.is-on .product-card-fav__icon :deep(svg) {
+  fill: #ef394e !important;
+  stroke: #ef394e !important;
+  color: #ef394e !important;
+}
+
+@keyframes product-fav-pop {
+  0% {
+    transform: scale(1);
+  }
+  28% {
+    transform: scale(1.28);
+  }
+  55% {
+    transform: scale(0.92);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .product-card-fav.is-pop {
+    animation: none;
+  }
 }
 </style>

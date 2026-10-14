@@ -29,9 +29,81 @@ interface FarazSmsResponse {
 }
 
 export class SmsService {
+  private usesMeliPayamak(): boolean {
+    return config.sms.provider === 'melipayamak';
+  }
+
   isConfigured(): boolean {
+    if (this.usesMeliPayamak()) {
+      const { username, password } = config.sms.melipayamak;
+      return Boolean(username && password);
+    }
     const { apiKey, lineNumber } = config.sms.farazsms;
     return Boolean(apiKey && lineNumber);
+  }
+
+  /** Pattern SMS on the Melli Payamak service line. Variables are joined with `;`. */
+  private async sendMeliPattern(bodyId: string, variables: string[], recipient: string): Promise<void> {
+    const { username, password } = config.sms.melipayamak;
+    if (!username || !password || !bodyId) {
+      throw new AppError(503, 'سرویس پیامک پیکربندی نشده است', 'SMS_NOT_CONFIGURED');
+    }
+
+    const body = new URLSearchParams({
+      username,
+      password,
+      text: variables.map((value) => value.replace(/[;\r\n]/g, ' ').trim() || '-').join(';'),
+      to: this.formatRecipient(recipient),
+      bodyId,
+    });
+
+    let response: Response;
+    try {
+      response = await fetch('https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body,
+      });
+    } catch (error) {
+      console.error('MeliPayamak request failed:', error);
+      throw new AppError(502, 'ارسال پیامک با خطا مواجه شد', 'SMS_REQUEST_FAILED');
+    }
+
+    const payload = (await response.json().catch(() => ({}))) as {
+      RetStatus?: number;
+      StrRetStatus?: string;
+      Value?: string;
+    };
+    if (!response.ok || payload.RetStatus !== 1) {
+      console.error('MeliPayamak error:', payload.StrRetStatus || payload.Value || response.status);
+      throw new AppError(502, 'ارسال پیامک ناموفق بود', 'SMS_SEND_FAILED');
+    }
+  }
+
+  /** Customer + shop manager SMS after a paid order, using the old shop patterns. */
+  async sendPaidOrderNotices(input: {
+    phone: string;
+    customerName: string;
+    orderNumber: string;
+    itemNames: string[];
+  }): Promise<void> {
+    if (!this.usesMeliPayamak()) {
+      await this.notifyOperatorsNewOrder(input.orderNumber, input.customerName);
+      return;
+    }
+
+    const items = input.itemNames.filter(Boolean).join('، ').slice(0, 180) || '-';
+    const firstName = input.customerName.trim().split(/\s+/)[0] || 'مشتری';
+    const { customerBodyId, adminBodyId, adminPhones } = config.sms.melipayamak;
+
+    if (customerBodyId) {
+      await this.sendMeliPattern(customerBodyId, [firstName, input.orderNumber, items], input.phone);
+    }
+    if (adminBodyId) {
+      for (const phone of adminPhones) {
+        await this.sendMeliPattern(adminBodyId, [input.orderNumber, items], phone);
+      }
+    }
   }
 
   private formatRecipient(phone: string): string {
@@ -131,6 +203,14 @@ export class SmsService {
       );
     }
 
+    if (this.usesMeliPayamak()) {
+      throw new AppError(
+        503,
+        'الگوی پیامک ورود روی پنل ملی‌پیامک تنظیم نشده است',
+        'SMS_NOT_CONFIGURED'
+      );
+    }
+
     const { patternCode, otpAttribute } = config.sms.farazsms;
     if (!patternCode) {
       throw new AppError(503, 'الگوی پیامک OTP پیکربندی نشده است', 'SMS_NOT_CONFIGURED');
@@ -147,6 +227,11 @@ export class SmsService {
   async sendOrderPacked(recipient: string, orderNumber: string): Promise<void> {
     const formatted = this.formatRecipient(recipient);
     const { packedPatternCode, orderAttribute } = config.sms.farazsms;
+
+    if (this.usesMeliPayamak()) {
+      console.log(`📱 [SMS] Packed notice skipped for Melli Payamak pattern line: ${orderNumber}`);
+      return;
+    }
 
     if (!this.isConfigured()) {
       console.log(`📱 [SMS stub] Order packed: ${orderNumber} -> ${formatted}`);
@@ -168,6 +253,11 @@ export class SmsService {
   async sendOrderShipped(recipient: string, orderNumber: string): Promise<void> {
     const formatted = this.formatRecipient(recipient);
     const { shippedPatternCode, orderAttribute } = config.sms.farazsms;
+
+    if (this.usesMeliPayamak()) {
+      console.log(`📱 [SMS] Shipped notice skipped for Melli Payamak pattern line: ${orderNumber}`);
+      return;
+    }
 
     if (!this.isConfigured()) {
       console.log(`📱 [SMS stub] Order shipped: ${orderNumber} -> ${formatted}`);
@@ -208,6 +298,10 @@ export class SmsService {
   /** Broadcast message to multiple recipients. */
   async broadcast(recipients: string[], message: string): Promise<{ queued: number }> {
     const formatted = recipients.map((r) => this.formatRecipient(r));
+    if (this.usesMeliPayamak()) {
+      throw new AppError(400, 'خط خدماتی ملی‌پیامک فقط الگوی سفارش را می‌فرستد', 'SMS_PATTERN_ONLY');
+    }
+
     if (!this.isConfigured()) {
       console.log(`📱 [SMS stub] Broadcast to ${formatted.length}: ${message.slice(0, 80)}`);
       return { queued: formatted.length };

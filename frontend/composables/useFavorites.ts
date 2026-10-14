@@ -84,14 +84,14 @@ export function useFavorites() {
       next.add(productId);
       favoriteIds.value = next;
       writeLocalIds(next);
-      toast.success('به علاقه‌مندی‌ها اضافه شد');
+      toast.success('محصول ذخیره شد');
       return true;
     }
 
     try {
       await api.post('/favorites', { productId });
       favoriteIds.value = new Set([...favoriteIds.value, productId]);
-      toast.success('به علاقه‌مندی‌ها اضافه شد');
+      toast.success('محصول ذخیره شد');
       return true;
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'خطا در افزودن به علاقه‌مندی‌ها');
@@ -105,7 +105,7 @@ export function useFavorites() {
       next.delete(productId);
       favoriteIds.value = next;
       writeLocalIds(next);
-      toast.success('از علاقه‌مندی‌ها حذف شد');
+      toast.success('از ذخیره‌ها حذف شد');
       return true;
     }
 
@@ -114,7 +114,7 @@ export function useFavorites() {
       const next = new Set(favoriteIds.value);
       next.delete(productId);
       favoriteIds.value = next;
-      toast.success('از علاقه‌مندی‌ها حذف شد');
+      toast.success('از ذخیره‌ها حذف شد');
       return true;
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'خطا در حذف از علاقه‌مندی‌ها');

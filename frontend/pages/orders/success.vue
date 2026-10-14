@@ -28,8 +28,8 @@ useHead({ title: `سفارش ثبت شد - ${SITE_NAME}` });
       <p class="text-xl font-bold text-primary-600" dir="ltr">{{ orderNumber }}</p>
     </div>
 
-    <div class="bg-amber-50 text-amber-900 text-sm p-4 rounded-xl mb-6 leading-relaxed text-start">
-      مبلغ سفارش هنگام تحویل یا از طریق روش انتخاب‌شده در فروشگاه ثبت می‌شود. پرداخت آنلاین در سایت انجام نشده است.
+    <div class="bg-green-50 text-green-900 text-sm p-4 rounded-xl mb-6 leading-relaxed text-start">
+      پرداخت با درگاه زیبال ثبت شد. سفارش در حال آماده‌سازی است.
     </div>
 
     <div class="mx-auto max-w-lg space-y-3 md:max-w-md">

@@ -26,7 +26,25 @@ export const config = {
     expiresMinutes: parseInt(process.env.OTP_EXPIRES_MINUTES || '5', 10),
     devMode: process.env.OTP_DEV_MODE === 'true',
   },
+  frontendUrl: process.env.FRONTEND_URL || 'http://127.0.0.1:3000',
+  apiPublicUrl: process.env.API_PUBLIC_URL || `http://127.0.0.1:${parseInt(process.env.PORT || '3001', 10)}`,
+  zibal: {
+    merchant: process.env.ZIBAL_MERCHANT || '',
+    callbackUrl: process.env.ZIBAL_CALLBACK_URL || '',
+  },
   sms: {
+    provider: (process.env.SMS_PROVIDER || 'farazsms') as 'farazsms' | 'melipayamak',
+    melipayamak: {
+      username: process.env.MELIPAYAMAK_USERNAME || '',
+      password: process.env.MELIPAYAMAK_PASSWORD || '',
+      sender: process.env.MELIPAYAMAK_SENDER || '',
+      customerBodyId: process.env.MELIPAYAMAK_CUSTOMER_BODY_ID || '',
+      adminBodyId: process.env.MELIPAYAMAK_ADMIN_BODY_ID || '',
+      adminPhones: (process.env.MELIPAYAMAK_ADMIN_PHONES || '')
+        .split(',')
+        .map((phone) => phone.trim())
+        .filter(Boolean),
+    },
     farazsms: {
       apiKey: process.env.FARAZSMS_API_KEY || '',
       patternCode: process.env.FARAZSMS_PATTERN_CODE || '',

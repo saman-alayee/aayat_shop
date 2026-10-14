@@ -15,7 +15,7 @@ const menuItems = [
     to: '/profile/favorites',
     label: 'علاقه‌مندی‌ها',
     desc: 'محصولات ذخیره‌شده',
-    icon: 'lucide:heart',
+    icon: 'lucide:bookmark',
     color: 'red',
   },
   {

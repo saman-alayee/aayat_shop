@@ -11,8 +11,8 @@ const { data: categories } = await useAsyncData('all-categories', async () => {
     const { data } = await api.get<Category[]>('/categories?lite=1');
     return catalogDemo.categoriesForStore(data);
   } catch {
-    catalogDemo.markDemo(true);
-    return catalogDemo.categoriesForStore([]);
+    catalogDemo.markDemo(false);
+    return [];
   }
 });
 
@@ -29,8 +29,8 @@ async function loadCategorySections() {
       categorySections.value = data;
     }
   } catch {
-    catalogDemo.markDemo(true);
-    categorySections.value = catalogDemo.demoHomeFeed();
+    catalogDemo.markDemo(false);
+    categorySections.value = [];
   } finally {
     loading.value = false;
   }
@@ -92,10 +92,14 @@ useHead({ title: `دسته‌بندی‌ها - ${SITE_NAME}` });
         />
       </section>
 
-      <EmptyState
+      <EmptyCatalogScene
         v-if="!categorySections.length"
-        message="دسته‌بندی فعالی برای نمایش وجود ندارد"
-      />
+        variant="products"
+        title="دسته‌بندی فعالی برای نمایش وجود ندارد"
+        description="به‌زودی کالکشن‌های جدید روی رگال می‌آیند."
+      >
+        <NuxtLink to="/" class="btn-primary btn-action text-sm px-6">بازگشت به خانه</NuxtLink>
+      </EmptyCatalogScene>
     </div>
   </div>
 </template>

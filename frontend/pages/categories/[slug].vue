@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Category, Product, Tag, Pagination } from '~/types';
+import type { Category, Product, Pagination } from '~/types';
 import { SITE_NAME } from '~/constants/site';
 
 const route = useRoute();
@@ -8,14 +8,16 @@ const catalogDemo = useCatalogDemo();
 const slug = computed(() => route.params.slug as string);
 
 const PAGE_SIZE = 24;
-const STRIP_CHUNK = 8;
-const selectedTag = ref<string>((route.query.tag as string) || 'all');
+
+type ListingFilter = 'all' | 'discount' | 'new' | 'other';
 type SortMode = 'newest' | 'discount' | 'bestsellers';
-const sort = ref<SortMode>(
-  route.query.sort === 'discount' || route.query.sort === 'bestsellers'
-    ? (route.query.sort as SortMode)
-    : 'newest'
-);
+
+const filterOptions: { value: ListingFilter; label: string }[] = [
+  { value: 'all', label: 'همه' },
+  { value: 'discount', label: 'تخفیف' },
+  { value: 'new', label: 'جدید' },
+  { value: 'other', label: 'سایر' },
+];
 
 const sortOptions: { value: SortMode; label: string }[] = [
   { value: 'newest', label: 'جدیدترین' },
@@ -23,16 +25,31 @@ const sortOptions: { value: SortMode; label: string }[] = [
   { value: 'bestsellers', label: 'پرفروش' },
 ];
 
+function readFilter(value: unknown): ListingFilter {
+  if (value === 'discount' || value === 'new' || value === 'other') return value;
+  return 'all';
+}
+
+function readSort(value: unknown): SortMode {
+  if (value === 'discount' || value === 'bestsellers') return value;
+  return 'newest';
+}
+
+const listingFilter = ref<ListingFilter>(readFilter(route.query.filter));
+const sort = ref<SortMode>(readSort(route.query.sort));
+
 const { data: category } = await useAsyncData(
   () => `category-${slug.value}`,
   async () => {
-    const demo = catalogDemo.demoCategory(slug.value);
-    if (catalogDemo.forceDemo.value && demo) return demo;
+    if (catalogDemo.forceDemo.value) {
+      const demo = catalogDemo.demoCategory(slug.value);
+      if (demo) return demo;
+    }
     try {
       const { data } = await api.get<Category>(`/categories/${slug.value}`);
       return data;
     } catch {
-      return demo;
+      return null;
     }
   }
 );
@@ -42,343 +59,96 @@ const { data: categories } = await useAsyncData('all-categories', async () => {
   return data;
 });
 
-const tags = ref<Tag[]>([]);
-const grouped = ref<{ tag: Tag; products: Product[]; total: number }[]>([]);
-const tagProducts = ref<Product[]>([]);
-const fallbackProducts = ref<Product[]>([]);
+const products = ref<Product[]>([]);
 const listPagination = ref<Pagination | null>(null);
 const loading = ref(true);
 const loadingMore = ref(false);
 
-type SectionState = {
-  products: Product[];
-  page: number;
-  total: number;
-  loading: boolean;
-};
-
-const sectionStates = ref<Record<string, SectionState>>({});
-
 const hasMore = computed(() => {
-  const p = listPagination.value;
-  return !!p && p.page < p.totalPages;
+  const page = listPagination.value;
+  return !!page && page.page < page.totalPages;
 });
 
-const hasOtherGroup = computed(() => grouped.value.some((section) => section.tag.slug === 'other'));
-
-const displayTags = computed(() => {
-  const fromApi = tags.value.filter((tag) => tag.slug !== 'other');
-  if (fromApi.length) return fromApi;
-  return grouped.value.filter((section) => section.tag.slug !== 'other').map((section) => section.tag);
-});
-
-const showTagBar = computed(() => displayTags.value.length > 0 || hasOtherGroup.value);
-
-const visibleSections = computed(() => {
-  if (selectedTag.value === 'all') {
-    return grouped.value
-      .filter((section) => section.products.length > 0)
-      .map((section) => {
-        const tagSlug = section.tag.slug;
-        const state = sectionStates.value[tagSlug];
-        const products = state?.products ?? section.products;
-        const total = state?.total ?? section.total;
-        return {
-          tag: section.tag,
-          products,
-          total,
-          hasMore: products.length < total,
-          loadingMore: state?.loading ?? false,
-        };
-      });
+function applyClientFilter(list: Product[]) {
+  if (listingFilter.value === 'discount') return list.filter((item) => item.discountPrice != null);
+  if (listingFilter.value === 'new') return list.filter((item) => item.isNew);
+  if (listingFilter.value === 'other') {
+    return list.filter((item) => !item.isNew && item.discountPrice == null);
   }
-  const tag =
-    displayTags.value.find((item) => item.slug === selectedTag.value) ||
-    grouped.value.find((item) => item.tag.slug === selectedTag.value)?.tag;
-  if (!tag) return [];
-  return [{ tag, products: tagProducts.value, total: listPagination.value?.total ?? tagProducts.value.length }];
-});
-
-function syncSectionStates() {
-  const next: Record<string, SectionState> = {};
-  for (const section of grouped.value) {
-    const tagSlug = section.tag.slug;
-    const existing = sectionStates.value[tagSlug];
-    next[tagSlug] = existing ?? {
-      products: section.products,
-      page: 1,
-      total: section.total,
-      loading: false,
-    };
-  }
-  sectionStates.value = next;
+  return list;
 }
 
-async function loadMoreForSection(tagSlug: string) {
-  const state = sectionStates.value[tagSlug];
-  if (!state || state.loading || state.products.length >= state.total) return;
-
-  sectionStates.value = {
-    ...sectionStates.value,
-    [tagSlug]: { ...state, loading: true },
-  };
-
-  try {
-    const tag = resolveTag(tagSlug);
-    const nextPage = Math.floor(state.products.length / STRIP_CHUNK) + 1;
-    const params = new URLSearchParams({
-      category: slug.value,
-      limit: String(STRIP_CHUNK),
-      page: String(nextPage),
-    });
-    if (sort.value !== 'newest') params.set('sort', sort.value);
-
-    if (tag && tagSlug !== 'other') {
-      params.set('tagId', tag.id);
-    }
-
-    const { data } = await api.get<{ products: Product[]; pagination: Pagination }>(
-      `/products?${params}`
-    );
-
-    const existingIds = new Set(state.products.map((product) => product.id));
-    const batch =
-      tagSlug === 'other'
-        ? data.products.filter((product) => !product.tagId && !existingIds.has(product.id))
-        : data.products.filter((product) => !existingIds.has(product.id));
-
-    sectionStates.value = {
-      ...sectionStates.value,
-      [tagSlug]: {
-        products: [...state.products, ...batch],
-        page: nextPage,
-        total: state.total,
-        loading: false,
-      },
-    };
-  } catch {
-    sectionStates.value = {
-      ...sectionStates.value,
-      [tagSlug]: { ...state, loading: false },
-    };
-  }
-}
-
-function resolveTag(tagSlug: string): Tag | undefined {
-  return (
-    tags.value.find((item) => item.slug === tagSlug) ||
-    grouped.value.find((item) => item.tag.slug === tagSlug)?.tag
-  );
-}
-
-async function loadGrouped() {
-  const demoCat = catalogDemo.demoCategory(slug.value);
-  if (catalogDemo.forceDemo.value && demoCat) {
-    const products = catalogDemo.demoProductsByCategory(slug.value);
-    const pseudoTag: Tag = {
-      id: 'demo-tag-all',
-      name: 'همه',
-      slug: 'all',
-      categoryId: demoCat.id,
-      icon: null,
-      sortOrder: 0,
-    };
-    grouped.value = products.length ? [{ tag: pseudoTag, products, total: products.length }] : [];
-    tags.value = [];
-    syncSectionStates();
-    fallbackProducts.value = products;
-    listPagination.value = null;
-    return;
-  }
-
-  const [tagsRes, groupedRes] = await Promise.all([
-    api.get<Tag[]>(`/categories/${slug.value}/tags`).catch(() => ({ data: [] as Tag[] })),
-    api
-      .get<{ groups: { tag: Tag; products: Product[]; total: number }[] }>(
-        `/products/category/${slug.value}/by-tags`
-      )
-      .catch(() => ({ data: { groups: [] } })),
-  ]);
-
-  tags.value = tagsRes.data;
-  grouped.value = groupedRes.data.groups || [];
-  syncSectionStates();
-
-  if (!grouped.value.length) {
-    await loadFallbackPage(1);
-  } else {
-    fallbackProducts.value = [];
-    listPagination.value = null;
-  }
-}
-
-async function loadFallbackPage(nextPage: number, append = false) {
-  const params = new URLSearchParams({
-    category: slug.value,
-    limit: String(PAGE_SIZE),
-    page: String(nextPage),
-  });
-  if (sort.value !== 'newest') params.set('sort', sort.value);
-  const { data } = await api.get<{ products: Product[]; pagination: Pagination }>(
-    `/products?${params}`
-  );
-  fallbackProducts.value = append
-    ? [...fallbackProducts.value, ...data.products]
-    : data.products;
-  listPagination.value = data.pagination;
-}
-
-async function loadTagProducts(tagSlug: string, nextPage = 1, append = false) {
-  // Overview strips already show first 8 — only skip fetch when viewing full list on page 1
-  // and cache already has the complete set
-  const cached = grouped.value.find((section) => section.tag.slug === tagSlug);
-  if (
-    nextPage === 1 &&
-    cached &&
-    cached.total <= cached.products.length &&
-    cached.products.length > 0 &&
-    cached.total <= 8
-  ) {
-    tagProducts.value = cached.products;
-    listPagination.value = {
-      page: 1,
-      limit: PAGE_SIZE,
-      total: cached.total,
-      totalPages: 1,
-    };
-    return;
-  }
-
-  const tag = resolveTag(tagSlug);
-  if (!tag && tagSlug !== 'other') {
-    tagProducts.value = [];
-    listPagination.value = null;
-    return;
-  }
-
-  const params = new URLSearchParams({
-    category: slug.value,
-    limit: String(PAGE_SIZE),
-    page: String(nextPage),
-  });
-  if (sort.value !== 'newest') params.set('sort', sort.value);
-
-  if (tag && tagSlug !== 'other') {
-    params.set('tagId', tag.id);
-  }
-
-  const { data } = await api.get<{ products: Product[]; pagination: Pagination }>(
-    `/products?${params}`
-  );
-
-  if (tagSlug === 'other') {
-    const batch = data.products.filter((product) => !(product.tagIds?.length || product.tagId));
-    tagProducts.value = append ? [...tagProducts.value, ...batch] : batch;
-    listPagination.value = data.pagination;
-  } else {
-    tagProducts.value = append ? [...tagProducts.value, ...data.products] : data.products;
-    listPagination.value = data.pagination;
-  }
-}
-
-async function loadPageData() {
-  loading.value = true;
-  try {
-    await loadGrouped();
-    if (selectedTag.value !== 'all') {
-      await loadTagProducts(selectedTag.value, 1);
-    } else if (sort.value !== 'newest' && grouped.value.length) {
-      await reloadAllSections();
-    } else if (sort.value !== 'newest' && !grouped.value.length) {
-      await loadFallbackPage(1);
-    }
-  } finally {
-    loading.value = false;
-  }
-}
-
-function selectTag(tagSlug: string) {
-  selectedTag.value = tagSlug;
-  tagProducts.value = [];
-  fallbackProducts.value = [];
-  listPagination.value = null;
+function syncQuery() {
   navigateTo(
     {
       path: route.path,
       query: {
-        ...(tagSlug === 'all' ? {} : { tag: tagSlug }),
+        ...(listingFilter.value === 'all' ? {} : { filter: listingFilter.value }),
         ...(sort.value !== 'newest' ? { sort: sort.value } : {}),
       },
     },
     { replace: true }
   );
-  if (tagSlug === 'all') {
-    if (sort.value !== 'newest' && grouped.value.length) {
-      void reloadAllSections();
-    } else if (sort.value !== 'newest') {
-      void loadFallbackPage(1);
-    } else {
-      syncSectionStates();
-    }
-    return;
-  }
-  void loadTagProducts(tagSlug, 1);
 }
 
-function setSort(next: SortMode) {
+async function loadProducts(nextPage = 1, append = false) {
+  const demoCat = catalogDemo.demoCategory(slug.value);
+  if (catalogDemo.forceDemo.value && demoCat) {
+    const demo = applyClientFilter(catalogDemo.demoProductsByCategory(slug.value));
+    products.value = demo;
+    listPagination.value = { page: 1, limit: PAGE_SIZE, total: demo.length, totalPages: 1 };
+    return;
+  }
+
+  const params = new URLSearchParams({
+    category: slug.value,
+    limit: String(PAGE_SIZE),
+    page: String(nextPage),
+  });
+  if (sort.value !== 'newest') params.set('sort', sort.value);
+  if (listingFilter.value === 'discount') params.set('listing', 'discount');
+  if (listingFilter.value === 'new') params.set('listing', 'new');
+  if (listingFilter.value === 'other') params.set('listing', 'other');
+
+  const { data } = await api.get<{ products: Product[]; pagination: Pagination }>(
+    `/products?${params}`
+  );
+  products.value = append ? [...products.value, ...data.products] : data.products;
+  listPagination.value = data.pagination;
+}
+
+async function reload() {
+  loading.value = true;
+  products.value = [];
+  listPagination.value = null;
+  try {
+    await loadProducts(1);
+  } finally {
+    loading.value = false;
+  }
+}
+
+function setFilter(value: string | number) {
+  const next = readFilter(value);
+  if (listingFilter.value === next) return;
+  listingFilter.value = next;
+  syncQuery();
+  void reload();
+}
+
+function setSort(value: string | number) {
+  const next = readSort(value);
   if (sort.value === next) return;
   sort.value = next;
-  tagProducts.value = [];
-  fallbackProducts.value = [];
-  listPagination.value = null;
-  navigateTo(
-    {
-      path: route.path,
-      query: {
-        ...(selectedTag.value === 'all' ? {} : { tag: selectedTag.value }),
-        ...(next !== 'newest' ? { sort: next } : {}),
-      },
-    },
-    { replace: true }
-  );
-  if (selectedTag.value === 'all') {
-    if (!grouped.value.length) {
-      void loadFallbackPage(1);
-    } else {
-      // Re-fetch overview strips with new sort via section reload
-      void reloadAllSections();
-    }
-    return;
-  }
-  void loadTagProducts(selectedTag.value, 1);
-}
-
-async function reloadAllSections() {
-  for (const section of grouped.value) {
-    const key = section.tag.slug;
-    sectionStates.value = {
-      ...sectionStates.value,
-      [key]: {
-        products: [],
-        page: 0,
-        total: section.total,
-        loading: false,
-      },
-    };
-    await loadMoreForSection(key);
-  }
+  syncQuery();
+  void reload();
 }
 
 async function loadMore() {
   if (loading.value || loadingMore.value || !hasMore.value) return;
   loadingMore.value = true;
   try {
-    const nextPage = (listPagination.value?.page ?? 1) + 1;
-    if (selectedTag.value === 'all' && !grouped.value.length) {
-      await loadFallbackPage(nextPage, true);
-    } else if (selectedTag.value !== 'all') {
-      await loadTagProducts(selectedTag.value, nextPage, true);
-    }
+    await loadProducts((listPagination.value?.page ?? 1) + 1, true);
   } finally {
     loadingMore.value = false;
   }
@@ -386,41 +156,26 @@ async function loadMore() {
 
 const { sentinel: loadMoreSentinel } = useInfiniteScroll(loadMore);
 
-watch(
-  () => route.query.tag,
-  async (tag) => {
-    selectedTag.value = (tag as string) || 'all';
-    if (selectedTag.value !== 'all') {
-      if (!grouped.value.length) await loadGrouped();
-      tagProducts.value = [];
-      await loadTagProducts(selectedTag.value, 1);
-    }
-  }
-);
-
 watch(slug, () => {
-  selectedTag.value = 'all';
-  tagProducts.value = [];
-  fallbackProducts.value = [];
-  listPagination.value = null;
-  sectionStates.value = {};
-  void loadPageData();
+  listingFilter.value = 'all';
+  sort.value = 'newest';
+  void reload();
 });
 
-onMounted(loadPageData);
+onMounted(reload);
 
 useHead({ title: `${category.value?.name || 'دسته‌بندی'} - ${SITE_NAME}` });
 </script>
 
 <template>
   <div class="pb-8">
-    <div class="sticky top-14 z-30 min-w-0 bg-gray-50/95 backdrop-blur border-b border-gray-100 px-4 pt-4 pb-3">
+    <div class="sticky top-14 z-30 min-w-0 border-b border-gray-100 bg-white/95 px-4 pb-4 pt-4 backdrop-blur">
       <h1 class="section-title mb-3">{{ category?.name }}</h1>
 
-      <ChipStrip class="pb-3 mb-1">
+      <ChipStrip class="mb-3 pb-1">
         <NuxtLink
           to="/categories"
-          class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap bg-gray-100 text-gray-600"
+          class="whitespace-nowrap rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600"
           draggable="false"
         >
           همه
@@ -430,7 +185,7 @@ useHead({ title: `${category.value?.name || 'دسته‌بندی'} - ${SITE_NAME
           :key="item.id"
           :to="`/categories/${item.slug}`"
           :class="[
-            'px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors',
+            'whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
             item.slug === slug
               ? 'bg-primary-600 text-white'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
@@ -441,121 +196,45 @@ useHead({ title: `${category.value?.name || 'دسته‌بندی'} - ${SITE_NAME
         </NuxtLink>
       </ChipStrip>
 
-      <ChipStrip v-if="showTagBar" class="pb-1">
-        <button
-          type="button"
-          :class="[
-            'shrink-0 min-w-[68px] px-2.5 py-2 rounded-2xl text-xs font-medium border transition-colors flex flex-col items-center gap-1',
-            selectedTag === 'all'
-              ? 'bg-primary-600 text-white border-primary-600'
-              : 'bg-white text-gray-600 border-gray-200',
-          ]"
-          @click="selectTag('all')"
-        >
-          <span class="text-base">🛒</span>
-          همه محصولات
-        </button>
-
-        <button
-          v-for="tag in displayTags"
-          :key="tag.id"
-          type="button"
-          :class="[
-            'shrink-0 min-w-[68px] px-2.5 py-2 rounded-2xl text-xs font-medium border transition-colors flex flex-col items-center gap-1',
-            selectedTag === tag.slug
-              ? 'bg-primary-600 text-white border-primary-600'
-              : 'bg-white text-gray-600 border-gray-200',
-          ]"
-          @click="selectTag(tag.slug)"
-        >
-          <span class="text-base leading-none">{{ tag.icon || '🏷️' }}</span>
-          {{ tag.name }}
-        </button>
-
-        <button
-          v-if="hasOtherGroup"
-          type="button"
-          :class="[
-            'shrink-0 min-w-[68px] px-2.5 py-2 rounded-2xl text-xs font-medium border transition-colors flex flex-col items-center gap-1',
-            selectedTag === 'other'
-              ? 'bg-primary-600 text-white border-primary-600'
-              : 'bg-white text-gray-600 border-gray-200',
-          ]"
-          @click="selectTag('other')"
-        >
-          <span class="text-base">📦</span>
-          سایر
-        </button>
-      </ChipStrip>
-
-      <div class="flex gap-2 overflow-x-auto scrollbar-hide pt-2">
-        <button
-          v-for="option in sortOptions"
-          :key="option.value"
-          type="button"
-          :class="[
-            'shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors',
-            sort === option.value
-              ? 'bg-primary-600 text-white border-primary-600'
-              : 'bg-white text-gray-600 border-gray-200',
-          ]"
-          @click="setSort(option.value)"
-        >
-          {{ option.label }}
-        </button>
+      <div class="grid grid-cols-2 gap-4">
+        <label class="block min-w-0">
+          <span class="field-label">فیلتر</span>
+          <AppSelect
+            :model-value="listingFilter"
+            :options="filterOptions"
+            @update:model-value="setFilter"
+          />
+        </label>
+        <label class="block min-w-0">
+          <span class="field-label">مرتب‌سازی</span>
+          <AppSelect
+            :model-value="sort"
+            :options="sortOptions"
+            @update:model-value="setSort"
+          />
+        </label>
       </div>
     </div>
 
     <LoadingSpinner :show="loading" />
 
-    <div v-if="!loading" class="space-y-6 pt-4">
-      <section
-        v-for="section in visibleSections"
-        :key="section.tag?.id || 'other'"
-        class="px-4"
+    <div v-if="!loading" class="px-4 pt-4">
+      <ProductCardList v-if="products.length" :products="products" layout="grid" density="sarak" />
+      <EmptyCatalogScene
+        v-else
+        variant="products"
+        title="محصولی با این فیلتر پیدا نشد"
+        description="فیلتر را عوض کنید یا همه محصولات این دسته را ببینید."
       >
-        <div v-if="selectedTag === 'all'" class="flex items-center justify-between mb-2">
-          <h2 class="text-sm font-bold text-gray-800 inline-flex items-center gap-1.5">
-            <span v-if="section.tag?.icon">{{ section.tag.icon }}</span>
-            {{ section.tag?.name || 'سایر محصولات' }}
-          </h2>
-          <button
-            v-if="section.tag?.slug && section.total > section.products.length"
-            type="button"
-            class="inline-flex items-center gap-1 shrink-0 rounded-full border border-primary-200 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 shadow-sm transition-colors hover:bg-primary-100 active:bg-primary-100/80"
-            @click="selectTag(section.tag.slug)"
-          >
-            ادامه
-            <AppIcon name="lucide:chevron-left" size="xs" />
-          </button>
-        </div>
+        <button type="button" class="btn-secondary btn-action text-sm px-5" @click="setFilter('all')">
+          نمایش همه
+        </button>
+        <NuxtLink to="/categories" class="btn-primary btn-action text-sm px-5">کالکشن‌ها</NuxtLink>
+      </EmptyCatalogScene>
 
-        <ProductCardList
-          :products="section.products"
-          :layout="selectedTag === 'all' ? 'strip' : 'grid'"
-          :has-more="section.hasMore"
-          :loading-more="section.loadingMore"
-          :reset-scroll-key="`${slug}-${section.tag?.slug || 'other'}`"
-          @load-more="loadMoreForSection(section.tag?.slug || 'other')"
-        />
-      </section>
-
-      <EmptyState
-        v-if="!visibleSections.length && !fallbackProducts.length"
-        message="محصولی در این دسته‌بندی یافت نشد"
-      />
-
-      <section v-if="!visibleSections.length && fallbackProducts.length" class="px-4">
-        <ProductCardList :products="fallbackProducts" />
-      </section>
-
-      <div
-        v-if="(selectedTag !== 'all' || (!grouped.length && fallbackProducts.length)) && (hasMore || loadingMore)"
-        class="px-4 py-6 flex flex-col items-center gap-2"
-      >
+      <div v-if="hasMore || loadingMore" class="flex flex-col items-center gap-2 py-6">
         <div ref="loadMoreSentinel" class="h-1 w-full" aria-hidden="true" />
         <LoadingSpinner :show="loadingMore" />
-        <p v-if="loadingMore" class="text-xs text-gray-400">در حال بارگذاری محصولات بیشتر…</p>
       </div>
     </div>
   </div>

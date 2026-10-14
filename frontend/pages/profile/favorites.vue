@@ -26,8 +26,8 @@ useHead({ title: `علاقه‌مندی‌ها - ${SITE_NAME}` });
 
     <ProductCardList v-if="!loading && products.length" :products="products" />
 
-    <EmptyState v-if="!loading && !products.length" message="محصولی به علاقه‌مندی‌ها اضافه نشده" icon="lucide:heart">
-      <NuxtLink to="/" class="btn-primary mt-4 text-sm inline-flex min-h-[44px] items-center px-6">رفتن به فروشگاه</NuxtLink>
-    </EmptyState>
+    <EmptyCatalogScene v-if="!loading && !products.length" variant="favorites" class="mt-2">
+      <NuxtLink to="/categories" class="btn-primary btn-action text-sm px-6">رفتن به کالکشن‌ها</NuxtLink>
+    </EmptyCatalogScene>
   </div>
 </template>

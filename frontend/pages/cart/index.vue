@@ -213,21 +213,15 @@ useHead({ title: `سبد خرید - ${SITE_NAME}` });
         </aside>
       </div>
 
-      <div
+      <EmptyCatalogScene
         v-else-if="!cartStore.loading"
-        class="rounded-3xl bg-white px-6 py-16 text-center shadow-card"
+        variant="cart"
+        class="shadow-card"
       >
-        <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#f6f3f1]">
-          <AppIcon name="lucide:shopping-bag" size="xl" class="text-primary-700" />
-        </div>
-        <h2 class="mt-5 text-lg font-bold text-[#23254e]">سبد خرید خالی است</h2>
-        <p class="mx-auto mt-2 max-w-sm text-sm leading-7 text-gray-500">
-          هنوز لباسی انتخاب نکرده‌اید. کالکشن‌ها را ببینید و استایل بعدی‌تان را اضافه کنید.
-        </p>
-        <NuxtLink to="/categories" class="btn-primary btn-action mt-6 inline-flex px-8">
+        <NuxtLink to="/categories" class="btn-primary btn-action px-8">
           دیدن کالکشن‌ها
         </NuxtLink>
-      </div>
+      </EmptyCatalogScene>
     </div>
 
     <section v-if="!cartStore.isEmpty && suggestedProducts.length" class="mt-8 bg-white py-8">

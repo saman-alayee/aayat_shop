@@ -4,7 +4,7 @@ definePageMeta({ layout: 'admin', middleware: 'admin' });
 const api = useApi();
 const toast = useToast();
 
-type SettingsTab = 'new-order-sms';
+type SettingsTab = 'maintenance' | 'new-order-sms';
 
 interface NewOrderSmsSettings {
   enabled: boolean;
@@ -14,15 +14,23 @@ interface NewOrderSmsSettings {
 }
 
 const tabs: Array<{ id: SettingsTab; label: string; icon: string }> = [
+  { id: 'maintenance', label: 'تعمیر فروشگاه', icon: 'lucide:scissors' },
   { id: 'new-order-sms', label: 'پیامک نوتیف سفارش', icon: 'lucide:message-square-text' },
 ];
 
-const activeTab = ref<SettingsTab>('new-order-sms');
+const activeTab = ref<SettingsTab>('maintenance');
 const loading = ref(true);
+const maintenanceReady = ref(false);
 const saving = ref(false);
 const testing = ref(false);
 const showGuide = ref(true);
 const testPhone = ref('');
+
+const maintenance = reactive({
+  enabled: false,
+  message: '',
+});
+const maintenanceSaving = ref(false);
 
 const form = reactive({
   enabled: true,
@@ -46,7 +54,42 @@ const phoneCount = computed(() =>
     .filter(Boolean).length
 );
 
-onMounted(loadSettings);
+onMounted(async () => {
+  await Promise.all([loadMaintenance(), loadSettings()]);
+});
+
+async function loadMaintenance() {
+  try {
+    const { data } = await api.get<{ enabled: boolean; message: string }>('/admin/settings/maintenance');
+    maintenance.enabled = data.enabled;
+    maintenance.message = data.message;
+  } catch (e: unknown) {
+    toast.error(e instanceof Error ? e.message : 'خطا در بارگذاری حالت تعمیر');
+  } finally {
+    maintenanceReady.value = true;
+  }
+}
+
+async function saveMaintenance() {
+  maintenanceSaving.value = true;
+  try {
+    const { data } = await api.put<{ enabled: boolean; message: string }>('/admin/settings/maintenance', {
+      enabled: maintenance.enabled,
+      message: maintenance.message.trim(),
+    });
+    maintenance.enabled = data.enabled;
+    maintenance.message = data.message;
+    const gate = useMaintenanceGate();
+    gate.invalidate();
+    gate.enabled.value = data.enabled;
+    gate.message.value = data.message;
+    toast.success(data.enabled ? 'فروشگاه برای مشتریان بسته شد' : 'فروشگاه دوباره باز شد');
+  } catch (e: unknown) {
+    toast.error(e instanceof Error ? e.message : 'خطا در ذخیره');
+  } finally {
+    maintenanceSaving.value = false;
+  }
+}
 
 async function loadSettings() {
   loading.value = true;
@@ -135,7 +178,7 @@ useHead({ title: 'تنظیمات - پنل مدیریت' });
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
       <div>
         <h1 class="text-2xl font-bold text-gray-900">تنظیمات</h1>
-        <p class="text-sm text-gray-500 mt-1">پیامک و اعلان‌های عملیاتی فروشگاه</p>
+        <p class="text-sm text-gray-500 mt-1">تعمیر فروشگاه، پیامک و اعلان‌های عملیاتی</p>
       </div>
       <button type="button" class="btn-secondary text-sm self-start" @click="showGuide = !showGuide">
         {{ showGuide ? 'بستن راهنما' : 'نمایش راهنما' }}
@@ -158,6 +201,64 @@ useHead({ title: 'تنظیمات - پنل مدیریت' });
         <AppIcon :name="tab.icon" size="sm" />
         {{ tab.label }}
       </button>
+    </div>
+
+    <div
+      v-if="showGuide && activeTab === 'maintenance'"
+      class="card p-4 mb-6 text-sm text-gray-700 leading-7 bg-primary-50/40 border border-primary-100 max-w-3xl"
+    >
+      <p class="font-bold text-gray-800 mb-2">وقتی روشن باشد</p>
+      <ul class="list-disc pr-5 space-y-1.5">
+        <li>همه صفحات فروشگاه، پروفایل، سبد و ورود مشتری برای کاربر عادی بسته می‌شود و فقط صفحه تعمیر دیده می‌شود.</li>
+        <li>ادمین، مسئول و پرسنل همچنان فروشگاه و پنل را می‌بینند و از همین‌جا خاموشش می‌کنند.</li>
+        <li>ورود مدیران از مسیر <span dir="ltr" class="font-mono text-xs">/admin/login</span> باز می‌ماند.</li>
+      </ul>
+    </div>
+
+    <div
+      v-if="activeTab === 'maintenance' && maintenanceReady"
+      class="bg-white rounded-xl border border-gray-100 p-6 space-y-6 max-w-2xl"
+    >
+      <div>
+        <h2 class="text-lg font-semibold text-gray-900">حالت تعمیر / به‌روزرسانی</h2>
+        <p class="text-sm text-gray-500 mt-1">
+          صفحهٔ تمام‌صفحه با انیمیشن لباس، مثل صفحه ۴۰۴، برای بازدیدکننده‌ها.
+        </p>
+      </div>
+
+      <label class="flex items-start gap-3 cursor-pointer rounded-lg border border-gray-100 p-3 hover:bg-gray-50/80">
+        <input v-model="maintenance.enabled" type="checkbox" class="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+        <span>
+          <span class="block text-sm font-medium text-gray-900">فروشگاه در حال تعمیر باشد</span>
+          <span class="block text-xs text-gray-500 mt-0.5 leading-relaxed">
+            روشن = مشتریان صفحه تعمیر را می‌بینند. خاموش = فروشگاه عادی باز است.
+          </span>
+        </span>
+      </label>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">متن صفحه</label>
+        <textarea
+          v-model="maintenance.message"
+          rows="3"
+          maxlength="280"
+          class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+        />
+      </div>
+
+      <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+        <NuxtLink to="/maintenance?preview=1" target="_blank" class="text-sm text-primary-700 hover:underline">
+          پیش‌نمایش صفحه
+        </NuxtLink>
+        <button
+          type="button"
+          class="btn-primary px-5 py-2.5 disabled:opacity-60"
+          :disabled="maintenanceSaving || maintenance.message.trim().length < 2"
+          @click="saveMaintenance"
+        >
+          {{ maintenanceSaving ? 'در حال ذخیره…' : maintenance.enabled ? 'فعال کردن تعمیر' : 'ذخیره و باز کردن فروشگاه' }}
+        </button>
+      </div>
     </div>
 
     <div
@@ -200,7 +301,10 @@ useHead({ title: 'تنظیمات - پنل مدیریت' });
       </ul>
     </div>
 
-    <div v-if="loading" class="bg-white rounded-xl border border-gray-100 p-8 text-center text-gray-400">
+    <div
+      v-if="(activeTab === 'maintenance' && !maintenanceReady) || (activeTab === 'new-order-sms' && loading)"
+      class="bg-white rounded-xl border border-gray-100 p-8 text-center text-gray-400"
+    >
       در حال بارگذاری…
     </div>
 

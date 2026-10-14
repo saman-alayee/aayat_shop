@@ -24,8 +24,6 @@ const emit = defineEmits<{
 
 const { formatPrice } = useFormat();
 
-const category = computed(() => props.product.category);
-
 function share(kind: 'whatsapp' | 'telegram' | 'twitter' | 'facebook') {
   if (!import.meta.client) return;
   const url = encodeURIComponent(window.location.href);
@@ -42,33 +40,19 @@ function share(kind: 'whatsapp' | 'telegram' | 'twitter' | 'facebook') {
 
 <template>
   <div class="mt-5 flex min-w-0 flex-col md:mt-1">
-    <nav class="mb-3 flex flex-wrap items-center gap-1.5 text-xs text-gray-400">
-      <NuxtLink to="/" class="hover:text-[#ef394e]">صفحه اصلی</NuxtLink>
-      <template v-if="category?.name">
-        <span>/</span>
-        <NuxtLink
-          v-if="category.slug"
-          :to="`/categories/${category.slug}`"
-          class="hover:text-[#ef394e]"
-        >
-          {{ category.name }}
-        </NuxtLink>
-        <span v-else>{{ category.name }}</span>
-      </template>
-    </nav>
-
     <div class="flex items-start gap-3">
       <h1 class="flex-1 text-[19px] font-bold leading-8 text-[#23254e] md:text-xl">
         {{ product.name }}
       </h1>
       <button
         type="button"
-        class="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 text-gray-400"
-        :class="favorited ? 'border-red-200 text-[#ef394e]' : ''"
-        aria-label="علاقه‌مندی"
+        class="product-fav-btn mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+        :class="{ 'is-on': favorited }"
+        :aria-pressed="favorited"
+        :aria-label="favorited ? 'حذف از ذخیره‌ها' : 'ذخیره محصول'"
         @click="emit('toggleFavorite')"
       >
-        <AppIcon name="lucide:heart" size="sm" :class="favorited ? 'fill-current' : ''" />
+        <AppIcon name="lucide:bookmark" size="md" class="product-fav-btn__icon" />
       </button>
     </div>
 
@@ -82,7 +66,12 @@ function share(kind: 'whatsapp' | 'telegram' | 'twitter' | 'facebook') {
     </div>
 
     <p v-if="isDemoProduct" class="mt-2 text-xs text-gray-500">موجود — فقط نمایشی</p>
-    <p v-else-if="!inStockDisplay" class="mt-2 text-sm font-medium text-[#ef394e]">ناموجود</p>
+    <EmptyCatalogScene
+      v-else-if="!inStockDisplay"
+      variant="stock"
+      compact
+      class="mt-4"
+    />
 
     <div
       v-if="clothingMeta?.sizes?.length || clothingMeta?.colors?.length"
@@ -164,3 +153,45 @@ function share(kind: 'whatsapp' | 'telegram' | 'twitter' | 'facebook') {
     </div>
   </div>
 </template>
+
+<style scoped>
+.product-fav-btn {
+  color: #3f3f46;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(26, 15, 18, 0.1);
+  transition:
+    transform 0.18s ease,
+    color 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.product-fav-btn:hover {
+  transform: scale(1.05);
+  color: #652a3b;
+}
+
+.product-fav-btn.is-on {
+  color: #ef394e;
+  background: #fff5f6;
+  border-color: rgba(239, 57, 78, 0.35);
+  animation: product-fav-pop 0.45s cubic-bezier(0.22, 1.4, 0.36, 1);
+}
+
+.product-fav-btn__icon :deep(svg) {
+  stroke-width: 2.35;
+  fill: transparent;
+}
+
+.product-fav-btn.is-on .product-fav-btn__icon :deep(svg) {
+  fill: #ef394e !important;
+  stroke: #ef394e !important;
+}
+
+@keyframes product-fav-pop {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+</style>

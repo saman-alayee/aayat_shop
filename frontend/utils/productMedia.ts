@@ -56,44 +56,25 @@ export function collectProductImagePaths(product: Product): string[] {
   return out;
 }
 
-function localDemoPrimary(product: Product): string {
-  return demoMediaUrl(`product-${product.slug || product.id}-primary`);
-}
-
-function localDemoHover(product: Product): string {
-  return demoMediaUrl(`product-${product.slug || product.id}-hover`);
-}
-
 export function primaryProductImageUrl(product: Product): string {
   const paths = collectProductImagePaths(product);
   const first = paths[0];
-  if (first && (first.startsWith('/demo-img/') || first.startsWith('/demo-proxy') || first.startsWith('/images/'))) {
-    return first;
+  if (!first) return PRODUCT_IMAGE_PLACEHOLDER;
+  if (first.startsWith('/demo-img/') || first.startsWith('/demo-proxy')) {
+    return PRODUCT_IMAGE_PLACEHOLDER;
   }
-  if (first && first.startsWith('/uploads/')) return resolveMediaUrl(first);
-  if (first && first.startsWith('http')) return first;
-  return localDemoPrimary(product);
+  if (first.startsWith('/uploads/') || first.startsWith('/images/') || first.startsWith('http')) {
+    return first.startsWith('/uploads/') ? resolveMediaUrl(first) : first;
+  }
+  return PRODUCT_IMAGE_PLACEHOLDER;
 }
 
-function isRealCatalogImageUrl(url: string): boolean {
-  return (
-    url.includes('/uploads/wc/') ||
-    url.includes('aaytay.ir/wp-content') ||
-    (url.startsWith('http') && !url.includes('/demo-img/') && !url.includes('/demo-proxy'))
-  );
-}
-
-/** تصویر دوم برای هاور — فقط گالری واقعی؛ برای تک‌عکس null (هاور CSS). */
+/** تصویر دوم برای هاور — فقط گالری واقعی؛ برای تک‌عکس null. */
 export function hoverProductImageUrl(product: Product): string | null {
   const paths = collectProductImagePaths(product);
-  if (paths.length >= 2) {
-    const second = paths[1];
-    if (second && second !== paths[0]) return second;
-  }
-  const primary = primaryProductImageUrl(product);
-  if (isRealCatalogImageUrl(primary)) return null;
-
-  const hover = localDemoHover(product);
-  if (hover === primary) return null;
-  return hover;
+  if (paths.length < 2) return null;
+  const second = paths[1];
+  if (!second || second === paths[0]) return null;
+  if (second.startsWith('/demo-img/') || second.startsWith('/demo-proxy')) return null;
+  return second.startsWith('/uploads/') ? resolveMediaUrl(second) : second;
 }

@@ -4,6 +4,7 @@ import { SITE_NAME } from '~/constants/site';
 import { SHIPPING_OPTIONS, type ShippingMethod } from '~/constants/shipping';
 import { useOrdersStore } from '~/stores/orders';
 
+const route = useRoute();
 const cartStore = useCartStore();
 const ordersStore = useOrdersStore();
 const authStore = useAuthStore();
@@ -51,6 +52,9 @@ function scrollToFirstError() {
 }
 
 onMounted(async () => {
+  if (route.query.payment === 'failed') {
+    error.value = 'پرداخت زیبال انجام نشد. اگر مبلغی کم شده باشد به حساب برمی‌گردد. می‌توانید دوباره پرداخت کنید.';
+  }
   await cartStore.fetchCart();
   if (cartStore.isEmpty) navigateTo('/cart');
 
@@ -160,7 +164,14 @@ async function submitOrder() {
       ...deliveryPayload,
     };
 
-    const { data } = await api.post<{ orderNumber: string }>('/orders', payload);
+    const { data } = await api.post<{ orderNumber: string; paymentUrl?: string }>('/orders', {
+      ...payload,
+      paymentMethod: 'ZIBAL',
+    });
+    if (data.paymentUrl) {
+      window.location.href = data.paymentUrl;
+      return;
+    }
     await cartStore.fetchCart();
     await ordersStore.fetchCount();
     navigateTo(`/orders/success?number=${data.orderNumber}`);
@@ -298,7 +309,7 @@ useHead({ title: `ثبت سفارش - ${SITE_NAME}` });
       <div v-if="error" class="mx-auto mb-2 max-w-lg md:max-w-2xl md:hidden"><AppAlertBanner :message="error" /></div>
       <div class="mx-auto max-w-lg md:max-w-2xl">
         <button type="button" class="btn-primary btn-action w-full" :disabled="loading" @click="submitOrder">
-          {{ loading ? 'در حال ثبت...' : `ثبت سفارش • ${formatPrice(displayTotal)}` }}
+          {{ loading ? 'در حال اتصال به زیبال...' : `پرداخت با زیبال • ${formatPrice(displayTotal)}` }}
         </button>
       </div>
     </div>

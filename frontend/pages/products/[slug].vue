@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import type { Product } from '~/types';
+import type { Product, Category } from '~/types';
 import { SITE_NAME } from '~/constants/site';
+import { navCategoryLabel } from '~/constants/categoryNav';
+import wpCategoryParents from '~/constants/wpCategoryParents.json';
 import { effectiveProductStock, parseClothingMeta } from '~/utils/clothing';
 
 const route = useRoute();
@@ -13,8 +15,7 @@ const { isFavorite, toggleFavorite } = useFavorites();
 const slug = route.params.slug as string;
 
 const { data: product } = await useAsyncData(`product-${slug}`, async () => {
-  const demoFirst = catalogDemo.forceDemo.value || slug.startsWith('demo-');
-  if (demoFirst) {
+  if (catalogDemo.forceDemo.value || slug.startsWith('demo-')) {
     const demo = catalogDemo.demoProduct(slug);
     if (demo) {
       catalogDemo.markDemo(true);
@@ -23,12 +24,62 @@ const { data: product } = await useAsyncData(`product-${slug}`, async () => {
   }
   try {
     const { data } = await api.get<Product>(`/products/${slug}`);
+    catalogDemo.markDemo(false);
     return data;
   } catch {
-    const demo = catalogDemo.demoProduct(slug);
-    if (demo) catalogDemo.markDemo(true);
-    return demo;
+    return null;
   }
+});
+
+const parentBySlug = wpCategoryParents as Record<string, string | null>;
+
+const { data: navCategories } = await useAsyncData('catalog-nav-categories', async () => {
+  try {
+    const { data } = await api.get<Category[]>('/categories?lite=1');
+    return data ?? [];
+  } catch {
+    return [] as Category[];
+  }
+});
+
+const crumbs = computed(() => {
+  const current = product.value;
+  if (!current) return [] as { label: string; to: string }[];
+
+  const bySlug = new Map<string, { slug: string; name: string }>();
+  for (const item of navCategories.value ?? []) bySlug.set(item.slug, item);
+  for (const item of current.categories ?? []) bySlug.set(item.slug, item);
+  if (current.category) bySlug.set(current.category.slug, current.category);
+
+  function chain(start: string) {
+    const items: { label: string; to: string }[] = [];
+    const seen = new Set<string>();
+    let slug: string | null = start;
+    while (slug && !seen.has(slug)) {
+      seen.add(slug);
+      const category = bySlug.get(slug);
+      items.unshift({
+        label: category ? navCategoryLabel(category) : slug,
+        to: `/categories/${slug}`,
+      });
+      slug = parentBySlug[slug] ?? null;
+    }
+    return items;
+  }
+
+  const slugs = [
+    ...(current.categories ?? []).map((item) => item.slug),
+    current.category?.slug,
+  ].filter((slug): slug is string => Boolean(slug));
+  const trail = [...new Set(slugs)]
+    .map((slug) => chain(slug))
+    .sort((a, b) => b.length - a.length)[0] ?? [];
+
+  return [
+    { label: 'خانه', to: '/' },
+    ...trail,
+    { label: current.name, to: '' },
+  ];
 });
 
 const isDemoProduct = computed(
@@ -88,7 +139,7 @@ async function loadRelated() {
     const { data } = await api.get<Product[]>(`/products/${slug}/related?limit=12`);
     relatedProducts.value = data;
   } catch {
-    relatedProducts.value = catalogDemo.demoRelated(slug, 12);
+    relatedProducts.value = [];
   }
 }
 
@@ -123,11 +174,39 @@ usePageSeo(() => ({
 </script>
 
 <template>
-  <div v-if="product" class="bg-white pb-28 md:pb-12">
+  <div v-if="!product" class="mx-auto max-w-[1240px] px-4 py-10">
+    <EmptyCatalogScene
+      variant="products"
+      title="این محصول پیدا نشد"
+      description="شاید از رگال برداشته شده باشد. کالکشن‌ها را ببینید یا به فروشگاه برگردید."
+    >
+      <NuxtLink to="/categories" class="btn-primary btn-action text-sm px-6">کالکشن‌ها</NuxtLink>
+      <NuxtLink to="/" class="btn-secondary btn-action text-sm px-6">خانه</NuxtLink>
+    </EmptyCatalogScene>
+  </div>
+
+  <div v-else class="bg-white pb-28 md:pb-12">
     <div v-if="isDemoProduct" class="mx-auto max-w-[1240px] px-4 pt-3">
       <AppAlertBanner variant="info" message="این محصول نمایشی است (تصاویر placeholder) — فقط برای پیش‌نمایش ظاهر فروشگاه." />
     </div>
     <div class="mx-auto max-w-[1240px] px-4 pb-4 md:py-8">
+      <nav
+        v-if="crumbs.length"
+        aria-label="مسیر صفحه"
+        class="mb-4 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-neutral-500"
+      >
+        <template v-for="(crumb, index) in crumbs" :key="`${crumb.label}-${index}`">
+          <span v-if="index" class="text-neutral-300" aria-hidden="true">/</span>
+          <NuxtLink
+            v-if="crumb.to"
+            :to="crumb.to"
+            class="transition-colors hover:text-neutral-950"
+          >
+            {{ crumb.label }}
+          </NuxtLink>
+          <span v-else class="text-neutral-900" aria-current="page">{{ crumb.label }}</span>
+        </template>
+      </nav>
       <div class="md:grid md:grid-cols-[minmax(280px,440px)_minmax(0,1fr)] md:items-start md:gap-10 lg:gap-14">
         <ProductDetailGallery
           :images="galleryImages"

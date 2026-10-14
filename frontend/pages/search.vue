@@ -137,9 +137,8 @@ async function fetchProducts(page: number, append: boolean) {
     products.value = append ? [...products.value, ...data.products] : data.products;
     pagination.value = data.pagination;
   } catch {
-    const all = demoProductList();
-    products.value = append ? products.value : all;
-    pagination.value = { page: 1, totalPages: 1, total: all.length, limit: PAGE_SIZE };
+    products.value = append ? products.value : [];
+    pagination.value = null;
   }
 }
 
@@ -246,9 +245,18 @@ useHead(() => ({
       <p v-if="loadingMore" class="text-xs text-gray-400">در حال بارگذاری محصولات بیشتر…</p>
     </div>
 
-    <EmptyState
+    <EmptyCatalogScene
       v-if="!loading && !products.length"
-      :message="isBrowseMode ? 'محصولی یافت نشد' : 'عبارت جستجو را بنویسید یا فیلتر تخفیف / پرفروش را بزنید'"
-    />
+      :variant="isBrowseMode ? 'products' : 'search'"
+      :title="isBrowseMode ? 'محصولی یافت نشد' : undefined"
+      :description="
+        isBrowseMode
+          ? 'با فیلتر یا مرتب‌سازی دیگری امتحان کنید، یا کالکشن‌ها را ببینید.'
+          : undefined
+      "
+      class="mt-4"
+    >
+      <NuxtLink to="/categories" class="btn-primary btn-action text-sm px-6">دیدن کالکشن‌ها</NuxtLink>
+    </EmptyCatalogScene>
   </div>
 </template>

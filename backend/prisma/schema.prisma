@@ -30,6 +30,7 @@ enum PaymentMethod {
   SOCIAL_SECURITY
   TARA
   OTHER_WALLET
+  ZIBAL
 }
 
 enum CouponType {

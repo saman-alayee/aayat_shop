@@ -88,8 +88,8 @@ export default defineNuxtConfig({
       // Production: usually /api behind nginx
       apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:3001/api',
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-      /** کاتالوگ نمایشی لباس (loremflickr) — `NUXT_PUBLIC_FORCE_DEMO_CATALOG=false` برای داده واقعی API */
-      forceDemoCatalog: process.env.NUXT_PUBLIC_FORCE_DEMO_CATALOG !== 'false',
+      /** فقط با `NUXT_PUBLIC_FORCE_DEMO_CATALOG=true` کاتالوگ نمایشی روشن می‌شود؛ پیش‌فرض = محصولات واقعی API */
+      forceDemoCatalog: process.env.NUXT_PUBLIC_FORCE_DEMO_CATALOG === 'true',
     },
   },
 

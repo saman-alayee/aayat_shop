@@ -275,7 +275,8 @@ export type PaymentMethod =
   | 'RETIREMENT_FUND'
   | 'SOCIAL_SECURITY'
   | 'TARA'
-  | 'OTHER_WALLET';
+  | 'OTHER_WALLET'
+  | 'ZIBAL';
 
 export interface Order {
   id: string;
@@ -388,6 +389,7 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   SOCIAL_SECURITY: 'تامین اجتماعی',
   TARA: 'کیف پول تارا',
   OTHER_WALLET: 'سایر کیف پول‌ها',
+  ZIBAL: 'زیبال',
 };
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {

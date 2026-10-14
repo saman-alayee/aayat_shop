@@ -11,7 +11,7 @@ import {
   getDemoRelatedProducts,
 } from '~/constants/demoCatalog';
 
-/** وقتی API خالی است یا forceDemoCatalog فعال است، کاتالوگ نمایشی لباس نشان داده می‌شود. */
+/** کاتالوگ نمایشی فقط وقتی forceDemoCatalog=true باشد. */
 export function useCatalogDemo() {
   const config = useRuntimeConfig();
   const forceDemo = computed(() => Boolean(config.public.forceDemoCatalog));
@@ -21,8 +21,8 @@ export function useCatalogDemo() {
     isDemoCatalog.value = active;
   }
 
-  function useDemoForApi(hasApiRows: boolean) {
-    const demo = forceDemo.value || !hasApiRows;
+  function useDemoForApi(_hasApiRows: boolean) {
+    const demo = forceDemo.value;
     markDemo(demo);
     return demo;
   }

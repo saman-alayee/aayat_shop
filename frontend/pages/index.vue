@@ -58,10 +58,10 @@ async function loadHomeSections() {
       categorySections.value = feed;
     }
   } catch {
-    catalogDemo.markDemo(true);
-    newestProducts.value = catalogDemo.demoFeatured().slice(0, 12);
-    specialProducts.value = catalogDemo.demoDiscounted().slice(0, 12);
-    categorySections.value = catalogDemo.demoHomeFeed();
+    catalogDemo.markDemo(false);
+    newestProducts.value = [];
+    specialProducts.value = [];
+    categorySections.value = [];
   } finally {
     sectionsLoading.value = false;
   }
