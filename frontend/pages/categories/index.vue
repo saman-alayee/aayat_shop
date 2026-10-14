@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { Category, HomeCategorySection } from '~/types';
-import { SITE_NAME } from '~/constants/site';
 
 const api = useApi();
 const route = useRoute();
@@ -45,7 +44,11 @@ onMounted(() => {
   void loadCategorySections();
 });
 
-useHead({ title: `دسته‌بندی‌ها - ${SITE_NAME}` });
+usePageSeo({
+  title: 'دسته‌بندی‌ها',
+  description: 'کالکشن‌های پوشاک زنانه، مردانه و بچگانه آیتای.',
+  path: '/categories',
+});
 </script>
 
 <template>

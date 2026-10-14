@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { Category, Product, Pagination } from '~/types';
-import { SITE_NAME } from '~/constants/site';
 
 const route = useRoute();
 const api = useApi();
@@ -164,7 +163,14 @@ watch(slug, () => {
 
 onMounted(reload);
 
-useHead({ title: `${category.value?.name || 'دسته‌بندی'} - ${SITE_NAME}` });
+usePageSeo(() => ({
+  title: category.value?.name || 'دسته‌بندی',
+  description: category.value?.name
+    ? `خرید ${category.value.name} از فروشگاه آیتای، با ارسال سریع و ضمانت اصالت.`
+    : undefined,
+  path: category.value ? `/categories/${category.value.slug}` : undefined,
+  image: category.value?.image || undefined,
+}));
 </script>
 
 <template>

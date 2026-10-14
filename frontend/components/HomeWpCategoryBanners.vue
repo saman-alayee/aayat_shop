@@ -21,8 +21,11 @@ const tiles = [
       <img
         :src="tile.image"
         :alt="tile.name"
-        class="h-auto w-full object-cover transition-transform duration-500 hover:scale-[1.02]"
+        class="h-auto w-full object-cover"
+        width="640"
+        height="800"
         loading="lazy"
+        decoding="async"
       />
     </NuxtLink>
   </section>

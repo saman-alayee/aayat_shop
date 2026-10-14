@@ -25,10 +25,25 @@ export default defineNuxtConfig({
     },
   },
 
+  features: {
+    // Keep CSS as cacheable files instead of bloating the first HTML (~120KB inline before).
+    inlineStyles: false,
+  },
+
   nitro: {
+    compressPublicAssets: true,
     prerender: {
       crawlLinks: false,
       routes: ['/'],
+    },
+    routeRules: {
+      '/wp-home/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+      '/images/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+      '/_nuxt/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
+      '/logo.png': { headers: { 'cache-control': 'public, max-age=604800' } },
+      '/pwa-*.png': { headers: { 'cache-control': 'public, max-age=604800' } },
+      '/sitemap.xml': { headers: { 'cache-control': 'public, max-age=3600' } },
+      '/robots.txt': { headers: { 'cache-control': 'public, max-age=3600' } },
     },
     devProxy: {
       '/uploads': { target: 'http://127.0.0.1:3001/uploads', changeOrigin: true },
@@ -41,7 +56,7 @@ export default defineNuxtConfig({
       title: 'آیتای | فروشگاه اینترنتی پوشاک',
       meta: [
         { charset: 'utf-8' },
-        { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         {
           name: 'description',
           content:
@@ -54,6 +69,8 @@ export default defineNuxtConfig({
             'خرید آنلاین لباس زنانه، مردانه و بچگانه — کالکشن‌های فصل، ارسال سریع و پشتیبانی واقعی.',
         },
         { property: 'og:type', content: 'website' },
+        { property: 'og:locale', content: 'fa_IR' },
+        { name: 'twitter:card', content: 'summary_large_image' },
         { name: 'theme-color', content: '#652a3b' },
         { name: 'apple-mobile-web-app-capable', content: 'yes' },
         { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
@@ -67,6 +84,7 @@ export default defineNuxtConfig({
       link: [
         { rel: 'icon', type: 'image/png', href: '/logo.png' },
         { rel: 'apple-touch-icon', href: '/pwa-192.png' },
+        { rel: 'preload', as: 'image', href: '/wp-home/hero-fall-mobile.webp', fetchpriority: 'high' },
       ],
     },
   },
@@ -134,8 +152,8 @@ export default defineNuxtConfig({
     workbox: {
       navigateFallback: '/',
       navigateFallbackDenylist: [/^\/api\//, /^\/uploads\//, /^\/\.well-known\//],
-      globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2,ttf}'],
-      maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+      globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2}'],
+      maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       cleanupOutdatedCaches: true,
       clientsClaim: true,
       runtimeCaching: [

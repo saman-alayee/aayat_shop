@@ -26,9 +26,9 @@ const imgClass = {
     class="inline-flex items-center shrink-0 relative z-10 cursor-pointer hover:opacity-90 transition-opacity"
     :aria-label="`صفحه اصلی ${SITE_NAME}`"
   >
-    <img src="/logo.png" :class="[imgClass[size], 'rounded-full object-cover']" :alt="SITE_NAME" width="64" height="64" />
+    <img src="/logo.png" :class="[imgClass[size], 'rounded-full object-cover']" :alt="SITE_NAME" width="64" height="64" decoding="async" />
   </NuxtLink>
   <div v-else class="inline-flex items-center shrink-0">
-    <img src="/logo.png" :class="[imgClass[size], 'rounded-full object-cover']" :alt="SITE_NAME" width="64" height="64" />
+    <img src="/logo.png" :class="[imgClass[size], 'rounded-full object-cover']" :alt="SITE_NAME" width="64" height="64" decoding="async" />
   </div>
 </template>

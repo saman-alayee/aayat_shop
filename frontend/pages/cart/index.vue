@@ -154,7 +154,10 @@ watch(
   loadSuggestions,
 );
 
-useHead({ title: `سبد خرید - ${SITE_NAME}` });
+useHead({
+  title: `سبد خرید - ${SITE_NAME}`,
+  meta: [{ name: 'robots', content: 'noindex, nofollow' }],
+});
 </script>
 
 <template>

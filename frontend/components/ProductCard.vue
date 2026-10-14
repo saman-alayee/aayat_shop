@@ -144,6 +144,8 @@ async function handleDecrease(event: Event) {
         ]"
         loading="lazy"
         decoding="async"
+        width="400"
+        height="533"
         draggable="false"
         @error="onCardPrimaryError()"
       />
@@ -155,6 +157,8 @@ async function handleDecrease(event: Event) {
         :class="cardHoverEnabled ? 'product-card-sarak-img-hover--ready' : ''"
         loading="lazy"
         decoding="async"
+        width="400"
+        height="533"
         draggable="false"
         @error="onCardHoverError()"
       />
@@ -231,6 +235,9 @@ async function handleDecrease(event: Event) {
           :alt="product.name"
           class="pointer-events-none h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
           loading="lazy"
+          decoding="async"
+          width="400"
+          height="533"
           draggable="false"
           @error="(e) => { const t = e.target as HTMLImageElement; if (t) t.src = '/images/placeholder-product.svg' }"
         />

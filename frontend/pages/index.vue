@@ -14,27 +14,18 @@ const sectionsLoading = ref(true);
 
 const WP_HERO: Slider[] = [
   {
-    id: 'wp-hero-1',
+    id: 'fall-hero',
     title: null,
-    image: '/wp-home/hero-1.webp',
-    linkUrl: '/categories/paperbacks-and-shirts',
-    sortOrder: 1,
-    placement: 'HOME_TOP',
-    isActive: true,
-  },
-  {
-    id: 'wp-hero-2',
-    title: null,
-    image: '/wp-home/hero-2.webp',
+    image: '/wp-home/hero-fall-desktop.webp',
+    mobileImage: '/wp-home/hero-fall-mobile.webp',
     linkUrl: '/categories/woman-clothe',
-    sortOrder: 2,
+    sortOrder: 1,
     placement: 'HOME_TOP',
     isActive: true,
   },
 ];
 
 const apiTopSliders = ref<Slider[]>([]);
-
 const displayTopSliders = computed(() => (apiTopSliders.value.length ? apiTopSliders.value : WP_HERO));
 
 async function loadHomeSections() {
@@ -76,22 +67,45 @@ onMounted(() => {
   loadHomeSections();
 });
 
+const siteUrl = String(useRuntimeConfig().public.siteUrl || '').replace(/\/+$/, '');
+
 usePageSeo({
   title: SITE_NAME,
   description: SITE_DESCRIPTION,
-  jsonLd: {
-    '@context': 'https://schema.org',
-    '@type': 'WebSite',
-    name: SITE_NAME,
-    description: SITE_DESCRIPTION,
-    url: useRuntimeConfig().public.siteUrl,
-  },
+  image: '/wp-home/hero-fall-desktop.webp',
+  jsonLd: [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: SITE_NAME,
+      description: SITE_DESCRIPTION,
+      url: siteUrl,
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: `${siteUrl}/search?q={search_term_string}`,
+        'query-input': 'required name=search_term_string',
+      },
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'ClothingStore',
+      name: SITE_NAME,
+      description: SITE_DESCRIPTION,
+      url: siteUrl,
+      image: `${siteUrl}/wp-home/hero-fall-desktop.webp`,
+      telephone: '+989108677853',
+      address: {
+        '@type': 'PostalAddress',
+        addressCountry: 'IR',
+      },
+    },
+  ],
 });
 </script>
 
 <template>
   <div class="pb-10 bg-white">
-    <HomeHeroSlider v-if="displayTopSliders.length" :sliders="displayTopSliders" :autoplay-ms="5000" layout="banner" />
+    <HomeHeroSlider v-if="displayTopSliders.length" :sliders="displayTopSliders" layout="banner" />
 
     <HomeWpCategoryBanners />
 

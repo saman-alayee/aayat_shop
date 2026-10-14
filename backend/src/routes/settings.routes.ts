@@ -5,6 +5,15 @@ import { asyncHandler, successResponse } from '../utils/errors';
 const router = Router();
 
 router.get(
+  '/announcement',
+  asyncHandler(async (_req, res) => {
+    const settings = await settingsService.getAnnouncement();
+    res.setHeader('Cache-Control', 'no-store');
+    successResponse(res, settings);
+  })
+);
+
+router.get(
   '/maintenance',
   asyncHandler(async (_req, res) => {
     const settings = await settingsService.getMaintenance();

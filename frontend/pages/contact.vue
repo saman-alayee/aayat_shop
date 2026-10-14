@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CONTACT_PHONE, ENAMAD, SITE_NAME, SOCIAL_LINKS, STORE_HOURS } from '~/constants/site';
+import { CONTACT_PHONE, ENAMAD, SOCIAL_LINKS, STORE_HOURS } from '~/constants/site';
 
 const channels = [
   { label: 'واتساپ', value: CONTACT_PHONE, href: SOCIAL_LINKS.whatsapp },
@@ -8,7 +8,11 @@ const channels = [
   { label: 'گروه واتساپ', value: 'ورود به گروه', href: SOCIAL_LINKS.whatsappGroup },
 ];
 
-useHead({ title: `تماس با ما - ${SITE_NAME}` });
+usePageSeo({
+  title: 'تماس با ما',
+  description: 'ارتباط با فروشگاه آیتای از واتساپ و روبیکا.',
+  path: '/contact',
+});
 </script>
 
 <template>

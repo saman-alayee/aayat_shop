@@ -9,6 +9,8 @@ Disallow: /profile
 Disallow: /checkout
 Disallow: /cart
 Disallow: /auth
+Disallow: /orders
+Disallow: /maintenance
 
 Sitemap: ${base}/sitemap.xml
 `;

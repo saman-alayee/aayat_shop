@@ -920,6 +920,28 @@ router.post(
   })
 );
 
+const announcementSchema = z.object({
+  text: z.string().max(180),
+});
+
+router.get(
+  '/settings/announcement',
+  permSettings,
+  asyncHandler(async (_req, res) => {
+    successResponse(res, await settingsService.getAnnouncement());
+  })
+);
+
+router.put(
+  '/settings/announcement',
+  permSettings,
+  validate(announcementSchema),
+  asyncHandler(async (req, res) => {
+    const settings = await settingsService.updateAnnouncement(req.body.text ?? '');
+    successResponse(res, settings, 'متن بالای سایت ذخیره شد');
+  })
+);
+
 const maintenanceSchema = z.object({
   enabled: z.boolean(),
   message: z.string().min(2).max(280).optional(),

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { Product, Pagination } from '~/types';
 import { DEMO_PRODUCTS } from '~/constants/demoCatalog';
-import { SITE_NAME } from '~/constants/site';
 
 const route = useRoute();
 const router = useRouter();
@@ -191,8 +190,9 @@ watch(
   { immediate: true }
 );
 
-useHead(() => ({
-  title: `${pageTitle.value} - ${SITE_NAME}`,
+usePageSeo(() => ({
+  title: pageTitle.value,
+  noindex: true,
 }));
 </script>
 

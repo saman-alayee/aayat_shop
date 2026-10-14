@@ -7,6 +7,8 @@ import { normalizePhone } from '../utils/normalize';
 
 export const NEW_ORDER_SMS_KEY = 'new_order_sms';
 export const MAINTENANCE_KEY = 'maintenance';
+export const ANNOUNCEMENT_KEY = 'announcement';
+export const DEFAULT_ANNOUNCEMENT_TEXT = 'زمان ارسال یک هفته کاری';
 
 export const DEFAULT_NEW_ORDER_SMS_TEMPLATE =
   `سفارش جدید {orderNumber}\nمشتری: {customerName}\n${SITE_NAME}`;
@@ -212,6 +214,24 @@ export class SettingsService {
       update: { value: next as unknown as Prisma.InputJsonValue },
     });
 
+    return next;
+  }
+
+  async getAnnouncement(): Promise<{ text: string }> {
+    const row = await prisma.appSetting.findUnique({ where: { key: ANNOUNCEMENT_KEY } });
+    if (!row || !isRecord(row.value) || typeof row.value.text !== 'string') {
+      return { text: DEFAULT_ANNOUNCEMENT_TEXT };
+    }
+    return { text: row.value.text.trim().slice(0, 180) };
+  }
+
+  async updateAnnouncement(text: string): Promise<{ text: string }> {
+    const next = { text: text.trim().slice(0, 180) };
+    await prisma.appSetting.upsert({
+      where: { key: ANNOUNCEMENT_KEY },
+      create: { key: ANNOUNCEMENT_KEY, value: next },
+      update: { value: next },
+    });
     return next;
   }
 }

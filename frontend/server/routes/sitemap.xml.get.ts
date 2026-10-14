@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
   const base = ((config.public.siteUrl as string) || '').replace(/\/+$/, '');
   const apiBase = (config.public.apiBase as string).replace(/\/+$/, '');
 
-  const staticPaths = ['/', '/categories', '/contact', '/search'];
+  const staticPaths = ['/', '/categories', '/contact'];
   const entries: SitemapEntry[] = staticPaths.map((path) => ({ loc: `${base}${path}` }));
 
   try {

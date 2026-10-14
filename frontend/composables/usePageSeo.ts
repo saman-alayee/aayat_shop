@@ -9,6 +9,13 @@ type PageSeoInput = {
   jsonLd?: Record<string, unknown> | Record<string, unknown>[];
 };
 
+function absolutize(siteUrl: string, value?: string | null) {
+  const base = String(siteUrl || '').replace(/\/+$/, '');
+  if (!value) return `${base}/logo.png`;
+  if (/^https?:\/\//i.test(value)) return value;
+  return `${base}${value.startsWith('/') ? value : `/${value}`}`;
+}
+
 export function usePageSeo(input: MaybeRefOrGetter<PageSeoInput>) {
   const config = useRuntimeConfig();
   const route = useRoute();
@@ -24,6 +31,12 @@ export function usePageSeo(input: MaybeRefOrGetter<PageSeoInput>) {
 
   const canonicalPath = computed(() => resolved.value.path ?? route.path);
 
+  const canonicalUrl = computed(
+    () => `${String(config.public.siteUrl || '').replace(/\/+$/, '')}${canonicalPath.value}`
+  );
+
+  const imageUrl = computed(() => absolutize(String(config.public.siteUrl || ''), resolved.value.image));
+
   useSeoMeta({
     title: () => title.value,
     description: () => description.value,
@@ -31,6 +44,12 @@ export function usePageSeo(input: MaybeRefOrGetter<PageSeoInput>) {
     ogDescription: () => description.value,
     ogType: 'website',
     ogLocale: 'fa_IR',
+    ogUrl: () => canonicalUrl.value,
+    ogImage: () => imageUrl.value,
+    twitterCard: 'summary_large_image',
+    twitterTitle: () => title.value,
+    twitterDescription: () => description.value,
+    twitterImage: () => imageUrl.value,
     robots: () => (resolved.value.noindex ? 'noindex, nofollow' : 'index, follow'),
   });
 
@@ -38,7 +57,7 @@ export function usePageSeo(input: MaybeRefOrGetter<PageSeoInput>) {
     link: [
       {
         rel: 'canonical',
-        href: `${String(config.public.siteUrl || '').replace(/\/+$/, '')}${canonicalPath.value}`,
+        href: canonicalUrl.value,
       },
     ],
     script: resolved.value.jsonLd

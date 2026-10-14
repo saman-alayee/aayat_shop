@@ -180,6 +180,7 @@ usePageSeo(() => ({
   title: product.value?.name || 'محصول',
   description: product.value?.description?.slice(0, 160) || undefined,
   path: product.value ? `/products/${product.value.slug}` : undefined,
+  image: product.value ? getProductImage(product.value.image) : undefined,
   jsonLd: product.value
     ? {
         '@context': 'https://schema.org',

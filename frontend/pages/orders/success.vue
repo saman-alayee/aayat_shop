@@ -20,7 +20,10 @@ onMounted(async () => {
   }
 });
 
-useHead({ title: `سفارش ثبت شد - ${SITE_NAME}` });
+useHead({
+  title: `سفارش ثبت شد - ${SITE_NAME}`,
+  meta: [{ name: 'robots', content: 'noindex, nofollow' }],
+});
 </script>
 
 <template>

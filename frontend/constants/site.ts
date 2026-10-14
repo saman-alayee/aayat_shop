@@ -6,7 +6,7 @@ export const SITE_DESCRIPTION =
 
 export const STORE_MODE = 'clothing' as const;
 
-export const ANNOUNCEMENT_TEXT = 'ارسال به سراسر ایران ۱۳۵ هزار تومان؛ تحویل حضوری در فروشگاه';
+export const ANNOUNCEMENT_TEXT = 'زمان ارسال یک هفته کاری';
 
 export const CONTACT_PHONE = '09108677853';
 export const CONTACT_EMAIL = '';

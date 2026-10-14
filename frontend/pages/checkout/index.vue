@@ -134,7 +134,10 @@ async function submitOrder() {
   }
 }
 
-useHead({ title: `ثبت سفارش - ${SITE_NAME}` });
+useHead({
+  title: `ثبت سفارش - ${SITE_NAME}`,
+  meta: [{ name: 'robots', content: 'noindex, nofollow' }],
+});
 </script>
 
 <template>

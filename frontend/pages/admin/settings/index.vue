@@ -4,7 +4,7 @@ definePageMeta({ layout: 'admin', middleware: 'admin' });
 const api = useApi();
 const toast = useToast();
 
-type SettingsTab = 'maintenance' | 'new-order-sms';
+type SettingsTab = 'announcement' | 'maintenance' | 'new-order-sms';
 
 interface NewOrderSmsSettings {
   enabled: boolean;
@@ -14,11 +14,12 @@ interface NewOrderSmsSettings {
 }
 
 const tabs: Array<{ id: SettingsTab; label: string; icon: string }> = [
+  { id: 'announcement', label: 'متن بالای سایت', icon: 'lucide:megaphone' },
   { id: 'maintenance', label: 'تعمیر فروشگاه', icon: 'lucide:scissors' },
   { id: 'new-order-sms', label: 'پیامک نوتیف سفارش', icon: 'lucide:message-square-text' },
 ];
 
-const activeTab = ref<SettingsTab>('maintenance');
+const activeTab = ref<SettingsTab>('announcement');
 const loading = ref(true);
 const maintenanceReady = ref(false);
 const saving = ref(false);
@@ -31,6 +32,8 @@ const maintenance = reactive({
   message: '',
 });
 const maintenanceSaving = ref(false);
+const announcementText = ref('');
+const announcementSaving = ref(false);
 
 const form = reactive({
   enabled: true,
@@ -55,8 +58,32 @@ const phoneCount = computed(() =>
 );
 
 onMounted(async () => {
-  await Promise.all([loadMaintenance(), loadSettings()]);
+  await Promise.all([loadAnnouncement(), loadMaintenance(), loadSettings()]);
 });
+
+async function loadAnnouncement() {
+  try {
+    const { data } = await api.get<{ text: string }>('/admin/settings/announcement');
+    announcementText.value = data.text;
+  } catch (e: unknown) {
+    toast.error(e instanceof Error ? e.message : 'خطا در بارگذاری متن بالای سایت');
+  }
+}
+
+async function saveAnnouncement() {
+  announcementSaving.value = true;
+  try {
+    const { data } = await api.put<{ text: string }>('/admin/settings/announcement', {
+      text: announcementText.value.trim(),
+    });
+    announcementText.value = data.text;
+    toast.success('متن بالای سایت ذخیره شد');
+  } catch (e: unknown) {
+    toast.error(e instanceof Error ? e.message : 'خطا در ذخیره');
+  } finally {
+    announcementSaving.value = false;
+  }
+}
 
 async function loadMaintenance() {
   try {
@@ -178,7 +205,7 @@ useHead({ title: 'تنظیمات - پنل مدیریت' });
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
       <div>
         <h1 class="text-2xl font-bold text-gray-900">تنظیمات</h1>
-        <p class="text-sm text-gray-500 mt-1">تعمیر فروشگاه، پیامک و اعلان‌های عملیاتی</p>
+        <p class="text-sm text-gray-500 mt-1">متن بالای سایت، تعمیر فروشگاه و پیامک</p>
       </div>
       <button type="button" class="btn-secondary text-sm self-start" @click="showGuide = !showGuide">
         {{ showGuide ? 'بستن راهنما' : 'نمایش راهنما' }}
@@ -201,6 +228,22 @@ useHead({ title: 'تنظیمات - پنل مدیریت' });
         <AppIcon :name="tab.icon" size="sm" />
         {{ tab.label }}
       </button>
+    </div>
+
+    <div v-if="activeTab === 'announcement'" class="bg-white rounded-xl border border-gray-100 p-6 space-y-4 max-w-2xl">
+      <div>
+        <h2 class="text-lg font-semibold text-gray-900">نوار بالای فروشگاه</h2>
+        <p class="text-sm text-gray-500 mt-1">این متن همان نوار تیرهٔ بالای همهٔ صفحات است. اگر خالی ذخیره شود، نوار مخفی می‌شود.</p>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">متن</label>
+        <input v-model="announcementText" type="text" maxlength="180" class="input-field" />
+      </div>
+      <div class="flex justify-end">
+        <button type="button" class="btn-primary px-5 py-2.5 disabled:opacity-60" :disabled="announcementSaving" @click="saveAnnouncement">
+          {{ announcementSaving ? 'در حال ذخیره…' : 'ذخیره متن' }}
+        </button>
+      </div>
     </div>
 
     <div
