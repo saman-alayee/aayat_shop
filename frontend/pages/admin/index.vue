@@ -26,16 +26,19 @@ const { navVisible, isFullAdmin } = useAdminAccess();
 const quickLinks = [
   { to: '/admin/orders?status=NEW', label: 'منتظر ارسال مشتری', desc: 'پرداخت شده؛ هنوز پست نشود', icon: 'lucide:inbox' },
   { to: '/admin/orders?status=PREPARING', label: 'درخواست ارسال', desc: 'بسته‌بندی و پست کنید', icon: 'lucide:package' },
-  { to: '/admin/products', label: 'محصولات', desc: 'افزودن و ویرایش کالا', icon: 'lucide:shopping-basket' },
+  { to: '/admin/products', label: 'محصولات', desc: 'قیمت، موجودی، عکس و دسته', icon: 'lucide:shopping-basket' },
   { to: '/admin/categories', label: 'عکس دسته‌ها', desc: 'تصویر کارت‌های صفحه اول', icon: 'lucide:images' },
+  { to: '/admin/sliders', label: 'بنر صفحه اول', desc: 'اسلاید بالای فروشگاه', icon: 'lucide:image' },
+  { to: '/admin/reviews', label: 'نظرات', desc: 'نظر مشتریان زیر محصولات', icon: 'lucide:star' },
+  { to: '/admin/customers', label: 'مشتریان', desc: 'خریدها و شماره تماس', icon: 'lucide:user-round' },
   { to: '/admin/settings', label: 'هزینه ارسال و سبد', desc: 'متن ارسال و زمان ۳۰ دقیقه‌ای سبد', icon: 'lucide:truck' },
   { to: '/admin/home-picks', label: 'صفحه اول', desc: 'انتخاب دستی تخفیف‌دار و ویژه', icon: 'lucide:sparkles' },
   { to: '/admin/category-feed', label: 'محصولات دسته', desc: 'ترتیب نمایش هر دسته در صفحه اول', icon: 'lucide:list-ordered' },
-  { to: '/admin/sales', label: 'گزارش فروش', desc: 'بازه تاریخ و کالا', icon: 'lucide:bar-chart-3' },
-  { to: '/admin/coupons', label: 'کدهای تخفیف', desc: 'مدیریت پرومو', icon: 'lucide:ticket-percent' },
+  { to: '/admin/sales', label: 'گزارش فروش', desc: 'درآمد و پرفروش‌ها در بازه تاریخ', icon: 'lucide:bar-chart-3' },
+  { to: '/admin/coupons', label: 'کدهای تخفیف', desc: 'کدی که مشتری در سبد وارد می‌کند', icon: 'lucide:ticket-percent' },
   { to: '/admin/users', label: 'کاربران و دسترسی', desc: 'مدیر، مسئول، پرسنل', icon: 'lucide:users' },
   { to: '/admin/backup', label: 'بکاپ دیتابیس', desc: 'دانلود نسخه فشرده دیتابیس', icon: 'lucide:database' },
-  { to: '/admin/content', label: 'قوانین و مقررات', desc: 'ویرایش متن قوانین سایت', icon: 'lucide:file-text' },
+  { to: '/admin/content', label: 'قوانین و مقررات', desc: 'متن صفحه قوانین سایت', icon: 'lucide:file-text' },
 ];
 
 const visibleLinks = computed(() =>
@@ -52,7 +55,10 @@ useHead({ title: 'داشبورد - پنل مدیریت' });
 <template>
   <div>
     <h1 class="text-xl font-bold text-gray-800 mb-1">داشبورد</h1>
-    <p class="text-sm text-gray-500 mb-6">خلاصه وضعیت فروشگاه</p>
+    <p class="text-sm leading-6 text-gray-500 mb-6 max-w-3xl">
+      از اینجا سفارش‌های پرداخت‌شده، لباس‌ها، بنر صفحه اول و متن‌های فروشگاه را مدیریت کنید.
+      سفارش تا وقتی مشتری دکمهٔ «ارسال» را نزند نباید پست شود. بعد از آن در «درخواست ارسال» می‌آید.
+    </p>
 
     <div v-if="stats" class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mb-8">
       <div class="card p-4">

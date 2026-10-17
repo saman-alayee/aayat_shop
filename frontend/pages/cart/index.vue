@@ -7,6 +7,7 @@ const authStore = useAuthStore();
 const api = useApi();
 const { formatPrice, getProductImage, toPersianDigits } = useFormat();
 const { nationwideHint, cartHoldMinutes, loadShippingSettings } = useShippingSettings();
+const { applied, discountAmount, payable, refresh } = useCoupon();
 
 const suggestedProducts = ref<Product[]>([]);
 const suggestionsLoading = ref(false);
@@ -140,8 +141,16 @@ async function clearCart() {
 
 onMounted(async () => {
   await Promise.all([cartStore.fetchCart(), loadHeldOrders(), loadShippingSettings()]);
+  await refresh(cartStore.totalPrice);
   await loadSuggestions();
 });
+
+watch(
+  () => cartStore.totalPrice,
+  (subtotal) => {
+    void refresh(subtotal);
+  }
+);
 
 watch(
   () => cartStore.items.map((item) => item.productId).join(','),
@@ -291,11 +300,18 @@ useHead({
               <dt>تعداد لباس</dt>
               <dd>{{ pieceLabel }}</dd>
             </div>
+            <div v-if="discountAmount" class="flex items-center justify-between text-green-700">
+              <dt>تخفیف {{ applied?.code }}</dt>
+              <dd>- {{ formatPrice(discountAmount) }}</dd>
+            </div>
             <div class="flex items-center justify-between border-t border-[#f0ebe8] pt-3 text-base font-bold text-[#3c322b]">
               <dt>مبلغ قابل پرداخت</dt>
-              <dd>{{ formatPrice(cartStore.totalPrice) }}</dd>
+              <dd>{{ formatPrice(payable(cartStore.totalPrice)) }}</dd>
             </div>
           </dl>
+          <div class="mt-4">
+            <CouponCodeField :subtotal="cartStore.totalPrice" />
+          </div>
           <p class="mt-4 text-sm font-medium text-[#3c322b]">هزینه ارسال</p>
           <p class="mt-1 text-xs leading-6 text-gray-500">{{ nationwideHint }}</p>
           <p class="mt-2 text-xs leading-6 text-gray-500">
@@ -333,7 +349,7 @@ useHead({
       <div class="mx-auto flex max-w-lg items-center gap-3">
         <div class="min-w-0">
           <p class="text-xs text-gray-500">قابل پرداخت</p>
-          <p class="truncate text-sm font-bold text-[#3c322b]">{{ formatPrice(cartStore.totalPrice) }}</p>
+          <p class="truncate text-sm font-bold text-[#3c322b]">{{ formatPrice(payable(cartStore.totalPrice)) }}</p>
         </div>
         <button type="button" class="btn-primary inline-flex h-12 flex-1 items-center justify-center rounded-xl text-sm font-bold" @click="continueCheckout">
           ادامه و ثبت سفارش

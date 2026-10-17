@@ -371,20 +371,125 @@
 
   .data-table {
     @apply w-full text-sm;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
   }
 
   .data-table th,
   .data-table td {
-    @apply text-start align-middle px-3 py-3;
+    text-align: start;
+    vertical-align: middle;
+    padding: 0.875rem 1rem;
   }
 
   .data-table thead th {
-    @apply bg-gray-50 text-gray-600 font-semibold whitespace-nowrap;
+    @apply bg-slate-50 text-slate-600 font-semibold whitespace-nowrap text-xs tracking-wide;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .data-table tbody td {
+    @apply text-slate-700;
+    border-bottom: 1px solid #f1f5f9;
   }
 
   .data-table tbody tr {
-    @apply border-t border-gray-100;
+    transition: background-color 0.15s ease;
+  }
+
+  .data-table tbody tr:hover td {
+    @apply bg-slate-50/80;
+  }
+
+  .data-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .data-table .data-num,
+  .data-table th.data-num,
+  .data-table td.data-num {
+    text-align: end;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .data-table .data-actions,
+  .data-table th.data-actions,
+  .data-table td.data-actions {
+    text-align: start;
+    white-space: nowrap;
+  }
+
+  .data-table-wrap {
+    @apply overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm;
+  }
+
+  .admin-btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold
+           border transition-colors disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .admin-btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold
+           border border-primary-600 bg-primary-600 text-white transition-colors
+           hover:bg-primary-700 hover:border-primary-700 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .admin-btn-secondary {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold
+           border border-slate-200 bg-white text-slate-700 transition-colors
+           hover:bg-slate-50 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .admin-btn-success {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold
+           border border-emerald-200 bg-emerald-50 text-emerald-700 transition-colors
+           hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .admin-btn-warn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold
+           border border-amber-200 bg-amber-50 text-amber-700 transition-colors
+           hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .admin-btn-danger {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold
+           border border-red-200 bg-red-50 text-red-600 transition-colors
+           hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .admin-btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold
+           border border-transparent bg-transparent text-primary-700 transition-colors
+           hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .admin-actions {
+    @apply inline-flex flex-wrap items-center gap-1.5;
+  }
+
+  .admin-badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap;
+  }
+
+  .admin-badge-success {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap
+           bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100;
+  }
+
+  .admin-badge-danger {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap
+           bg-red-50 text-red-600 ring-1 ring-inset ring-red-100;
+  }
+
+  .admin-badge-muted {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap
+           bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200;
+  }
+
+  .admin-badge-info {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap
+           bg-primary-50 text-primary-700 ring-1 ring-inset ring-primary-100;
   }
 
   .sr-only {
@@ -411,5 +516,35 @@
   }
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+}
+
+/* Admin panel tab / content motion */
+.admin-tab-enter-active,
+.admin-tab-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+.admin-tab-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.admin-tab-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.admin-tab-btn {
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+.admin-tab-btn:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-tab-enter-active,
+  .admin-tab-leave-active,
+  .admin-tab-btn {
+    transition: none !important;
+    transform: none !important;
   }
 }

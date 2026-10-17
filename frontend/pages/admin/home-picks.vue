@@ -42,7 +42,7 @@ const tabHint = computed(() =>
 
 const searchHint = computed(() => {
   if (search.value.trim()) return '';
-  return 'برای دیدن پیشنهادها کلیک کنید، یا نام / بارکد محصول را بنویسید.';
+  return 'برای دیدن پیشنهادها کلیک کنید، یا نام لباس را بنویسید.';
 });
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
@@ -192,7 +192,7 @@ useHead({ title: 'محصولات صفحه اول - پنل مدیریت' });
       <div>
         <h1 class="text-xl font-bold text-gray-800">محصولات ویژه صفحه اول</h1>
         <p class="text-sm text-gray-500 mt-1 max-w-2xl">
-          خودتان مشخص کنید کدام کالاها در صفحه اول بیایند. حداکثر ۱۰ مورد در هر فهرست، با ترتیب دلخواه.
+          لباس‌هایی که این‌جا می‌چینید، در صفحهٔ اول فروشگاه دیده می‌شوند. حداکثر ۱۰ لباس در هر فهرست. ترتیب را با بالا و پایین بردن عوض کنید و در آخر «ذخیره انتخاب‌ها» را بزنید.
         </p>
       </div>
       <button class="btn-primary text-sm py-2 shrink-0" :disabled="saving" @click="save">
@@ -204,8 +204,8 @@ useHead({ title: 'محصولات صفحه اول - پنل مدیریت' });
       <button
         type="button"
         :class="[
-          'px-4 py-2 text-sm font-semibold rounded-lg transition-colors',
-          tab === 'discounted' ? 'bg-red-500 text-white' : 'text-gray-600 hover:bg-red-50',
+          'admin-tab-btn px-4 py-2 text-sm font-semibold rounded-lg',
+          tab === 'discounted' ? 'bg-red-500 text-white shadow-sm' : 'text-gray-600 hover:bg-red-50',
         ]"
         @click="tab = 'discounted'"
       >
@@ -215,8 +215,8 @@ useHead({ title: 'محصولات صفحه اول - پنل مدیریت' });
       <button
         type="button"
         :class="[
-          'px-4 py-2 text-sm font-semibold rounded-lg transition-colors',
-          tab === 'featured' ? 'bg-primary-600 text-white' : 'text-gray-600 hover:bg-primary-50',
+          'admin-tab-btn px-4 py-2 text-sm font-semibold rounded-lg',
+          tab === 'featured' ? 'bg-primary-600 text-white shadow-sm' : 'text-gray-600 hover:bg-primary-50',
         ]"
         @click="tab = 'featured'"
       >
@@ -225,6 +225,8 @@ useHead({ title: 'محصولات صفحه اول - پنل مدیریت' });
       </button>
     </div>
 
+    <Transition name="admin-tab" mode="out-in">
+    <div :key="tab" class="admin-tab-panel">
     <p class="text-sm text-gray-500 mb-4">{{ tabHint }}</p>
 
     <LoadingSpinner :show="loading" />
@@ -353,5 +355,7 @@ useHead({ title: 'محصولات صفحه اول - پنل مدیریت' });
         </p>
       </section>
     </div>
+    </div>
+    </Transition>
   </div>
 </template>

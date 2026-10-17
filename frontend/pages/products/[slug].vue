@@ -217,7 +217,7 @@ usePageSeo(() => ({
     <div v-if="isDemoProduct" class="mx-auto max-w-[1240px] px-4 pt-3">
       <AppAlertBanner variant="info" message="این محصول نمایشی است (تصاویر placeholder) — فقط برای پیش‌نمایش ظاهر فروشگاه." />
     </div>
-    <div class="mx-auto max-w-[1240px] px-4 pb-4 md:py-8">
+    <div class="mx-auto max-w-[1240px] px-4 pb-4 pt-8 md:pb-8 md:pt-14">
       <nav
         v-if="crumbs.length"
         aria-label="مسیر صفحه"

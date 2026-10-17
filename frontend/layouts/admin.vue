@@ -22,8 +22,7 @@ const allNavItems = [
   { to: '/admin/home-picks', label: 'صفحه اول', icon: 'lucide:sparkles' },
   { to: '/admin/category-feed', label: 'محصولات دسته', icon: 'lucide:list-ordered' },
   { to: '/admin/categories', label: 'دسته‌بندی', icon: 'lucide:layers' },
-  { to: '/admin/tags', label: 'برچسب‌ها', icon: 'lucide:tags' },
-  { to: '/admin/sliders', label: 'اسلایدرها', icon: 'lucide:images' },
+  { to: '/admin/sliders', label: 'بنر صفحه اول', icon: 'lucide:images' },
   { to: '/admin/customers', label: 'مشتریان', icon: 'lucide:user-round' },
   { to: '/admin/coupons', label: 'کدهای تخفیف', icon: 'lucide:ticket-percent' },
   { to: '/admin/users', label: 'کاربران', icon: 'lucide:users' },
@@ -96,40 +95,42 @@ watch(() => route.path, () => {
     </aside>
 
     <!-- Mobile drawer -->
-    <div v-if="mobileNavOpen" class="fixed inset-0 z-50 lg:hidden">
-      <div class="absolute inset-0 bg-black/40" @click="mobileNavOpen = false" />
-      <aside class="absolute top-0 start-0 h-full w-72 bg-white shadow-xl flex flex-col">
-        <div class="p-4 border-b flex items-center justify-between">
-          <AppLogo size="sm" :link="false" />
-          <button class="p-2 rounded-lg hover:bg-gray-100 text-gray-500" @click="mobileNavOpen = false">
-            <AppIcon name="lucide:x" size="lg" />
-          </button>
-        </div>
-        <nav class="p-4 space-y-1 flex-1 overflow-y-auto">
-          <NuxtLink
-            v-for="item in navItems"
-            :key="item.to"
-            :to="item.to"
-            class="admin-nav-link"
-            :class="{ 'admin-nav-active': item.exact ? route.path === item.to : route.path === item.to || route.path.startsWith(item.to + '/') }"
-          >
-            <AppIcon :name="item.icon" size="md" class="shrink-0 opacity-80" />
-            <span class="flex-1">{{ item.label }}</span>
-            <span
-              v-if="item.to === '/admin/orders' && pendingCount > 0"
-              class="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center"
+    <Transition name="admin-drawer">
+      <div v-if="mobileNavOpen" class="fixed inset-0 z-50 lg:hidden">
+        <div class="admin-drawer-backdrop absolute inset-0 bg-black/40" @click="mobileNavOpen = false" />
+        <aside class="admin-drawer-panel absolute top-0 start-0 h-full w-72 bg-white shadow-xl flex flex-col">
+          <div class="p-4 border-b flex items-center justify-between">
+            <AppLogo size="sm" :link="false" />
+            <button class="p-2 rounded-lg hover:bg-gray-100 text-gray-500" @click="mobileNavOpen = false">
+              <AppIcon name="lucide:x" size="lg" />
+            </button>
+          </div>
+          <nav class="p-4 space-y-1 flex-1 overflow-y-auto">
+            <NuxtLink
+              v-for="item in navItems"
+              :key="item.to"
+              :to="item.to"
+              class="admin-nav-link"
+              :class="{ 'admin-nav-active': item.exact ? route.path === item.to : route.path === item.to || route.path.startsWith(item.to + '/') }"
             >
-              {{ pendingCount > 99 ? '۹۹+' : pendingCount }}
-            </span>
-          </NuxtLink>
-          <hr class="my-4 border-gray-100" />
-          <NuxtLink to="/" class="admin-nav-link">
-            <AppIcon name="lucide:store" size="md" class="shrink-0 opacity-80" />
-            <span>بازگشت به فروشگاه</span>
-          </NuxtLink>
-        </nav>
-      </aside>
-    </div>
+              <AppIcon :name="item.icon" size="md" class="shrink-0 opacity-80" />
+              <span class="flex-1">{{ item.label }}</span>
+              <span
+                v-if="item.to === '/admin/orders' && pendingCount > 0"
+                class="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center"
+              >
+                {{ pendingCount > 99 ? '۹۹+' : pendingCount }}
+              </span>
+            </NuxtLink>
+            <hr class="my-4 border-gray-100" />
+            <NuxtLink to="/" class="admin-nav-link">
+              <AppIcon name="lucide:store" size="md" class="shrink-0 opacity-80" />
+              <span>بازگشت به فروشگاه</span>
+            </NuxtLink>
+          </nav>
+        </aside>
+      </div>
+    </Transition>
 
     <div class="lg:ms-64">
       <header class="sticky top-0 z-30 bg-white border-b border-gray-100 px-4 lg:px-6 py-3">
@@ -230,7 +231,11 @@ watch(() => route.path, () => {
       </Transition>
 
       <main class="p-4 lg:p-6">
-        <slot />
+        <Transition name="admin-page" mode="out-in">
+          <div :key="route.path" class="admin-page-shell">
+            <slot />
+          </div>
+        </Transition>
       </main>
     </div>
   </div>
@@ -238,10 +243,14 @@ watch(() => route.path, () => {
 
 <style scoped>
 .admin-nav-link {
-  @apply flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors;
+  @apply flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-800;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+.admin-nav-link:hover {
+  transform: translateX(-2px);
 }
 .admin-nav-active {
-  @apply bg-primary-50 text-primary-700 font-medium;
+  @apply bg-primary-50 text-primary-700 font-medium shadow-sm;
 }
 .admin-nav-active :deep(svg) {
   @apply text-primary-600 opacity-100;
@@ -254,5 +263,48 @@ watch(() => route.path, () => {
 .alert-slide-leave-to {
   opacity: 0;
   transform: translateY(-8px);
+}
+
+.admin-page-enter-active,
+.admin-page-leave-active {
+  transition: opacity 0.28s ease, transform 0.28s ease;
+}
+.admin-page-enter-from {
+  opacity: 0;
+  transform: translateY(12px);
+}
+.admin-page-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+.admin-drawer-enter-active,
+.admin-drawer-leave-active {
+  transition: opacity 0.25s ease;
+}
+.admin-drawer-enter-active .admin-drawer-panel,
+.admin-drawer-leave-active .admin-drawer-panel {
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.admin-drawer-enter-from,
+.admin-drawer-leave-to {
+  opacity: 0;
+}
+.admin-drawer-enter-from .admin-drawer-panel,
+.admin-drawer-leave-to .admin-drawer-panel {
+  transform: translateX(100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-nav-link,
+  .admin-page-enter-active,
+  .admin-page-leave-active,
+  .admin-drawer-enter-active,
+  .admin-drawer-leave-active,
+  .admin-drawer-enter-active .admin-drawer-panel,
+  .admin-drawer-leave-active .admin-drawer-panel {
+    transition: none !important;
+    transform: none !important;
+  }
 }
 </style>

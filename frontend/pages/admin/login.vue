@@ -10,7 +10,6 @@ const phone = ref('');
 const otp = ref('');
 const password = ref('');
 const error = ref('');
-const devCode = ref('');
 
 const redirect = computed(() => (route.query.redirect as string) || '/admin');
 const loginError = computed(() => route.query.error as string);
@@ -34,8 +33,7 @@ async function afterLogin() {
 async function sendOtp() {
   error.value = '';
   try {
-    const result = await authStore.sendOtp(phone.value);
-    if (result.devCode) devCode.value = result.devCode;
+    await authStore.sendOtp(phone.value);
     step.value = 'otp';
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : 'خطا در ارسال کد';
@@ -160,9 +158,6 @@ definePageMeta({ layout: false });
               کد تأیید ارسال شد
               <button type="button" class="text-primary-600 mr-1" @click="step = 'phone'">تغییر</button>
             </p>
-            <div v-if="devCode" class="bg-yellow-50 text-yellow-800 text-sm p-3 rounded-xl mb-4">
-              کد توسعه: <strong dir="ltr">{{ devCode }}</strong>
-            </div>
             <label class="block text-sm font-medium text-gray-700 mb-1">کد تأیید</label>
             <input
               v-model="otp"

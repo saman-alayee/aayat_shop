@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import path from 'path';
 import { config } from './config';
+import { configureDatabase } from './config/database';
 import { connectRedis } from './config/redis';
 import { errorHandler, notFound } from './utils/errors';
 import { generalLimiter } from './middleware/rateLimit';
@@ -48,10 +49,11 @@ app.use(
   })
 );
 app.use(compression());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use((_req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   next();
 });
 app.use(generalLimiter);
@@ -91,27 +93,44 @@ app.use('/api/settings', settingsRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
+function assertProductionSecurity() {
+  if (config.nodeEnv !== 'production') return;
+
+  const secret = config.jwt.secret || '';
+  if (!secret || secret === 'dev-secret' || secret.length < 32) {
+    console.error('JWT_SECRET must be a strong random value (32+ chars) in production');
+    process.exit(1);
+  }
+  if (config.otp.devMode) {
+    console.error('OTP_DEV_MODE must be false in production');
+    process.exit(1);
+  }
+}
+
 async function start() {
   const dbUrl = config.databaseUrl ?? '';
   if (!dbUrl.startsWith('mysql://') && !dbUrl.startsWith('file:')) {
-    console.error('❌ DATABASE_URL must be mysql://... or file:... (see backend/.env.example)');
+    console.error('DATABASE_URL must be mysql://... or file:... (see backend/.env.example)');
     process.exit(1);
   }
+
+  assertProductionSecurity();
+  await configureDatabase();
   await connectRedis();
 
   const passenger = (global as { PhusionPassenger?: { configure: (opts: object) => void } }).PhusionPassenger;
   if (passenger) {
     passenger.configure({ autoInstall: false });
     app.listen('passenger' as unknown as number, () => {
-      console.log('🚀 Aayat Shop API running on Passenger');
-      console.log(`📦 Environment: ${config.nodeEnv}`);
+      console.log('Aayat Shop API running on Passenger');
+      console.log(`Environment: ${config.nodeEnv}`);
     });
     return;
   }
 
   app.listen(config.port, '0.0.0.0', () => {
-    console.log(`🚀 Aayat Shop API running on port ${config.port}`);
-    console.log(`📦 Environment: ${config.nodeEnv}`);
+    console.log(`Aayat Shop API running on port ${config.port}`);
+    console.log(`Environment: ${config.nodeEnv}`);
   });
 }
 

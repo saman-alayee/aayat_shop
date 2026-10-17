@@ -7,17 +7,25 @@ import { authLimiter, otpLimiter } from '../middleware/rateLimit';
 
 const router = Router();
 
+const iranianMobile = z
+  .string()
+  .min(10, 'فقط شماره موبایل وارد کنید')
+  .refine((value) => {
+    const digits = value.replace(/[^\d۰-۹٠-٩]/g, '');
+    return digits.length >= 10;
+  }, 'فقط شماره موبایل وارد کنید');
+
 const sendOtpSchema = z.object({
-  phone: z.string().min(10, 'شماره موبایل نامعتبر است'),
+  phone: iranianMobile,
 });
 
 const verifyOtpSchema = z.object({
-  phone: z.string().min(10),
+  phone: iranianMobile,
   code: z.string().min(4).max(6),
 });
 
 const loginPasswordSchema = z.object({
-  phone: z.string().min(10, 'شماره موبایل نامعتبر است'),
+  phone: iranianMobile,
   password: z.string().min(4, 'رمز عبور الزامی است'),
 });
 
@@ -36,7 +44,7 @@ router.post(
   '/start',
   otpLimiter,
   validate(z.object({
-    phone: z.string().min(10, 'شماره موبایل نامعتبر است'),
+    phone: iranianMobile,
     intent: z.enum(['otp', 'forgot']).optional(),
   })),
   asyncHandler(async (req, res) => {

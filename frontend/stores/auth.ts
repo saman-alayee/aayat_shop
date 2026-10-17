@@ -108,7 +108,6 @@ export const useAuthStore = defineStore('auth', () => {
         step: 'signIn' | 'loginByOtp' | 'loginByPassword' | 'forgotPassword';
         hasPassword: boolean;
         message: string;
-        devCode?: string;
       }>('/auth/start', {
         phone: normalizePhoneInput(phone),
         intent,
@@ -152,7 +151,7 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true;
     try {
       const api = useApi();
-      const { data } = await api.post<{ message: string; devCode?: string }>('/auth/send-otp', {
+      const { data } = await api.post<{ message: string }>('/auth/send-otp', {
         phone: normalizePhoneInput(phone),
       });
       return data;

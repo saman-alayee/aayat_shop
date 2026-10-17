@@ -165,8 +165,9 @@ async function uploadImage(e: Event, target: 'image' | 'mobileImage' = 'image') 
 }
 
 async function save() {
+  if (!editingId.value) form.placement = 'HOME_TOP';
   if (form.placement === 'HOME_MID' && !form.categoryId) {
-    toast.error('برای اسلایدر میانی، دسته را انتخاب کنید');
+    toast.error('این بنر میانی دیگر در فروشگاه نشان داده نمی‌شود. آن را حذف کنید و بنر بالای صفحه بسازید.');
     return;
   }
   try {
@@ -204,8 +205,8 @@ useHead({ title: 'اسلایدر - پنل مدیریت' });
     <div class="flex items-center justify-between mb-4">
       <div>
         <h1 class="text-xl font-bold">اسلایدر صفحه اصلی</h1>
-        <p class="text-sm text-gray-500 mt-1">
-          بنر بالای فروشگاه و بنر میانی بعد از هر دسته
+        <p class="text-sm leading-6 text-gray-500 mt-1 max-w-2xl">
+          فقط بنر بالای صفحهٔ اول فروشگاه از اینجا عوض می‌شود. بنر غیرفعال روی سایت دیده نمی‌شود.
           <span v-if="!loading && sliders.length" class="text-gray-400"> — {{ sliders.length }} مورد</span>
         </p>
       </div>
@@ -215,17 +216,12 @@ useHead({ title: 'اسلایدر - پنل مدیریت' });
     <div class="card p-4 mb-6 text-sm text-gray-700 leading-7 bg-primary-50/40 border border-primary-100">
       <p class="font-bold text-gray-800 mb-2 flex items-center gap-2">
         <AppIcon name="lucide:circle-help" size="sm" class="text-primary-600" />
-        راهنمای ادمین — آپلود و جایگاه بنر
+        راهنما — بنر بالای فروشگاه
       </p>
       <ul class="list-disc pr-5 space-y-1.5">
         <li>
-          <b>بنر بالای صفحه:</b> دو فایل جدا لازم است. دسکتاپ <b>۲۵۶۰ × ۹۳۶</b> و گوشی <b>۱۰۸۰ × ۱۳۵۰</b>. موضوع اصلی وسط کادر باشد.
+          دو فایل جدا لازم است. دسکتاپ <b>۲۵۶۰ × ۹۳۶</b> و گوشی <b>۱۰۸۰ × ۱۳۵۰</b>. موضوع اصلی وسط کادر باشد.
         </li>
-        <li>
-          <b>بنر میانی:</b> بعد از ردیف محصولات یک دسته نمایش داده می‌شود. هنگام ساخت، دسته را انتخاب کنید
-          (مثلاً «زنانه» → بنر دقیقاً بعد از بخش همان دسته می‌آید).
-        </li>
-        <li>سایز پیشنهادی بنر میانی: <b>۱۶۰۰ × ۵۶۰</b> پیکسل — افقی و بدون متن مهم در گوشه‌ها.</li>
         <li>
           <b>آپلود تصویر:</b> فرمت JPG یا PNG یا WebP، حجم کمتر از <b>۱٫۵ مگابایت</b>. تصویر را از دکمه «انتخاب
           فایل» بگذارید؛ بعد از آپلود پیش‌نمایش را ببینید و سپس ذخیره کنید.
@@ -243,9 +239,8 @@ useHead({ title: 'اسلایدر - پنل مدیریت' });
       <AppSelect
         v-model="placementFilter"
         :options="[
-          { value: '', label: 'همه جایگاه‌ها', icon: 'lucide:images' },
+          { value: '', label: 'همه بنرها', icon: 'lucide:images' },
           { value: 'HOME_TOP', label: 'بالای صفحه', icon: 'lucide:panel-top' },
-          { value: 'HOME_MID', label: 'میان دسته‌ها', icon: 'lucide:rows-3' },
         ]"
         class="md:max-w-xs"
       />
@@ -283,9 +278,9 @@ useHead({ title: 'اسلایدر - پنل مدیریت' });
               <span v-if="!slider.isActive" class="text-red-500"> • غیرفعال</span>
             </p>
           </div>
-          <div class="flex gap-2">
-            <button class="btn-secondary text-sm" @click="openForm(slider)">ویرایش</button>
-            <button class="text-red-500 text-sm" @click="remove(slider.id)">حذف</button>
+          <div class="admin-actions">
+            <button type="button" class="admin-btn-secondary" @click="openForm(slider)">ویرایش</button>
+            <button type="button" class="admin-btn-danger" @click="remove(slider.id)">حذف</button>
           </div>
         </div>
       </div>
@@ -298,28 +293,6 @@ useHead({ title: 'اسلایدر - پنل مدیریت' });
         <h2 class="font-bold text-lg">{{ editingId ? 'ویرایش اسلایدر' : 'اسلایدر جدید' }}</h2>
 
         <input v-model="form.title" required class="input-field" placeholder="عنوان (مثلاً کالکشن پاییز)" />
-
-        <div>
-          <label class="block text-sm font-medium mb-1">جایگاه بنر</label>
-          <select v-model="form.placement" class="input-field">
-            <option value="HOME_TOP">بالای صفحه اصلی</option>
-            <option value="HOME_MID">میان دسته‌ها (بعد از یک دسته مشخص)</option>
-          </select>
-        </div>
-
-        <div v-if="form.placement === 'HOME_MID'">
-          <label class="block text-sm font-medium mb-1">نمایش بعد از کدام دسته؟</label>
-          <AppSelect
-            v-model="form.categoryId"
-            :options="categoryOptions"
-            placeholder="دسته را انتخاب کنید"
-            searchable
-            required
-          />
-          <p class="text-xs text-gray-500 mt-1 leading-relaxed">
-            بنر دقیقاً بعد از ردیف محصولات همین دسته در صفحه اول نمایش داده می‌شود.
-          </p>
-        </div>
 
         <p class="text-xs text-primary-700 bg-primary-50 rounded-lg px-3 py-2">{{ sizeHint }}</p>
 

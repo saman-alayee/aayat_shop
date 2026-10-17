@@ -20,9 +20,9 @@ const form = reactive({
   customerName: '',
   customerPhone: '',
   notes: '',
-  couponCode: '',
   deliveryMethod: 'NATIONWIDE' as ShippingMethod,
 });
+const { applied, discountAmount, refresh } = useCoupon();
 
 const loading = ref(false);
 const error = ref('');
@@ -30,16 +30,9 @@ const nameError = ref('');
 const phoneError = ref('');
 const addressesLoading = ref(false);
 
-const appliedCoupon = ref<{
-  code: string;
-  discountAmount: number;
-  totalPrice: number;
-} | null>(null);
-
-const displaySubtotal = computed(() => appliedCoupon.value?.totalPrice ?? cartStore.totalPrice);
-const displayDiscount = computed(() => appliedCoupon.value?.discountAmount ?? 0);
+const displayDiscount = computed(() => discountAmount.value);
 const deliveryFee = computed(() => feeFor(form.deliveryMethod));
-const displayTotal = computed(() => displaySubtotal.value + deliveryFee.value);
+const displayTotal = computed(() => Math.max(0, cartStore.totalPrice - displayDiscount.value) + deliveryFee.value);
 
 function scrollToFirstError() {
   nextTick(() => {
@@ -71,7 +64,15 @@ onMounted(async () => {
     form.customerPhone = authStore.user.phone;
   }
   await loadAddresses();
+  await refresh(cartStore.totalPrice, form.customerPhone);
 });
+
+watch(
+  () => cartStore.totalPrice,
+  (subtotal) => {
+    void refresh(subtotal, form.customerPhone);
+  }
+);
 
 async function loadAddresses() {
   addressesLoading.value = true;
@@ -126,7 +127,7 @@ async function submitOrder() {
       customerName: form.customerName.trim(),
       customerPhone: form.customerPhone.trim(),
       notes: form.notes.trim() || undefined,
-      couponCode: appliedCoupon.value?.code || undefined,
+      couponCode: applied.value?.code || undefined,
       deliveryMethod: form.deliveryMethod,
       ...manualPayload(),
     };
@@ -171,6 +172,7 @@ useHead({
       <div class="flex justify-between text-sm">
         <span>هزینه ارسال</span><span>{{ formatPrice(deliveryFee) }}</span>
       </div>
+      <CouponCodeField class="pt-2" :subtotal="cartStore.totalPrice" :phone="form.customerPhone" />
       <div class="flex justify-between pt-2 border-t font-bold">
         <span>مبلغ قابل پرداخت</span>
         <span class="text-lg">{{ formatPrice(displayTotal) }}</span>

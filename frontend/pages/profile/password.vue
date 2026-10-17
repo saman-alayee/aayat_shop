@@ -15,7 +15,6 @@ const currentPassword = ref('');
 const confirmPassword = ref('');
 const otp = ref('');
 const otpSent = ref(false);
-const devCode = ref('');
 const error = ref('');
 const success = ref('');
 const loading = ref(false);
@@ -58,8 +57,7 @@ async function sendOtp() {
   try {
     const phone = authStore.user?.phone;
     if (!phone) throw new Error('شماره موبایل یافت نشد');
-    const result = await authStore.sendOtp(phone);
-    if (result.devCode) devCode.value = result.devCode;
+    await authStore.sendOtp(phone);
     otpSent.value = true;
     success.value = 'کد تأیید ارسال شد';
   } catch (e: unknown) {
@@ -167,9 +165,6 @@ useHead({ title: `رمز عبور - ${SITE_NAME}` });
             {{ loading ? 'در حال ارسال...' : 'ارسال کد تأیید' }}
           </button>
           <template v-else>
-            <div v-if="devCode" class="bg-yellow-50 text-yellow-800 text-sm p-3 rounded-xl">
-              کد توسعه: <strong dir="ltr">{{ devCode }}</strong>
-            </div>
             <div>
               <label class="field-label">کد تأیید</label>
               <input

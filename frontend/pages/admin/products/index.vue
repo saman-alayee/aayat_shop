@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import type { Product, Category, Tag, Pagination } from '~/types';
-import { getTodayGregorianIso, dayjs } from '~/utils/jalali';
+import type { Product, Category, Pagination } from '~/types';
 
 definePageMeta({ layout: 'admin', middleware: 'admin' });
 
 const api = useApi();
 const toast = useToast();
-const { formatPrice, resolveMediaUrl, formatNumber, formatShortDate } = useFormat();
+const { formatPrice, resolveMediaUrl, formatNumber } = useFormat();
 
 const PAGE_SIZE = 20;
 
@@ -14,32 +13,22 @@ const products = ref<Product[]>([]);
 const pagination = ref<Pagination | null>(null);
 const page = ref(1);
 const categories = ref<Category[]>([]);
-const tags = ref<Tag[]>([]);
 const loading = ref(true);
 const showForm = ref(false);
 const editingId = ref<string | null>(null);
 const search = ref('');
-const barcodeFilter = ref('');
 const categoryFilter = ref('');
-const tagFilter = ref('');
-const expiryFilter = ref<'ALL' | 'WEEK' | 'EXPIRED' | 'RANGE'>('ALL');
-const expiryFrom = ref<string | null>(null);
-const expiryTo = ref<string | null>(null);
 const sortFilter = ref<'newest' | 'discount' | 'bestsellers'>('newest');
 const statusFilter = ref<'active' | 'inactive' | 'all'>('active');
 
 const form = reactive({
   name: '',
   description: '',
-  barcode: '',
-  productionDate: '' as string | null,
-  expiryDate: '' as string | null,
   price: 0,
   discountPrice: null as number | null,
   stock: 0,
   unit: '',
   categoryIds: [] as string[],
-  tagIds: [] as string[],
   image: null as string | null,
   images: [] as string[],
   isFeatured: false,
@@ -51,32 +40,6 @@ const form = reactive({
   clothingMetaJson: '',
 });
 
-const tagOptions = computed(() => {
-  const selectedCategories = new Set(form.categoryIds);
-  return tags.value
-    .filter((tag) => !selectedCategories.size || selectedCategories.has(tag.categoryId))
-    .map((tag) => {
-      const category = categories.value.find((item) => item.id === tag.categoryId);
-      const showCategory = form.categoryIds.length > 1 && category;
-      return {
-        value: tag.id,
-        label: showCategory ? `${tag.name} (${category.name})` : tag.name,
-        icon: 'lucide:tag',
-      };
-    });
-});
-
-watch(
-  () => form.categoryIds.slice(),
-  (categoryIds) => {
-    const allowed = new Set(categoryIds);
-    form.tagIds = form.tagIds.filter((tagId) => {
-      const tag = tags.value.find((item) => item.id === tagId);
-      return tag ? allowed.has(tag.categoryId) : false;
-    });
-  }
-);
-
 const categoryOptions = computed(() =>
   categories.value.map((cat) => ({
     value: cat.id,
@@ -85,48 +48,7 @@ const categoryOptions = computed(() =>
   }))
 );
 
-const tagFilterOptions = computed(() =>
-  tags.value
-    .filter((tag) => !categoryFilter.value || tag.categoryId === categoryFilter.value)
-    .map((tag) => ({
-      value: tag.id,
-      label: tag.name,
-      icon: 'lucide:tag',
-    }))
-);
-
 onMounted(loadData);
-
-function toDateInput(value?: string | null) {
-  return value ? String(value).slice(0, 10) : '';
-}
-
-function expiryTone(date?: string | null) {
-  if (!date) return '';
-  const expiry = new Date(date);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (expiry < today) return 'text-red-600';
-  const week = new Date(today);
-  week.setDate(week.getDate() + 7);
-  if (expiry <= week) return 'text-amber-600';
-  return 'text-gray-500';
-}
-
-function onExpiryFilterChange() {
-  if (expiryFilter.value !== 'RANGE') {
-    expiryFrom.value = null;
-    expiryTo.value = null;
-  }
-  resetToFirstPageAndLoad();
-}
-
-function clearExpiryRange() {
-  expiryFrom.value = null;
-  expiryTo.value = null;
-  if (expiryFilter.value === 'RANGE') expiryFilter.value = 'ALL';
-  resetToFirstPageAndLoad();
-}
 
 function resetToFirstPageAndLoad() {
   page.value = 1;
@@ -141,36 +63,19 @@ async function loadData() {
       page: String(page.value),
     });
     if (search.value.trim()) params.set('search', search.value.trim());
-    if (barcodeFilter.value.trim()) params.set('barcode', barcodeFilter.value.trim());
     if (categoryFilter.value) params.set('categoryId', categoryFilter.value);
-    if (tagFilter.value) params.set('tagId', tagFilter.value);
     if (sortFilter.value && sortFilter.value !== 'newest') params.set('sort', sortFilter.value);
     if (statusFilter.value !== 'all') params.set('status', statusFilter.value);
 
-    const today = getTodayGregorianIso();
-    if (expiryFilter.value === 'EXPIRED') {
-      params.set('expiringBefore', dayjs(today).subtract(1, 'day').format('YYYY-MM-DD'));
-    } else if (expiryFilter.value === 'WEEK') {
-      params.set('expiringAfter', today);
-      params.set('expiringBefore', dayjs(today).add(7, 'day').format('YYYY-MM-DD'));
-    } else if (expiryFilter.value === 'RANGE') {
-      if (expiryFrom.value) params.set('expiringAfter', expiryFrom.value.slice(0, 10));
-      if (expiryTo.value) params.set('expiringBefore', expiryTo.value.slice(0, 10));
-    }
-
-    const [prodRes, catRes, tagsRes] = await Promise.all([
+    const [prodRes, catRes] = await Promise.all([
       api.get<{ products: Product[]; pagination: Pagination }>(`/admin/products?${params}`),
       categories.value.length
         ? Promise.resolve({ data: categories.value })
         : api.get<Category[]>('/admin/categories'),
-      tags.value.length
-        ? Promise.resolve({ data: tags.value })
-        : api.get<Tag[]>('/admin/tags').catch(() => ({ data: [] as Tag[] })),
     ]);
     products.value = prodRes.data.products;
     pagination.value = prodRes.data.pagination;
     categories.value = catRes.data;
-    tags.value = tagsRes.data;
 
     if (
       pagination.value &&
@@ -197,9 +102,6 @@ function openForm(product?: Product) {
     Object.assign(form, {
       name: product.name,
       description: product.description || '',
-      barcode: product.barcode || '',
-      productionDate: toDateInput(product.productionDate),
-      expiryDate: toDateInput(product.expiryDate),
       price: product.price,
       discountPrice: product.discountPrice,
       stock: product.stock,
@@ -208,11 +110,6 @@ function openForm(product?: Product) {
         ? [...product.categoryIds]
         : product.categoryId
           ? [product.categoryId]
-          : [],
-      tagIds: product.tagIds?.length
-        ? [...product.tagIds]
-        : product.tagId
-          ? [product.tagId]
           : [],
       image: product.image,
       images: product.images?.length ? [...product.images] : product.image ? [product.image] : [],
@@ -229,15 +126,11 @@ function openForm(product?: Product) {
     Object.assign(form, {
       name: '',
       description: '',
-      barcode: '',
-      productionDate: '',
-      expiryDate: '',
       price: 0,
       discountPrice: null,
       stock: 0,
       unit: '',
       categoryIds: [],
-      tagIds: [],
       image: null,
       images: [],
       isFeatured: false,
@@ -303,14 +196,9 @@ async function save() {
     price,
     discountPrice,
     stock,
-    barcode: form.barcode.trim() || null,
-    productionDate: form.productionDate || null,
-    expiryDate: form.expiryDate || null,
     clothingMeta,
     categoryIds: form.categoryIds,
-    tagIds: form.tagIds,
     categoryId: form.categoryIds[0] ?? null,
-    tagId: form.tagIds[0] ?? null,
     image: form.images[0] ?? form.image,
     images: form.images,
   };
@@ -376,7 +264,13 @@ useHead({ title: 'محصولات - پنل مدیریت' });
 <template>
   <div>
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-      <h1 class="text-xl font-bold text-gray-800">مدیریت محصولات</h1>
+      <div>
+        <h1 class="text-xl font-bold text-gray-800">مدیریت محصولات</h1>
+        <p class="mt-1 max-w-3xl text-sm leading-6 text-gray-500">
+          نام، قیمت، موجودی و دسته را اینجا عوض کنید. «قیمت با تخفیف» اگر پر باشد روی کارت محصول خط‌خورده نشان داده می‌شود.
+          غیرفعال کردن، لباس را از فروشگاه پنهان می‌کند ولی حذف نمی‌کند.
+        </p>
+      </div>
       <div class="flex flex-wrap gap-3 text-sm">
         <NuxtLink to="/admin/home-picks" class="font-medium text-primary-600 hover:text-primary-700">
           انتخاب محصولات صفحه اول
@@ -394,32 +288,12 @@ useHead({ title: 'محصولات - پنل مدیریت' });
         placeholder="جستجو نام محصول..."
         @keyup.enter="resetToFirstPageAndLoad"
       />
-      <input
-        v-model="barcodeFilter"
-        type="search"
-        class="input-field md:max-w-[180px]"
-        placeholder="بارکد"
-        dir="ltr"
-        @keyup.enter="resetToFirstPageAndLoad"
-      />
       <AppSelect
         v-model="categoryFilter"
         :options="[{ value: '', label: 'همه دسته‌ها', icon: 'lucide:layers' }, ...categoryOptions]"
         class="md:max-w-xs"
         @update:model-value="resetToFirstPageAndLoad"
       />
-      <AppSelect
-        v-model="tagFilter"
-        :options="[{ value: '', label: 'همه برچسب‌ها', icon: 'lucide:tags' }, ...tagFilterOptions]"
-        class="md:max-w-xs"
-        @update:model-value="resetToFirstPageAndLoad"
-      />
-      <select v-model="expiryFilter" class="input-field md:w-44" @change="onExpiryFilterChange">
-        <option value="ALL">همه تاریخ انقضا</option>
-        <option value="WEEK">انقضا تا ۷ روز</option>
-        <option value="EXPIRED">منقضی‌شده</option>
-        <option value="RANGE">بازه تاریخ انقضا</option>
-      </select>
       <select v-model="sortFilter" class="input-field md:w-48" @change="resetToFirstPageAndLoad">
         <option value="newest">جدیدترین</option>
         <option value="discount">بیشترین تخفیف</option>
@@ -433,43 +307,6 @@ useHead({ title: 'محصولات - پنل مدیریت' });
       <button class="btn-secondary text-sm" @click="resetToFirstPageAndLoad">اعمال فیلتر</button>
     </div>
 
-    <div
-      v-if="expiryFilter === 'RANGE'"
-      class="flex flex-col sm:flex-row sm:flex-wrap gap-3 mb-4 p-4 rounded-xl border border-gray-100 bg-gray-50/80"
-    >
-      <div class="sm:max-w-[200px] flex-1">
-        <label class="block text-xs font-medium text-gray-600 mb-1">انقضا از تاریخ</label>
-        <AppDatePicker
-          v-model="expiryFrom"
-          placeholder="از تاریخ"
-          :max="expiryTo"
-          @update:model-value="resetToFirstPageAndLoad"
-        />
-      </div>
-      <div class="sm:max-w-[200px] flex-1">
-        <label class="block text-xs font-medium text-gray-600 mb-1">انقضا تا تاریخ</label>
-        <AppDatePicker
-          v-model="expiryTo"
-          placeholder="تا تاریخ"
-          :min="expiryFrom"
-          @update:model-value="resetToFirstPageAndLoad"
-        />
-      </div>
-      <div class="flex items-end gap-2">
-        <button
-          v-if="expiryFrom || expiryTo"
-          type="button"
-          class="btn-secondary text-sm"
-          @click="clearExpiryRange"
-        >
-          پاک کردن بازه
-        </button>
-      </div>
-      <p class="w-full text-xs text-gray-500 leading-relaxed">
-        محصولاتی که تاریخ انقضایشان در این بازه است نمایش داده می‌شوند. می‌توانید فقط «از» یا فقط «تا» هم بگذارید.
-      </p>
-    </div>
-
     <div class="flex justify-between items-center mb-6">
       <p class="text-sm text-gray-500">
         {{ formatNumber(pagination?.total ?? products.length) }} محصول
@@ -479,49 +316,45 @@ useHead({ title: 'محصولات - پنل مدیریت' });
 
     <LoadingSpinner :show="loading" />
 
-    <div v-if="!loading" class="card overflow-x-auto">
-      <table class="data-table">
+    <div v-if="!loading" class="data-table-wrap">
+      <table class="data-table min-w-[760px]">
         <thead>
           <tr>
-            <th class="w-14">تصویر</th>
+            <th class="w-16">تصویر</th>
             <th>نام</th>
-            <th class="hidden md:table-cell">بارکد</th>
-            <th class="whitespace-nowrap">تاریخ انقضا</th>
             <th class="hidden md:table-cell">دسته</th>
-            <th>قیمت</th>
-            <th class="hidden md:table-cell">موجودی</th>
+            <th class="data-num">قیمت</th>
+            <th class="data-num hidden md:table-cell">موجودی</th>
             <th>وضعیت</th>
-            <th>عملیات</th>
+            <th class="data-actions">عملیات</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="product in products" :key="product.id">
             <td>
-              <div class="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center">
+              <div class="w-11 h-11 rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center ring-1 ring-slate-200/80">
                 <img
                   v-if="product.image"
                   :src="resolveMediaUrl(product.image)"
                   :alt="product.name"
                   class="w-full h-full object-cover"
                 />
-                <AppIcon v-else name="lucide:image-off" size="sm" class="text-gray-300" />
+                <AppIcon v-else name="lucide:image-off" size="sm" class="text-slate-300" />
               </div>
             </td>
-            <td class="font-medium">{{ product.name }}</td>
-            <td class="hidden md:table-cell text-gray-500 font-mono text-xs" dir="ltr">{{ product.barcode || '—' }}</td>
-            <td class="text-xs whitespace-nowrap" :class="expiryTone(product.expiryDate) || 'text-gray-400'">
-              {{ product.expiryDate ? formatShortDate(product.expiryDate) : '—' }}
+            <td>
+              <p class="font-semibold text-slate-800">{{ product.name }}</p>
             </td>
-            <td class="hidden md:table-cell text-gray-500">{{ product.category?.name }}</td>
-            <td class="whitespace-nowrap">
-              <div class="flex flex-col items-start gap-0.5">
+            <td class="hidden md:table-cell text-slate-500">{{ product.category?.name || '—' }}</td>
+            <td class="data-num">
+              <div class="inline-flex flex-col items-end gap-0.5">
                 <span
                   v-if="product.discountPrice"
-                  class="text-xs text-gray-400 line-through"
+                  class="text-xs text-slate-400 line-through"
                 >
                   {{ formatPrice(product.price) }}
                 </span>
-                <span :class="product.discountPrice ? 'text-red-600 font-semibold' : ''">
+                <span :class="product.discountPrice ? 'text-red-600 font-semibold' : 'font-medium text-slate-800'">
                   {{ formatPrice(product.effectivePrice) }}
                 </span>
                 <span v-if="product.discountPercent" class="text-[11px] text-red-500">
@@ -529,28 +362,32 @@ useHead({ title: 'محصولات - پنل مدیریت' });
                 </span>
               </div>
             </td>
-            <td class="hidden md:table-cell">{{ product.stock }}</td>
+            <td class="data-num hidden md:table-cell">{{ product.stock }}</td>
             <td>
-              <span :class="product.isActive ? 'text-green-600' : 'text-red-500'">
+              <span :class="product.isActive ? 'admin-badge-success' : 'admin-badge-danger'">
                 {{ product.isActive ? 'فعال' : 'غیرفعال' }}
               </span>
             </td>
-            <td>
-              <button class="text-primary-600 ms-2" @click="openForm(product)">ویرایش</button>
-              <button
-                v-if="product.isActive"
-                class="text-amber-600"
-                @click="deactivate(product)"
-              >
-                غیرفعال‌سازی
-              </button>
-              <button
-                v-else
-                class="text-green-600"
-                @click="activate(product)"
-              >
-                فعال‌سازی
-              </button>
+            <td class="data-actions">
+              <div class="admin-actions">
+                <button type="button" class="admin-btn-secondary" @click="openForm(product)">ویرایش</button>
+                <button
+                  v-if="product.isActive"
+                  type="button"
+                  class="admin-btn-warn"
+                  @click="deactivate(product)"
+                >
+                  غیرفعال
+                </button>
+                <button
+                  v-else
+                  type="button"
+                  class="admin-btn-success"
+                  @click="activate(product)"
+                >
+                  فعال‌سازی
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -574,11 +411,6 @@ useHead({ title: 'محصولات - پنل مدیریت' });
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">نام محصول</label>
             <input v-model="form.name" required placeholder="مثلاً بلوز بافت زنانه" class="input-field" />
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">بارکد</label>
-            <input v-model="form.barcode" placeholder="مثلاً ۶۲۶۱۲۳۴۵۶۷۸۹۰" class="input-field" dir="ltr" />
           </div>
 
           <div>
@@ -616,33 +448,25 @@ useHead({ title: 'محصولات - پنل مدیریت' });
               <input v-model.number="form.stock" type="number" min="0" required class="input-field" dir="ltr" />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">جنس / واحد نمایش</label>
-              <input v-model="form.unit" placeholder="مثلاً پنبه ۱۰۰٪" class="input-field" />
+              <label class="block text-sm font-medium text-gray-700 mb-1">جنس پارچه</label>
+              <input v-model="form.unit" placeholder="مثلاً کتان" class="input-field" />
+              <p class="mt-1 text-xs text-gray-400">روی کارت محصول، زیر نام لباس دیده می‌شود.</p>
             </div>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">مشخصات پوشاک (JSON)</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">سایز، رنگ و موجودی هر تنوع</label>
             <textarea
               v-model="form.clothingMetaJson"
               rows="5"
               dir="ltr"
               class="input-field font-mono text-xs"
-              placeholder='{"fabric":"پنبه","sizes":["S","M","L"],"colors":[{"name":"مشکی","hex":"#111"}],"variants":[{"color":"مشکی","size":"M","stock":3}]}'
+              placeholder='{"fabric":"کتان","sizes":["S","M","L"],"colors":[{"name":"مشکی","hex":"#111"}],"variants":[{"color":"مشکی","size":"M","stock":3}]}'
             />
-            <p class="text-xs text-gray-400 mt-1">رنگ، سایز، موجودی تنوع و راهنمای سایز</p>
+            <p class="text-xs leading-5 text-gray-400 mt-1">
+              فقط اگر سایز و رنگ جدا دارید پر کنید. sizes فهرست سایز، colors رنگ‌ها و variants موجودی هر ترکیب است. اگر خالی بماند، فقط موجودی کلی بالا استفاده می‌شود.
+            </p>
           </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 hidden">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">تاریخ تولید</label>
-              <AppDatePicker v-model="form.productionDate" placeholder="انتخاب تاریخ تولید" :max="form.expiryDate || null" />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">تاریخ انقضا</label>
-              <AppDatePicker v-model="form.expiryDate" placeholder="انتخاب تاریخ انقضا" :min="form.productionDate || null" />
-            </div>
-          </div><!-- expiry hidden for apparel -->
 
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">دسته‌بندی‌ها</label>
@@ -654,26 +478,18 @@ useHead({ title: 'محصولات - پنل مدیریت' });
               required
             />
           </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">برچسب‌ها</label>
-            <AppMultiSelect
-              v-model="form.tagIds"
-              :options="tagOptions"
-              placeholder="برچسب (اختیاری)"
-              searchable
-            />
-          </div>
 
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">وضعیت نمایش</label>
             <div class="flex flex-wrap gap-2">
-              <AppToggleChip v-model="form.isFeatured" label="ویژه" icon="lucide:sparkles" />
+              <AppToggleChip v-model="form.isNew" label="جدید" icon="lucide:badge-plus" />
               <AppToggleChip v-model="form.isHomeDeal" label="تخفیف‌دار صفحه اول" icon="lucide:percent" />
               <AppToggleChip v-model="form.isHomeFeatured" label="ویژه صفحه اول" icon="lucide:house" />
-              <AppToggleChip v-model="form.isNew" label="جدید" icon="lucide:badge-plus" />
-              <AppToggleChip v-model="form.isOldPrice" label="قیمت قدیم" icon="lucide:badge-alert" />
-              <AppToggleChip v-model="form.isActive" label="فعال" icon="lucide:eye" />
+              <AppToggleChip v-model="form.isActive" label="فعال در فروشگاه" icon="lucide:eye" />
             </div>
+            <p class="mt-2 text-xs leading-5 text-gray-400">
+              «تخفیف‌دار» و «ویژه صفحه اول» همان فهرست‌هایی هستند که در منوی صفحه اول چیده می‌شوند. «جدید» در فیلتر تازه‌ها می‌آید.
+            </p>
           </div>
 
           <button type="submit" class="btn-primary w-full">ذخیره</button>

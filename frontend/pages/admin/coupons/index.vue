@@ -125,46 +125,76 @@ useHead({ title: 'کدهای تخفیف - پنل مدیریت' });
     <div class="flex items-center justify-between mb-6 gap-3">
       <div>
         <h1 class="text-xl font-bold text-gray-800">کدهای تخفیف</h1>
-        <p class="text-sm text-gray-500 mt-1">درصدی یا مبلغ ثابت با حداقل/حداکثر خرید</p>
+        <p class="text-sm leading-6 text-gray-500 mt-1 max-w-2xl">
+          کدی که اینجا می‌سازید، مشتری در سبد خرید و صورت‌حساب وارد می‌کند.
+          درصدی یعنی مثلاً ۱۰ درصد از مبلغ لباس‌ها؛ مبلغ ثابت یعنی یک مبلغ مشخص کم شود.
+          حداقل خرید، سقف تخفیف و تعداد استفاده را خالی نگذارید اگر می‌خواهید محدود باشد.
+        </p>
       </div>
       <button class="btn-primary text-sm" @click="openCreate">+ کد جدید</button>
     </div>
 
     <LoadingSpinner :show="loading" />
 
-    <div v-if="!loading" class="grid gap-3">
-      <div v-for="coupon in coupons" :key="coupon.id" class="card p-4">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div>
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="font-bold text-primary-700" dir="ltr">{{ coupon.code }}</span>
-              <span :class="coupon.isActive ? 'text-green-600' : 'text-red-500'" class="text-xs">
+    <div v-if="!loading" class="data-table-wrap">
+      <table class="data-table min-w-[860px]">
+        <thead>
+          <tr>
+            <th>کد</th>
+            <th>عنوان</th>
+            <th>مقدار</th>
+            <th class="data-num">حداقل خرید</th>
+            <th class="data-num">استفاده</th>
+            <th>وضعیت</th>
+            <th class="data-actions">عملیات</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="coupon in coupons" :key="coupon.id">
+            <td>
+              <span class="font-bold text-primary-700 tabular-nums" dir="ltr">{{ coupon.code }}</span>
+            </td>
+            <td>
+              <p class="font-medium text-slate-800">{{ coupon.title || 'بدون عنوان' }}</p>
+              <p v-if="coupon.startDate || coupon.endDate" class="text-[11px] text-slate-400 mt-0.5">
+                <span v-if="coupon.startDate">از {{ formatShortDate(coupon.startDate) }}</span>
+                <span v-if="coupon.endDate"> تا {{ formatShortDate(coupon.endDate) }}</span>
+              </p>
+            </td>
+            <td class="whitespace-nowrap font-medium">
+              {{ coupon.type === 'PERCENT' ? `${coupon.value}٪` : formatPrice(coupon.value) }}
+              <span v-if="coupon.maxDiscount" class="block text-[11px] font-normal text-slate-400 mt-0.5">
+                سقف {{ formatPrice(coupon.maxDiscount) }}
+              </span>
+            </td>
+            <td class="data-num">{{ formatPrice(coupon.minPurchase) }}</td>
+            <td class="data-num">
+              {{ coupon.usedCount }}{{ coupon.usageLimit ? ` / ${coupon.usageLimit}` : '' }}
+              <span v-if="coupon.perUserLimit" class="block text-[11px] text-slate-400 mt-0.5">
+                هر کاربر {{ coupon.perUserLimit }}
+              </span>
+            </td>
+            <td>
+              <span :class="coupon.isActive ? 'admin-badge-success' : 'admin-badge-danger'">
                 {{ coupon.isActive ? 'فعال' : 'غیرفعال' }}
               </span>
-            </div>
-            <p class="text-sm text-gray-600 mt-1">{{ coupon.title || 'بدون عنوان' }}</p>
-            <p class="text-xs text-gray-400 mt-2">
-              {{ coupon.type === 'PERCENT' ? `${coupon.value}٪` : formatPrice(coupon.value) }}
-              | حداقل: {{ formatPrice(coupon.minPurchase) }}
-              <span v-if="coupon.maxDiscount">| سقف: {{ formatPrice(coupon.maxDiscount) }}</span>
-              | استفاده: {{ coupon.usedCount }}{{ coupon.usageLimit ? ` / ${coupon.usageLimit}` : '' }}
-              <span v-if="coupon.perUserLimit">| هر کاربر: {{ coupon.perUserLimit }} بار</span>
-              <span v-if="coupon.startDate">| از {{ formatShortDate(coupon.startDate) }}</span>
-              <span v-if="coupon.endDate">| تا {{ formatShortDate(coupon.endDate) }}</span>
-            </p>
-          </div>
-          <div class="flex gap-2">
-            <button class="btn-secondary text-sm" @click="openEdit(coupon)">ویرایش</button>
-            <button
-              v-if="coupon.isActive"
-              class="text-sm text-red-500 px-3 py-2 rounded-lg hover:bg-red-50"
-              @click="deactivateCoupon(coupon.id)"
-            >
-              غیرفعال
-            </button>
-          </div>
-        </div>
-      </div>
+            </td>
+            <td class="data-actions">
+              <div class="admin-actions">
+                <button type="button" class="admin-btn-secondary" @click="openEdit(coupon)">ویرایش</button>
+                <button
+                  v-if="coupon.isActive"
+                  type="button"
+                  class="admin-btn-danger"
+                  @click="deactivateCoupon(coupon.id)"
+                >
+                  غیرفعال
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <EmptyState v-if="!loading && !coupons.length" message="کد تخفیفی تعریف نشده" />

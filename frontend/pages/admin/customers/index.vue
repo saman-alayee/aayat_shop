@@ -143,56 +143,56 @@ useHead({ title: 'مشتریان - پنل مدیریت' });
   <div>
     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-6">
       <div>
-        <h1 class="text-xl font-bold text-gray-800">مدیریت مشتریان</h1>
+        <h1 class="text-xl font-bold text-gray-800">مشتریان</h1>
+        <p class="mt-1 max-w-2xl text-sm leading-6 text-gray-500">
+          خریداران ثبت‌نام‌شده این‌جا هستند. برای دیدن سفارش‌های هر نفر «جزئیات» را بزنید. مشتری جدید از خودِ سایت با شماره موبایل ساخته می‌شود.
+        </p>
         <p class="text-sm text-gray-500 mt-1">لیست خریداران، گروه و خروجی شماره</p>
       </div>
       <div class="flex flex-wrap gap-2">
-        <button class="btn-secondary text-sm" @click="showGroupForm = true">گروه جدید</button>
-        <button class="btn-secondary text-sm" @click="showCreate = true">+ مشتری</button>
-        <button class="btn-secondary text-sm" @click="exportCsv">خروجی اکسل</button>
+        <button class="btn-secondary text-sm" @click="exportCsv">خروجی شماره تماس</button>
       </div>
     </div>
 
-    <div class="grid md:grid-cols-2 gap-3 mb-4">
+    <div class="mb-4">
       <input
         v-model="search"
         type="search"
         placeholder="جستجو نام یا موبایل..."
-        class="input-field"
+        class="input-field md:max-w-sm"
         @keyup.enter="loadData"
       />
-      <AppSelect v-model="groupFilter" :options="groupOptions" placeholder="گروه مشتری" @update:model-value="loadData" />
     </div>
 
     <button class="btn-primary text-sm mb-4" @click="loadData">اعمال فیلتر</button>
 
     <LoadingSpinner :show="loading" />
 
-    <div v-if="!loading" class="card overflow-x-auto">
-      <table class="data-table min-w-[720px]">
+    <div v-if="!loading" class="data-table-wrap">
+      <table class="data-table min-w-[760px]">
         <thead>
           <tr>
             <th>مشتری</th>
-            <th class="text-start">شماره تلفن</th>
+            <th>شماره تلفن</th>
             <th>آدرس</th>
-            <th>سفارش</th>
-            <th>جمع خرید</th>
-            <th>گروه</th>
-            <th>عملیات</th>
+            <th class="data-num">سفارش</th>
+            <th class="data-num">جمع خرید</th>
+            <th class="data-actions">عملیات</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="customer in customers" :key="customer.id">
-            <td class="font-medium text-gray-800">{{ customerName(customer) }}</td>
-            <td class="text-sm text-gray-600 text-start">
-              <span dir="ltr" class="inline-block">{{ customer.phone }}</span>
-            </td>
-            <td class="text-gray-500 max-w-[220px] truncate">{{ customer.address || '—' }}</td>
-            <td>{{ formatNumber(customer._count.orders) }}</td>
-            <td>{{ formatPrice(customer.totalSpend || 0) }}</td>
-            <td class="text-gray-500">{{ customer.customerGroup?.name || '—' }}</td>
+            <td class="font-semibold text-slate-800">{{ customerName(customer) }}</td>
             <td>
-              <button class="text-primary-600" @click="openCustomer(customer)">جزئیات</button>
+              <span dir="ltr" class="inline-block text-slate-600 tabular-nums">{{ customer.phone }}</span>
+            </td>
+            <td class="text-slate-500 max-w-[220px] truncate">{{ customer.address || '—' }}</td>
+            <td class="data-num">{{ formatNumber(customer._count.orders) }}</td>
+            <td class="data-num font-medium">{{ formatPrice(customer.totalSpend || 0) }}</td>
+            <td class="data-actions">
+              <div class="admin-actions">
+                <button type="button" class="admin-btn-secondary" @click="openCustomer(customer)">جزئیات</button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -227,18 +227,6 @@ useHead({ title: 'مشتریان - پنل مدیریت' });
             </div>
           </div>
 
-          <div>
-            <label class="block text-sm font-medium mb-1">گروه مشتری</label>
-            <select
-              class="input-field"
-              :value="selectedCustomer.customerGroupId || ''"
-              @change="assignGroup(selectedCustomer.id, ($event.target as HTMLSelectElement).value)"
-            >
-              <option value="">بدون گروه</option>
-              <option v-for="group in groups" :key="group.id" :value="group.id">{{ group.name }}</option>
-            </select>
-          </div>
-
           <div v-if="selectedCustomer.addresses?.length">
             <h3 class="text-sm font-bold text-gray-700 mb-2">آدرس‌ها</h3>
             <p v-for="addr in selectedCustomer.addresses" :key="addr.id" class="text-sm text-gray-600 mb-1">
@@ -271,33 +259,5 @@ useHead({ title: 'مشتریان - پنل مدیریت' });
       </div>
     </div>
 
-    <div v-if="showCreate" class="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" @click.self="showCreate = false">
-      <form class="bg-white rounded-2xl w-full max-w-md p-6 space-y-3" @submit.prevent="createCustomer">
-        <h2 class="font-bold text-lg">مشتری جدید</h2>
-        <input v-model="newCustomer.phone" required class="input-field" placeholder="موبایل" dir="ltr" />
-        <input v-model="newCustomer.firstName" class="input-field" placeholder="نام" />
-        <input v-model="newCustomer.lastName" class="input-field" placeholder="نام خانوادگی" />
-        <select v-model="newCustomer.customerGroupId" class="input-field">
-          <option value="">بدون گروه</option>
-          <option v-for="group in groups" :key="group.id" :value="group.id">{{ group.name }}</option>
-        </select>
-        <div class="flex gap-2">
-          <button class="btn-primary flex-1" type="submit">ذخیره</button>
-          <button class="btn-secondary flex-1" type="button" @click="showCreate = false">انصراف</button>
-        </div>
-      </form>
-    </div>
-
-    <div v-if="showGroupForm" class="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" @click.self="showGroupForm = false">
-      <form class="bg-white rounded-2xl w-full max-w-md p-6 space-y-3" @submit.prevent="createGroup">
-        <h2 class="font-bold text-lg">گروه مشتری (مثلاً بازنشستگان)</h2>
-        <input v-model="newGroup.name" required class="input-field" placeholder="نام گروه" />
-        <input v-model="newGroup.description" class="input-field" placeholder="توضیح (اختیاری)" />
-        <div class="flex gap-2">
-          <button class="btn-primary flex-1" type="submit">ذخیره</button>
-          <button class="btn-secondary flex-1" type="button" @click="showGroupForm = false">انصراف</button>
-        </div>
-      </form>
-    </div>
   </div>
 </template>

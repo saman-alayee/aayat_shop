@@ -53,15 +53,13 @@ useHead({ title: computed(() => (order.value ? `فیش ${order.value.orderNumber
       <table class="w-full text-sm border-collapse">
         <thead>
           <tr class="border-b-2 border-black">
-            <th class="text-start py-1">کالا</th>
-            <th class="text-start py-1">بارکد</th>
+            <th class="text-start py-1">لباس</th>
             <th class="text-center py-1">تعداد</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="item in order.items" :key="item.id" class="border-b border-gray-300">
             <td class="py-2 font-medium">{{ item.name }}</td>
-            <td class="py-2 font-mono" dir="ltr">{{ item.product?.barcode || '—' }}</td>
             <td class="py-2 text-center font-bold">{{ item.quantity }}</td>
           </tr>
         </tbody>

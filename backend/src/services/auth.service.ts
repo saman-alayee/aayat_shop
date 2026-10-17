@@ -25,7 +25,8 @@ export class AuthService {
     const expiresAt = new Date(Date.now() + config.otp.expiresMinutes * 60 * 1000);
 
     if (config.otp.devMode) {
-      console.log(`📱 OTP for ${normalizedPhone}: ${code}`);
+      // Local/dev only — never return the code to the client.
+      console.log(`OTP for ${normalizedPhone}: ${code}`);
     } else {
       await smsService.sendOtp(normalizedPhone, code);
     }
@@ -34,7 +35,7 @@ export class AuthService {
       data: { phone: normalizedPhone, code, expiresAt },
     });
 
-    return { message: 'کد تأیید ارسال شد', devCode: config.otp.devMode ? code : undefined };
+    return { message: 'کد تأیید ارسال شد' };
   }
 
   async startAuth(phone: string, intent?: 'otp' | 'forgot') {
@@ -48,28 +49,23 @@ export class AuthService {
       throw new AppError(403, 'حساب کاربری غیرفعال است');
     }
 
+    // Customer storefront login is phone + OTP only (no username/email/password step).
     if (intent === 'forgot') {
       if (!user) throw new AppError(400, 'حسابی با این شماره یافت نشد');
-      const sent = await this.sendOtp(normalizedPhone);
+      await this.sendOtp(normalizedPhone);
       return {
         step: 'forgotPassword' as const,
         hasPassword: true,
         message: `کد تایید به شماره ${normalizedPhone} پیامک شد`,
-        devCode: sent.devCode,
       };
     }
 
-    if (intent === 'otp' || !user?.passwordHash) {
-      const sent = await this.sendOtp(normalizedPhone);
-      return {
-        step: user ? ('loginByOtp' as const) : ('signIn' as const),
-        hasPassword: Boolean(user?.passwordHash),
-        message: `کد تایید به شماره ${normalizedPhone} پیامک شد`,
-        devCode: sent.devCode,
-      };
-    }
-
-    return { step: 'loginByPassword' as const, hasPassword: true, message: '' };
+    await this.sendOtp(normalizedPhone);
+    return {
+      step: user ? ('loginByOtp' as const) : ('signIn' as const),
+      hasPassword: Boolean(user?.passwordHash),
+      message: `کد تایید به شماره ${normalizedPhone} پیامک شد`,
+    };
   }
 
   async verifyForgotOtp(phone: string, code: string) {

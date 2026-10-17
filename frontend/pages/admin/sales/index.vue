@@ -70,7 +70,7 @@ useHead({ title: 'گزارش فروش - پنل مدیریت' });
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
       <div>
         <h1 class="text-xl font-bold">گزارش فروش</h1>
-        <p class="text-sm text-gray-500 mt-1">بازه تاریخ و فیلتر محصول / بارکد</p>
+        <p class="text-sm leading-6 text-gray-500 mt-1 max-w-2xl">درآمد و پرفروش‌ترین لباس‌ها را در بازهٔ تاریخ ببینید. اگر نام لباس را بنویسید، گزارش همان کالا فیلتر می‌شود.</p>
       </div>
     </div>
 
@@ -86,7 +86,7 @@ useHead({ title: 'گزارش فروش - پنل مدیریت' });
         v-model="productSearch"
         type="search"
         class="input-field"
-        placeholder="نام یا بارکد محصول"
+        placeholder="نام لباس"
         @keyup.enter="load"
       />
       <button class="btn-primary text-sm" @click="load">اعمال فیلتر</button>
@@ -156,22 +156,22 @@ useHead({ title: 'گزارش فروش - پنل مدیریت' });
         </div>
       </div>
 
-      <div class="card p-4">
-        <h2 class="font-semibold mb-4">پرفروش‌ترین محصولات</h2>
+      <div class="data-table-wrap p-0">
+        <div class="px-4 pt-4 pb-2">
+          <h2 class="font-semibold text-slate-800">پرفروش‌ترین محصولات</h2>
+        </div>
         <div class="overflow-x-auto">
           <table class="data-table">
             <thead>
               <tr>
-                <th>محصول</th>
-                <th>بارکد</th>
-                <th>تعداد فروش</th>
+                <th>لباس</th>
+                <th class="data-num">تعداد فروش</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="item in overview.topProducts" :key="item.name">
-                <td>{{ item.name }}</td>
-                <td class="font-mono text-xs" dir="ltr">{{ item.product?.barcode || '—' }}</td>
-                <td>{{ formatNumber(item.totalQuantity) }}</td>
+                <td class="font-medium text-slate-800">{{ item.name }}</td>
+                <td class="data-num font-semibold">{{ formatNumber(item.totalQuantity) }}</td>
               </tr>
             </tbody>
           </table>

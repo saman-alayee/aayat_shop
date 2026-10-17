@@ -62,10 +62,10 @@ const assignmentOptions = computed(() => [
 ]);
 
 const roleBadgeClass: Record<UserRole, string> = {
-  CUSTOMER: 'text-gray-600 bg-gray-100',
-  ADMIN: 'text-purple-700 bg-purple-50',
-  SUPERVISOR: 'text-blue-700 bg-blue-50',
-  STAFF: 'text-amber-800 bg-amber-50',
+  CUSTOMER: 'bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200',
+  ADMIN: 'bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-100',
+  SUPERVISOR: 'bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-100',
+  STAFF: 'bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-100',
 };
 
 onMounted(async () => {
@@ -312,41 +312,41 @@ useHead({ title: 'کاربران - پنل مدیریت' });
 
     <LoadingSpinner :show="loading" />
 
-    <div v-if="!loading" class="card overflow-x-auto">
-      <table class="data-table min-w-[720px]">
+    <div v-if="!loading" class="data-table-wrap">
+      <table class="data-table min-w-[800px]">
         <thead>
           <tr>
             <th>کاربر</th>
-            <th class="text-start">شماره تلفن</th>
+            <th>شماره تلفن</th>
             <th>نقش</th>
-            <th>سفارش</th>
+            <th class="data-num">سفارش</th>
             <th>وضعیت</th>
-            <th>عملیات</th>
+            <th class="data-actions">عملیات</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="user in users" :key="user.id">
-            <td class="font-medium text-gray-800">
+            <td class="font-semibold text-slate-800">
               {{ `${user.firstName || ''} ${user.lastName || ''}`.trim() || '—' }}
             </td>
-            <td class="text-sm text-gray-600 text-start">
-              <span dir="ltr" class="inline-block">{{ user.phone }}</span>
+            <td>
+              <span dir="ltr" class="inline-block text-slate-600 tabular-nums">{{ user.phone }}</span>
             </td>
             <td>
-              <span :class="roleBadgeClass[user.role]" class="px-2 py-1 rounded-full text-xs">
+              <span :class="roleBadgeClass[user.role]" class="admin-badge">
                 {{ displayRole(user) }}
               </span>
             </td>
-            <td>{{ user._count.orders }}</td>
+            <td class="data-num">{{ user._count.orders }}</td>
             <td>
-              <span :class="user.isActive !== false ? 'text-green-600' : 'text-red-500'">
+              <span :class="user.isActive !== false ? 'admin-badge-success' : 'admin-badge-danger'">
                 {{ user.isActive !== false ? 'فعال' : 'غیرفعال' }}
               </span>
             </td>
-            <td>
-              <div class="flex flex-wrap gap-1 items-center">
+            <td class="data-actions">
+              <div class="admin-actions">
                 <select
-                  class="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white max-w-[180px]"
+                  class="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white max-w-[180px] font-medium text-slate-700"
                   :value="assignmentValue(user)"
                   @change="setAssignment(user, ($event.target as HTMLSelectElement).value)"
                 >
@@ -354,7 +354,11 @@ useHead({ title: 'کاربران - پنل مدیریت' });
                     {{ opt.label }}
                   </option>
                 </select>
-                <button class="text-xs px-2 py-1 rounded bg-gray-100" @click="toggleActive(user)">
+                <button
+                  type="button"
+                  :class="user.isActive !== false ? 'admin-btn-warn' : 'admin-btn-success'"
+                  @click="toggleActive(user)"
+                >
                   {{ user.isActive !== false ? 'غیرفعال' : 'فعال‌سازی' }}
                 </button>
               </div>

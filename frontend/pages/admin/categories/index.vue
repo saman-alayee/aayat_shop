@@ -93,8 +93,9 @@ useHead({ title: 'دسته‌بندی‌ها - پنل مدیریت' });
 <template>
   <div>
     <h1 class="mb-2 text-xl font-bold text-gray-800">مدیریت دسته‌بندی‌ها</h1>
-    <p class="mb-6 text-sm text-gray-500">
-      برای عوض کردن عکس کارت‌های صفحه اول، دسته را ویرایش کنید و «تصویر کارت صفحه اول» را عوض کنید.
+    <p class="mb-6 max-w-3xl text-sm leading-6 text-gray-500">
+      دسته‌ای که نشان «صفحه اول» دارد، همان کارت‌های بالای فروشگاه است. برای عوض کردن عکس، ویرایش را بزنید و «تصویر کارت صفحه اول» را عوض کنید.
+      دستهٔ غیرفعال در فروشگاه نشان داده نمی‌شود. دسته‌ای که لباس دارد را نمی‌شود حذف کرد.
     </p>
     <div class="mb-6 flex justify-end">
       <button class="btn-primary py-2 text-sm" @click="openForm()">+ افزودن</button>
@@ -102,46 +103,55 @@ useHead({ title: 'دسته‌بندی‌ها - پنل مدیریت' });
 
     <LoadingSpinner :show="loading" />
 
-    <div v-if="!loading" class="space-y-2">
-      <div v-for="cat in categories" :key="cat.id" class="card flex items-center justify-between gap-3 p-4">
-        <div class="flex min-w-0 items-center gap-3">
-          <div class="flex h-14 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-100 bg-[#f7f1e8]">
-            <img
-              v-if="cat.image"
-              :src="resolveMediaUrl(cat.image)"
-              :alt="cat.name"
-              class="h-full w-full object-cover"
-            />
-            <AppIcon v-else name="lucide:image" size="md" class="text-gray-300" />
-          </div>
-          <div class="min-w-0">
-            <div class="flex flex-wrap items-center gap-2">
-              <p class="font-medium">{{ cat.name }}</p>
-              <span
-                v-if="isHomeCategorySlug(cat.slug)"
-                class="rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-medium text-primary-700"
-              >
-                صفحه اول
-              </span>
-            </div>
-            <p class="text-xs text-gray-400">
-              ترتیب: {{ cat.sortOrder }} | {{ cat._count?.products || 0 }} محصول
-            </p>
-          </div>
-        </div>
-        <div class="flex shrink-0 gap-2">
-          <button class="text-sm text-primary-600" @click="openForm(cat)">ویرایش</button>
-          <button
-            class="text-sm"
-            :class="(cat._count?.products ?? 0) > 0 ? 'cursor-not-allowed text-gray-300' : 'text-red-500'"
-            :disabled="(cat._count?.products ?? 0) > 0"
-            :title="(cat._count?.products ?? 0) > 0 ? 'ابتدا محصولات این دسته را منتقل یا غیرفعال کنید' : 'حذف دسته‌بندی'"
-            @click="remove(cat.id)"
-          >
-            حذف
-          </button>
-        </div>
-      </div>
+    <div v-if="!loading" class="data-table-wrap">
+      <table class="data-table min-w-[720px]">
+        <thead>
+          <tr>
+            <th class="w-24">تصویر</th>
+            <th>نام</th>
+            <th class="data-num">ترتیب</th>
+            <th class="data-num">محصول</th>
+            <th>نشان</th>
+            <th class="data-actions">عملیات</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="cat in categories" :key="cat.id">
+            <td>
+              <div class="flex h-12 w-[4.5rem] items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-[#f7f1e8]">
+                <img
+                  v-if="cat.image"
+                  :src="resolveMediaUrl(cat.image)"
+                  :alt="cat.name"
+                  class="h-full w-full object-cover"
+                />
+                <AppIcon v-else name="lucide:image" size="md" class="text-slate-300" />
+              </div>
+            </td>
+            <td class="font-semibold text-slate-800">{{ cat.name }}</td>
+            <td class="data-num">{{ cat.sortOrder }}</td>
+            <td class="data-num">{{ cat._count?.products || 0 }}</td>
+            <td>
+              <span v-if="isHomeCategorySlug(cat.slug)" class="admin-badge-info">صفحه اول</span>
+              <span v-else class="text-slate-300">—</span>
+            </td>
+            <td class="data-actions">
+              <div class="admin-actions">
+                <button type="button" class="admin-btn-secondary" @click="openForm(cat)">ویرایش</button>
+                <button
+                  type="button"
+                  class="admin-btn-danger"
+                  :disabled="(cat._count?.products ?? 0) > 0"
+                  :title="(cat._count?.products ?? 0) > 0 ? 'ابتدا محصولات این دسته را منتقل یا غیرفعال کنید' : 'حذف دسته‌بندی'"
+                  @click="remove(cat.id)"
+                >
+                  حذف
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <div v-if="showForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" @click.self="showForm = false">

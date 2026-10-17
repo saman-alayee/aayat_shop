@@ -202,9 +202,9 @@ useHead({ title: 'محصولات هر دسته - پنل مدیریت' });
             <button
               type="button"
               :class="[
-                'px-4 py-2 text-sm font-semibold rounded-lg transition-colors',
+                'admin-tab-btn px-4 py-2 text-sm font-semibold rounded-lg',
                 feedSortMode === 'MANUAL'
-                  ? 'bg-primary-600 text-white'
+                  ? 'bg-primary-600 text-white shadow-sm'
                   : 'text-gray-600 hover:bg-primary-50',
               ]"
               @click="feedSortMode = 'MANUAL'"
@@ -214,9 +214,9 @@ useHead({ title: 'محصولات هر دسته - پنل مدیریت' });
             <button
               type="button"
               :class="[
-                'px-4 py-2 text-sm font-semibold rounded-lg transition-colors',
+                'admin-tab-btn px-4 py-2 text-sm font-semibold rounded-lg',
                 feedSortMode === 'DISCOUNT'
-                  ? 'bg-red-500 text-white'
+                  ? 'bg-red-500 text-white shadow-sm'
                   : 'text-gray-600 hover:bg-red-50',
               ]"
               @click="feedSortMode = 'DISCOUNT'"
@@ -226,9 +226,9 @@ useHead({ title: 'محصولات هر دسته - پنل مدیریت' });
             <button
               type="button"
               :class="[
-                'px-4 py-2 text-sm font-semibold rounded-lg transition-colors',
+                'admin-tab-btn px-4 py-2 text-sm font-semibold rounded-lg',
                 feedSortMode === 'NEWEST'
-                  ? 'bg-emerald-600 text-white'
+                  ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-gray-600 hover:bg-emerald-50',
               ]"
               @click="feedSortMode = 'NEWEST'"
@@ -239,6 +239,8 @@ useHead({ title: 'محصولات هر دسته - پنل مدیریت' });
           <p class="text-sm text-gray-500 mt-3">{{ sortModeHint }}</p>
         </section>
 
+        <Transition name="admin-tab" mode="out-in">
+        <div :key="feedSortMode" class="admin-tab-panel">
         <div v-if="feedSortMode === 'MANUAL'" class="grid gap-6 lg:grid-cols-2">
           <section class="card p-4">
             <h2 class="font-bold text-gray-800 mb-1">جستجو و افزودن</h2>
@@ -249,7 +251,7 @@ useHead({ title: 'محصولات هر دسته - پنل مدیریت' });
               v-model="search"
               type="search"
               class="input-field mb-3"
-              placeholder="نام یا بارکد محصول این دسته..."
+              placeholder="نام لباس این دسته..."
             />
             <LoadingSpinner :show="searching" />
             <ul v-if="!searching && searchResults.length" class="divide-y divide-gray-100">
@@ -342,6 +344,8 @@ useHead({ title: 'محصولات هر دسته - پنل مدیریت' });
             </p>
           </section>
         </div>
+        </div>
+        </Transition>
       </div>
     </div>
 

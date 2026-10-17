@@ -146,7 +146,11 @@ useHead({ title: 'سفارش‌ها - پنل مدیریت' });
   <div>
     <div class="mb-6">
       <h1 class="text-xl font-bold text-gray-800">مدیریت سفارش‌ها</h1>
-      <p class="text-sm text-gray-500 mt-1">تغییر وضعیت و اطلاع‌رسانی خودکار به مشتری</p>
+      <p class="text-sm leading-6 text-gray-500 mt-1 max-w-3xl">
+        «جدید» یعنی پول پرداخت شده و مشتری هنوز ارسال را نزده؛ پست نکنید.
+        «درخواست ارسال» یعنی مشتری دکمهٔ ارسال را زده و باید بسته‌بندی شود.
+        با عوض کردن وضعیت به «ارسال شده» یا «تحویل»، به مشتری خبر داده می‌شود.
+      </p>
     </div>
 
     <div class="flex flex-col md:flex-row gap-3 mb-4">
@@ -181,46 +185,66 @@ useHead({ title: 'سفارش‌ها - پنل مدیریت' });
 
     <LoadingSpinner :show="loading" />
 
-    <div v-if="!loading" class="space-y-3 max-w-3xl">
-      <div
-        v-for="order in orders"
-        :key="order.id"
-        class="card p-4 cursor-pointer hover:ring-2 hover:ring-primary-100 transition-all"
-        @click="openOrder(order.id)"
-      >
-        <div class="flex items-center justify-between mb-2">
-          <span class="font-bold" dir="ltr">{{ order.orderNumber }}</span>
-          <div class="flex items-center gap-1">
-            <button
-              type="button"
-              class="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100"
-              title="چاپ فیش جمع‌آوری"
-              @click.stop="printOrderSlip(order.id)"
-            >
-              <AppIcon name="lucide:printer" size="sm" />
-            </button>
-            <OrderStatusBadge :status="order.status" />
-          </div>
-        </div>
-        <div class="text-sm text-gray-600">{{ order.customerName }} — {{ order.customerPhone }}</div>
-        <div class="flex items-center justify-between text-sm mt-2">
-          <span class="text-gray-400">{{ formatDate(order.createdAt) }}</span>
-          <span class="font-bold">{{ formatPrice(order.totalPrice) }}</span>
-        </div>
-        <div class="flex flex-wrap gap-1.5 mt-2">
-          <span class="inline-flex items-center rounded-full bg-primary-50 text-primary-700 text-[11px] font-medium px-2 py-0.5">
-            {{ deliveryLabel(order) }}
-          </span>
-        </div>
-      </div>
-      <EmptyState v-if="!orders.length" message="سفارشی یافت نشد" />
+    <div v-if="!loading" class="data-table-wrap">
+      <table class="data-table min-w-[900px]">
+        <thead>
+          <tr>
+            <th>شماره سفارش</th>
+            <th>مشتری</th>
+            <th>تاریخ</th>
+            <th class="data-num">مبلغ</th>
+            <th>ارسال</th>
+            <th>وضعیت</th>
+            <th class="data-actions">عملیات</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="order in orders"
+            :key="order.id"
+            class="cursor-pointer"
+            @click="openOrder(order.id)"
+          >
+            <td>
+              <span class="font-bold text-slate-800 tabular-nums" dir="ltr">{{ order.orderNumber }}</span>
+            </td>
+            <td>
+              <p class="font-medium text-slate-800">{{ order.customerName }}</p>
+              <p class="text-xs text-slate-400 mt-0.5" dir="ltr">{{ order.customerPhone }}</p>
+            </td>
+            <td class="whitespace-nowrap text-slate-500">{{ formatDate(order.createdAt) }}</td>
+            <td class="data-num font-semibold text-slate-800">{{ formatPrice(order.totalPrice) }}</td>
+            <td>
+              <span class="admin-badge-info">{{ deliveryLabel(order) }}</span>
+            </td>
+            <td>
+              <OrderStatusBadge :status="order.status" />
+            </td>
+            <td class="data-actions">
+              <div class="admin-actions" @click.stop>
+                <button type="button" class="admin-btn-secondary" @click="openOrder(order.id)">جزئیات</button>
+                <button
+                  type="button"
+                  class="admin-btn-secondary"
+                  title="چاپ فیش جمع‌آوری"
+                  @click="printOrderSlip(order.id)"
+                >
+                  <AppIcon name="lucide:printer" size="sm" />
+                  چاپ
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <EmptyState v-if="!orders.length" message="سفارشی یافت نشد" class="py-10" />
     </div>
 
     <AppPagination
       v-if="!loading && pagination && pagination.totalPages > 1"
       :pagination="pagination"
       compact
-      class="mt-6 max-w-3xl"
+      class="mt-6"
       @update:page="goToPage"
     />
 
@@ -303,9 +327,6 @@ useHead({ title: 'سفارش‌ها - پنل مدیریت' });
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-gray-800 leading-snug">{{ item.name }}</p>
                 <p class="text-xs text-gray-500 mt-0.5">تعداد: {{ item.quantity }}</p>
-                <p v-if="item.product?.barcode" class="text-[11px] text-gray-400 font-mono mt-0.5" dir="ltr">
-                  {{ item.product.barcode }}
-                </p>
               </div>
               <span class="shrink-0 text-sm font-bold text-gray-800">
                 {{ formatPrice(item.subtotal || item.price * item.quantity) }}

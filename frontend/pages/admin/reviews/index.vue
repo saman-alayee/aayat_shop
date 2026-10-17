@@ -56,44 +56,49 @@ useHead({ title: 'نظرات محصولات - پنل مدیریت' });
 
 <template>
   <div>
-    <h1 class="mb-4 text-lg font-bold text-gray-900">نظرات محصولات</h1>
+    <h1 class="text-lg font-bold text-gray-900">نظرات محصولات</h1>
+    <p class="mb-4 mt-1 max-w-2xl text-sm leading-6 text-gray-500">
+      نظرهایی که مشتری زیر لباس ثبت کرده این‌جا دیده می‌شود. حذف، نظر را از صفحهٔ محصول برمی‌دارد.
+    </p>
     <p v-if="loading" class="text-sm text-gray-500">در حال بارگذاری</p>
     <p v-else-if="!reviews.length" class="text-sm text-gray-500">هنوز نظری ثبت نشده است.</p>
-    <div v-else class="overflow-hidden rounded-xl border border-gray-100 bg-white">
-      <table class="w-full text-sm">
-        <thead class="bg-gray-50 text-gray-500">
+    <div v-else class="data-table-wrap">
+      <table class="data-table min-w-[800px]">
+        <thead>
           <tr>
-            <th class="px-3 py-2 text-right font-medium">محصول</th>
-            <th class="px-3 py-2 text-right font-medium">مشتری</th>
-            <th class="px-3 py-2 text-right font-medium">امتیاز</th>
-            <th class="px-3 py-2 text-right font-medium">نظر</th>
-            <th class="px-3 py-2 text-right font-medium">تاریخ</th>
-            <th class="px-3 py-2" />
+            <th>محصول</th>
+            <th>مشتری</th>
+            <th class="data-num">امتیاز</th>
+            <th>نظر</th>
+            <th>تاریخ</th>
+            <th class="data-actions">عملیات</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="review in reviews" :key="review.id" class="border-t border-gray-100">
-            <td class="px-3 py-3">
-              <NuxtLink :to="`/products/${review.productSlug}`" class="text-primary-700 hover:underline" target="_blank">
+          <tr v-for="review in reviews" :key="review.id">
+            <td>
+              <NuxtLink :to="`/products/${review.productSlug}`" class="font-semibold text-primary-700 hover:underline" target="_blank">
                 {{ review.productName }}
               </NuxtLink>
             </td>
-            <td class="px-3 py-3">
-              <p>{{ review.authorName }}</p>
-              <p class="text-xs text-gray-400" dir="ltr">{{ review.phone }}</p>
+            <td>
+              <p class="font-medium text-slate-800">{{ review.authorName }}</p>
+              <p class="text-xs text-slate-400 mt-0.5" dir="ltr">{{ review.phone }}</p>
             </td>
-            <td class="px-3 py-3">{{ toPersianDigits(review.rating) }}</td>
-            <td class="max-w-xs px-3 py-3 text-gray-700">{{ review.body || '—' }}</td>
-            <td class="px-3 py-3 whitespace-nowrap">{{ formatShortDate(review.createdAt) }}</td>
-            <td class="px-3 py-3">
-              <button
-                type="button"
-                class="text-red-600 disabled:opacity-50"
-                :disabled="removingId === review.id"
-                @click="remove(review)"
-              >
-                حذف
-              </button>
+            <td class="data-num font-semibold">{{ toPersianDigits(review.rating) }}</td>
+            <td class="max-w-xs text-slate-600">{{ review.body || '—' }}</td>
+            <td class="whitespace-nowrap text-slate-500">{{ formatShortDate(review.createdAt) }}</td>
+            <td class="data-actions">
+              <div class="admin-actions">
+                <button
+                  type="button"
+                  class="admin-btn-danger"
+                  :disabled="removingId === review.id"
+                  @click="remove(review)"
+                >
+                  حذف
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
