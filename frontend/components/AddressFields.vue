@@ -100,6 +100,7 @@ function onPostalInput(event: Event) {
         @input="onPostalInput"
       />
       <AppFormError :message="errors?.postalCode" />
+      <p v-if="!errors?.postalCode" class="mt-1 text-[11px] text-gray-400">۱۰ رقم، بدون خط تیره. رقم فارسی هم قبول است.</p>
     </div>
   </div>
 </template>

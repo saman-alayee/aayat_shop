@@ -78,10 +78,17 @@ router.get(
 router.post(
   '/request-shipment',
   authenticate,
-  validate(z.object({ shipDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'روز مراجعه را انتخاب کنید') })),
+  validate(
+    z.object({
+      shipDate: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, 'تاریخ نامعتبر است')
+        .optional(),
+    })
+  ),
   asyncHandler(async (req, res) => {
     const result = await orderService.requestShipment(req.user!.userId, req.body.shipDate);
-    successResponse(res, result, 'درخواست ارسال برای بسته‌بندی ثبت شد');
+    successResponse(res, result, 'درخواست ارسال برای شما ثبت شد');
   })
 );
 

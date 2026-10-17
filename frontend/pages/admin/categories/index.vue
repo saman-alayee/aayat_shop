@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Category } from '~/types';
+import { isHomeCategorySlug } from '~/constants/homeCategoryTiles';
 
 definePageMeta({ layout: 'admin', middleware: 'admin' });
 
@@ -11,6 +12,7 @@ const categories = ref<Category[]>([]);
 const loading = ref(true);
 const showForm = ref(false);
 const editingId = ref<string | null>(null);
+const saving = ref(false);
 
 const form = reactive({ name: '', sortOrder: 0, isActive: true, image: null as string | null });
 
@@ -43,19 +45,26 @@ function openForm(category?: Category) {
   showForm.value = true;
 }
 
+const editingCategory = computed(() =>
+  editingId.value ? categories.value.find((item) => item.id === editingId.value) || null : null
+);
+
 async function save() {
+  saving.value = true;
   try {
     if (editingId.value) {
-      await api.put(`/admin/categories/${editingId.value}`, form);
+      await api.put(`/admin/categories/${editingId.value}`, { ...form });
       toast.success('دسته‌بندی به‌روزرسانی شد');
     } else {
-      await api.post('/admin/categories', form);
+      await api.post('/admin/categories', { ...form });
       toast.success('دسته‌بندی ایجاد شد');
     }
     showForm.value = false;
     await loadData();
   } catch (e: unknown) {
     toast.error(e instanceof Error ? e.message : 'خطا در ذخیره دسته‌بندی');
+  } finally {
+    saving.value = false;
   }
 }
 
@@ -83,35 +92,48 @@ useHead({ title: 'دسته‌بندی‌ها - پنل مدیریت' });
 
 <template>
   <div>
-    <h1 class="text-xl font-bold text-gray-800 mb-6">مدیریت دسته‌بندی‌ها</h1>
-    <div class="flex justify-end mb-6">
-      <button class="btn-primary text-sm py-2" @click="openForm()">+ افزودن</button>
+    <h1 class="mb-2 text-xl font-bold text-gray-800">مدیریت دسته‌بندی‌ها</h1>
+    <p class="mb-6 text-sm text-gray-500">
+      برای عوض کردن عکس کارت‌های صفحه اول، دسته را ویرایش کنید و «تصویر کارت صفحه اول» را عوض کنید.
+    </p>
+    <div class="mb-6 flex justify-end">
+      <button class="btn-primary py-2 text-sm" @click="openForm()">+ افزودن</button>
     </div>
 
     <LoadingSpinner :show="loading" />
 
     <div v-if="!loading" class="space-y-2">
-      <div v-for="cat in categories" :key="cat.id" class="card p-4 flex items-center justify-between gap-3">
-        <div class="flex items-center gap-3 min-w-0">
-          <div class="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
+      <div v-for="cat in categories" :key="cat.id" class="card flex items-center justify-between gap-3 p-4">
+        <div class="flex min-w-0 items-center gap-3">
+          <div class="flex h-14 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-100 bg-[#f7f1e8]">
             <img
               v-if="cat.image"
               :src="resolveMediaUrl(cat.image)"
               :alt="cat.name"
-              class="w-9 h-9 object-contain"
+              class="h-full w-full object-cover"
             />
-            <AppIcon v-else name="lucide:folder" size="md" class="text-gray-300" />
+            <AppIcon v-else name="lucide:image" size="md" class="text-gray-300" />
           </div>
           <div class="min-w-0">
-            <p class="font-medium">{{ cat.name }}</p>
-            <p class="text-xs text-gray-400">ترتیب: {{ cat.sortOrder }} | {{ cat._count?.products || 0 }} محصول</p>
+            <div class="flex flex-wrap items-center gap-2">
+              <p class="font-medium">{{ cat.name }}</p>
+              <span
+                v-if="isHomeCategorySlug(cat.slug)"
+                class="rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-medium text-primary-700"
+              >
+                صفحه اول
+              </span>
+            </div>
+            <p class="text-xs text-gray-400">
+              ترتیب: {{ cat.sortOrder }} | {{ cat._count?.products || 0 }} محصول
+            </p>
           </div>
         </div>
-        <div class="flex gap-2 shrink-0">
-          <button class="text-primary-600 text-sm" @click="openForm(cat)">ویرایش</button>
+        <div class="flex shrink-0 gap-2">
+          <button class="text-sm text-primary-600" @click="openForm(cat)">ویرایش</button>
           <button
             class="text-sm"
-            :class="(cat._count?.products ?? 0) > 0 ? 'text-gray-300 cursor-not-allowed' : 'text-red-500'"
+            :class="(cat._count?.products ?? 0) > 0 ? 'cursor-not-allowed text-gray-300' : 'text-red-500'"
             :disabled="(cat._count?.products ?? 0) > 0"
             :title="(cat._count?.products ?? 0) > 0 ? 'ابتدا محصولات این دسته را منتقل یا غیرفعال کنید' : 'حذف دسته‌بندی'"
             @click="remove(cat.id)"
@@ -122,21 +144,29 @@ useHead({ title: 'دسته‌بندی‌ها - پنل مدیریت' });
       </div>
     </div>
 
-    <div v-if="showForm" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" @click.self="showForm = false">
-      <div class="bg-white rounded-2xl w-full max-w-sm p-6">
-        <h2 class="text-lg font-bold mb-4">{{ editingId ? 'ویرایش' : 'افزودن' }} دسته‌بندی</h2>
+    <div v-if="showForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" @click.self="showForm = false">
+      <div class="w-full max-w-sm rounded-2xl bg-white p-6">
+        <h2 class="mb-4 text-lg font-bold">{{ editingId ? 'ویرایش' : 'افزودن' }} دسته‌بندی</h2>
         <form class="space-y-3" @submit.prevent="save">
           <AppImageUpload
             v-model="form.image"
             upload-endpoint="/admin/categories/upload"
-            label="لوگو دسته‌بندی"
-            hint="JPEG, PNG, WebP یا GIF — حداکثر ۵ مگابایت"
-            preview-class="w-full aspect-square max-h-36"
+            label="تصویر کارت صفحه اول"
+            hint="JPEG, PNG یا WebP — این تصویر در گرید دسته‌های صفحه اصلی فروشگاه دیده می‌شود"
+            preview-class="w-full aspect-[2/1] max-h-40 object-cover rounded-xl bg-[#f7f1e8]"
           />
+          <p
+            v-if="editingCategory && isHomeCategorySlug(editingCategory.slug)"
+            class="rounded-xl bg-primary-50 px-3 py-2 text-xs text-primary-800"
+          >
+            این دسته روی صفحه اول نمایش داده می‌شود. بعد از ذخیره، عکس جدید همان‌جا دیده می‌شود.
+          </p>
           <input v-model="form.name" required placeholder="نام دسته‌بندی" class="input-field" />
           <input v-model.number="form.sortOrder" type="number" placeholder="ترتیب" class="input-field" />
           <AppSwitch v-model="form.isActive" label="دسته‌بندی فعال" description="در فروشگاه نمایش داده شود" />
-          <button type="submit" class="btn-primary w-full">ذخیره</button>
+          <button type="submit" class="btn-primary w-full" :disabled="saving">
+            {{ saving ? 'در حال ذخیره…' : 'ذخیره' }}
+          </button>
         </form>
       </div>
     </div>

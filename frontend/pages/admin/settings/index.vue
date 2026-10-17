@@ -15,7 +15,7 @@ interface NewOrderSmsSettings {
 
 const tabs: Array<{ id: SettingsTab; label: string; icon: string }> = [
   { id: 'announcement', label: 'متن بالای سایت', icon: 'lucide:megaphone' },
-  { id: 'shipping', label: 'هزینه و متن پست', icon: 'lucide:truck' },
+  { id: 'shipping', label: 'هزینه ارسال و سبد', icon: 'lucide:truck' },
   { id: 'maintenance', label: 'تعمیر فروشگاه', icon: 'lucide:scissors' },
   { id: 'new-order-sms', label: 'پیامک نوتیف سفارش', icon: 'lucide:message-square-text' },
 ];
@@ -38,6 +38,7 @@ const announcementSaving = ref(false);
 const shippingForm = reactive({
   nationwideFee: 0,
   nationwideHint: 'پرداخت هزینه پست در محل (هنگام تحویل) انجام می‌شود',
+  cartHoldMinutes: 30,
 });
 const shippingSaving = ref(false);
 
@@ -93,11 +94,12 @@ async function saveAnnouncement() {
 
 async function loadShipping() {
   try {
-    const { data } = await api.get<{ nationwideFee: number; nationwideHint: string }>(
+    const { data } = await api.get<{ nationwideFee: number; nationwideHint: string; cartHoldMinutes: number }>(
       '/admin/settings/shipping'
     );
     shippingForm.nationwideFee = data.nationwideFee;
     shippingForm.nationwideHint = data.nationwideHint;
+    shippingForm.cartHoldMinutes = data.cartHoldMinutes || 30;
   } catch (e: unknown) {
     toast.error(e instanceof Error ? e.message : 'خطا در بارگذاری تنظیمات ارسال');
   }
@@ -106,15 +108,17 @@ async function loadShipping() {
 async function saveShipping() {
   shippingSaving.value = true;
   try {
-    const { data } = await api.put<{ nationwideFee: number; nationwideHint: string }>(
+    const { data } = await api.put<{ nationwideFee: number; nationwideHint: string; cartHoldMinutes: number }>(
       '/admin/settings/shipping',
       {
         nationwideFee: Number(shippingForm.nationwideFee) || 0,
         nationwideHint: shippingForm.nationwideHint.trim(),
+        cartHoldMinutes: Number(shippingForm.cartHoldMinutes) || 30,
       }
     );
     shippingForm.nationwideFee = data.nationwideFee;
     shippingForm.nationwideHint = data.nationwideHint;
+    shippingForm.cartHoldMinutes = data.cartHoldMinutes;
     toast.success('تنظیمات ارسال ذخیره شد');
   } catch (e: unknown) {
     toast.error(e instanceof Error ? e.message : 'خطا در ذخیره');
@@ -243,7 +247,7 @@ useHead({ title: 'تنظیمات - پنل مدیریت' });
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
       <div>
         <h1 class="text-2xl font-bold text-gray-900">تنظیمات</h1>
-        <p class="text-sm text-gray-500 mt-1">متن بالای سایت، هزینه پست، تعمیر فروشگاه و پیامک</p>
+        <p class="text-sm text-gray-500 mt-1">متن بالای سایت، هزینه ارسال، زمان سبد، تعمیر فروشگاه و پیامک</p>
       </div>
       <button type="button" class="btn-secondary text-sm self-start" @click="showGuide = !showGuide">
         {{ showGuide ? 'بستن راهنما' : 'نمایش راهنما' }}
@@ -286,13 +290,26 @@ useHead({ title: 'تنظیمات - پنل مدیریت' });
 
     <div v-if="activeTab === 'shipping'" class="bg-white rounded-xl border border-gray-100 p-6 space-y-4 max-w-2xl">
       <div>
-        <h2 class="text-lg font-semibold text-gray-900">ارسال به سراسر ایران</h2>
+        <h2 class="text-lg font-semibold text-gray-900">هزینه ارسال و زمان سبد</h2>
         <p class="text-sm text-gray-500 mt-1">
-          هزینهٔ آنلاین و متن راهنما برای روش ارسال پستی. اگر هزینه صفر باشد، مبلغ ارسال در درگاه گرفته نمی‌شود.
+          متن «هزینه ارسال» در سبد و تسویه، و مدت نگهداری لباس‌های پرداخت‌نشده در سبد.
         </p>
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1.5">هزینه پست در پرداخت آنلاین (تومان)</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">زمان سبد خرید (دقیقه)</label>
+        <input
+          v-model.number="shippingForm.cartHoldMinutes"
+          type="number"
+          min="5"
+          max="1440"
+          step="5"
+          class="input-field"
+          dir="ltr"
+        />
+        <p class="mt-1 text-xs text-gray-500">بعد از این مدت، لباس‌هایی که پرداخت نشده‌اند از سبد حذف می‌شوند.</p>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">هزینه ارسال در پرداخت آنلاین (تومان)</label>
         <input
           v-model.number="shippingForm.nationwideFee"
           type="number"
@@ -305,7 +322,7 @@ useHead({ title: 'تنظیمات - پنل مدیریت' });
         <p class="mt-1 text-xs text-gray-500">برای پرداخت در محل، این عدد را ۰ بگذارید.</p>
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1.5">متن نمایش به مشتری</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">متن هزینه ارسال</label>
         <textarea
           v-model="shippingForm.nationwideHint"
           rows="3"

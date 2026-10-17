@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Address } from '~/types';
+import { normalizePhoneInput } from '~/utils/normalize';
 import { SITE_NAME } from '~/constants/site';
 import { type ShippingMethod } from '~/constants/shipping';
 import { useOrdersStore } from '~/stores/orders';
@@ -25,6 +26,8 @@ const form = reactive({
 
 const loading = ref(false);
 const error = ref('');
+const nameError = ref('');
+const phoneError = ref('');
 const addressesLoading = ref(false);
 
 const appliedCoupon = ref<{
@@ -85,21 +88,34 @@ async function loadAddresses() {
 
 async function submitOrder() {
   error.value = '';
+  nameError.value = '';
+  phoneError.value = '';
 
+  const problems: string[] = [];
   if (form.customerName.trim().length < 3) {
-    error.value = 'نام و نام خانوادگی را کامل وارد کنید';
-    toast.error(error.value);
-    return;
+    nameError.value = 'نام و نام خانوادگی حداقل ۳ حرف باشد';
+    problems.push(nameError.value);
   }
-  if (!/^09\d{9}$/.test(form.customerPhone.trim())) {
-    error.value = 'شماره موبایل معتبر نیست';
-    toast.error(error.value);
-    return;
+  const phone = normalizePhoneInput(form.customerPhone);
+  form.customerPhone = phone;
+  if (!/^09\d{9}$/.test(phone)) {
+    phoneError.value = phone
+      ? `موبایل باید با ۰۹ شروع شود و ۱۱ رقم باشد؛ الان ${phone.length.toLocaleString('fa-IR')} رقم است`
+      : 'شماره موبایل را وارد کنید';
+    problems.push(phoneError.value);
   }
 
   if (!validateAddress()) {
-    error.value = 'استان، شهر، آدرس و کدپستی را کامل کنید';
-    toast.error(error.value);
+    problems.push(
+      ...[addressErrors.province, addressErrors.city, addressErrors.street, addressErrors.plaque, addressErrors.unit, addressErrors.postalCode].filter(
+        (item): item is string => Boolean(item)
+      )
+    );
+  }
+
+  if (problems.length) {
+    error.value = problems.join('\n');
+    toast.error(problems[0]);
     scrollToFirstError();
     return;
   }
@@ -164,14 +180,16 @@ useHead({
     <form class="space-y-4" @submit.prevent="submitOrder">
       <div>
         <label class="field-label">نام و نام خانوادگی</label>
-        <input v-model="form.customerName" type="text" required minlength="3" class="input-field" />
+        <input v-model="form.customerName" type="text" required minlength="3" class="input-field" :class="{ 'input-invalid': nameError }" />
+        <AppFormError :message="nameError" />
       </div>
       <div>
         <label class="field-label">شماره موبایل</label>
-        <input v-model="form.customerPhone" type="tel" required pattern="09[0-9]{9}" class="input-field" dir="ltr" />
+        <input v-model="form.customerPhone" type="tel" required class="input-field" :class="{ 'input-invalid': phoneError }" dir="ltr" placeholder="۰۹۱۲۳۴۵۶۷۸۹" />
+        <AppFormError :message="phoneError" />
       </div>
 
-      <div class="space-y-3" data-field-error="true">
+      <div class="space-y-3">
         <LoadingSpinner :show="addressesLoading" />
         <AddressFields
           v-model:street="street"
@@ -186,9 +204,9 @@ useHead({
       </div>
 
       <div class="space-y-1">
-        <p class="field-label">روش ارسال</p>
+        <p class="field-label">هزینه ارسال</p>
         <p class="text-xs leading-6 text-gray-500">
-          بعد از پرداخت، لباس در سبد خرید می‌ماند. پست زمانی انجام می‌شود که خودتان دکمهٔ ارسال را بزنید.
+          بعد از پرداخت، لباس در سبد می‌ماند. هر وقت دکمه ارسال بزنید، درخواست ارسال برای شما ثبت می‌شود.
         </p>
         <label
           v-for="option in shippingOptions"

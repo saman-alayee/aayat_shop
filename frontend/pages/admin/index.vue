@@ -27,6 +27,8 @@ const quickLinks = [
   { to: '/admin/orders?status=NEW', label: 'منتظر ارسال مشتری', desc: 'پرداخت شده؛ هنوز پست نشود', icon: 'lucide:inbox' },
   { to: '/admin/orders?status=PREPARING', label: 'درخواست ارسال', desc: 'بسته‌بندی و پست کنید', icon: 'lucide:package' },
   { to: '/admin/products', label: 'محصولات', desc: 'افزودن و ویرایش کالا', icon: 'lucide:shopping-basket' },
+  { to: '/admin/categories', label: 'عکس دسته‌ها', desc: 'تصویر کارت‌های صفحه اول', icon: 'lucide:images' },
+  { to: '/admin/settings', label: 'هزینه ارسال و سبد', desc: 'متن ارسال و زمان ۳۰ دقیقه‌ای سبد', icon: 'lucide:truck' },
   { to: '/admin/home-picks', label: 'صفحه اول', desc: 'انتخاب دستی تخفیف‌دار و ویژه', icon: 'lucide:sparkles' },
   { to: '/admin/category-feed', label: 'محصولات دسته', desc: 'ترتیب نمایش هر دسته در صفحه اول', icon: 'lucide:list-ordered' },
   { to: '/admin/sales', label: 'گزارش فروش', desc: 'بازه تاریخ و کالا', icon: 'lucide:bar-chart-3' },

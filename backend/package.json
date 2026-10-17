@@ -14,6 +14,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:clothing-demo": "tsx prisma/seed-clothing-demo.ts",
     "db:ensure-admins": "tsx scripts/ensure-admin.ts",
+    "db:seed-home-category-images": "tsx scripts/seed-home-category-images.ts",
     "test:endpoints": "tsx scripts/test-endpoints.ts",
     "import:woocommerce": "tsx scripts/import-woocommerce-store.ts",
     "import:woocommerce:images": "tsx scripts/import-woocommerce-store.ts --download-only",

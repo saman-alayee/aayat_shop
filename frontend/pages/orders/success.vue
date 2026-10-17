@@ -49,8 +49,8 @@ useHead({
     <h1 class="text-2xl font-bold text-gray-800 mb-2">{{ paid === false ? 'پرداخت انجام نشد' : 'پرداخت ثبت شد' }}</h1>
     <p v-if="paid === false" class="text-gray-600 mb-6 leading-relaxed">پرداخت در زیبال ناموفق بود و سفارش لغو شد. لباس‌ها به سبد برگشته‌اند و می‌توانید دوباره پرداخت کنید.</p>
     <template v-else>
-      <p class="text-gray-600 mb-2 leading-relaxed">لباس‌ها در سبد خرید ذخیره شدند و هنوز پست نمی‌شوند.</p>
-      <p class="text-sm text-primary-700 font-medium mb-6">هر وقت خواستید، از سبد خرید دکمهٔ ارسال را بزنید تا برایتان بسته‌بندی کنیم.</p>
+      <p class="text-gray-600 mb-2 leading-relaxed">لباس‌ها در سبد خرید ذخیره شدند و هنوز ارسال نشده‌اند.</p>
+      <p class="text-sm text-primary-700 font-medium mb-6">هر وقت دکمه ارسال بزنید، درخواست ارسال برای شما ثبت می‌شود.</p>
     </template>
 
     <div v-if="orderNumber" class="card p-4 mb-6">
@@ -59,7 +59,7 @@ useHead({
     </div>
 
     <div v-if="paid !== false" class="bg-green-50 text-green-900 text-sm p-4 rounded-xl mb-6 leading-relaxed text-start">
-      پول پرداخت شده است. ارسال پستی بعد از زدن دکمهٔ «ارسال» در سبد خرید انجام می‌شود.
+      پول پرداخت شده است. از سبد خرید دکمهٔ «ارسال» را بزنید تا درخواست ارسال ثبت شود.
     </div>
 
     <div class="mx-auto max-w-lg space-y-3 md:max-w-md">

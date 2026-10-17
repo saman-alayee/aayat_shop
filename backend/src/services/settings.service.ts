@@ -13,12 +13,15 @@ export const SHIPPING_SETTINGS_KEY = 'shipping';
 export const DEFAULT_NATIONWIDE_SHIPPING_FEE = 0;
 export const DEFAULT_NATIONWIDE_SHIPPING_HINT =
   'پرداخت هزینه پست در محل (هنگام تحویل) انجام می‌شود';
+export const DEFAULT_CART_HOLD_MINUTES = 30;
 
 export interface ShippingSettings {
   /** Fee charged at online checkout for nationwide shipping (toman). */
   nationwideFee: number;
-  /** Storefront hint under «ارسال به سراسر ایران». */
+  /** Storefront hint under «هزینه ارسال». */
   nationwideHint: string;
+  /** Unpaid cart items are removed after this many minutes. */
+  cartHoldMinutes: number;
 }
 
 export const DEFAULT_NEW_ORDER_SMS_TEMPLATE =
@@ -256,6 +259,7 @@ export class SettingsService {
     const next = this.normalizeShipping({
       nationwideFee: input.nationwideFee ?? current.nationwideFee,
       nationwideHint: input.nationwideHint ?? current.nationwideHint,
+      cartHoldMinutes: input.cartHoldMinutes ?? current.cartHoldMinutes,
     });
 
     await prisma.appSetting.upsert({
@@ -283,7 +287,17 @@ export class SettingsService {
       typeof data.nationwideHint === 'string' && data.nationwideHint.trim()
         ? data.nationwideHint.trim().slice(0, 200)
         : DEFAULT_NATIONWIDE_SHIPPING_HINT;
-    return { nationwideFee, nationwideHint: hint };
+    const minutesRaw = data.cartHoldMinutes;
+    const minutes =
+      typeof minutesRaw === 'number'
+        ? minutesRaw
+        : typeof minutesRaw === 'string' && minutesRaw.trim()
+          ? Number(minutesRaw)
+          : DEFAULT_CART_HOLD_MINUTES;
+    const cartHoldMinutes = Number.isFinite(minutes)
+      ? Math.max(5, Math.min(24 * 60, Math.round(minutes)))
+      : DEFAULT_CART_HOLD_MINUTES;
+    return { nationwideFee, nationwideHint: hint, cartHoldMinutes };
   }
 }
 

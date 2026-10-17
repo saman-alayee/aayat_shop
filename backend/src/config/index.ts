@@ -37,6 +37,7 @@ export const config = {
     melipayamak: {
       username: process.env.MELIPAYAMAK_USERNAME || '',
       password: process.env.MELIPAYAMAK_PASSWORD || '',
+      apiKey: process.env.MELIPAYAMAK_API_KEY || '',
       sender: process.env.MELIPAYAMAK_SENDER || '',
       customerBodyId: process.env.MELIPAYAMAK_CUSTOMER_BODY_ID || '',
       adminBodyId: process.env.MELIPAYAMAK_ADMIN_BODY_ID || '',

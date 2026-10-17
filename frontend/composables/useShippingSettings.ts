@@ -7,6 +7,7 @@ import {
 export interface ShippingSettings {
   nationwideFee: number;
   nationwideHint: string;
+  cartHoldMinutes: number;
 }
 
 const DEFAULT_HINT =
@@ -17,6 +18,7 @@ export function useShippingSettings() {
   const api = useApi();
   const nationwideFee = ref(NATIONWIDE_SHIPPING_FEE);
   const nationwideHint = ref(DEFAULT_HINT);
+  const cartHoldMinutes = ref(30);
   const loaded = ref(false);
 
   const shippingOptions = computed(() =>
@@ -40,6 +42,9 @@ export function useShippingSettings() {
       if (typeof data.nationwideHint === 'string' && data.nationwideHint.trim()) {
         nationwideHint.value = data.nationwideHint.trim();
       }
+      if (typeof data.cartHoldMinutes === 'number' && Number.isFinite(data.cartHoldMinutes)) {
+        cartHoldMinutes.value = Math.max(5, Math.round(data.cartHoldMinutes));
+      }
     } catch {
       /* keep defaults */
     } finally {
@@ -50,6 +55,7 @@ export function useShippingSettings() {
   return {
     nationwideFee,
     nationwideHint,
+    cartHoldMinutes,
     loaded,
     shippingOptions,
     feeFor,

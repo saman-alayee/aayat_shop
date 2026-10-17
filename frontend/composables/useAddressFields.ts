@@ -48,7 +48,11 @@ export function useAddressFields() {
     }
   });
 
-  function clearErrors() {
+  function faNum(value: number) {
+  return String(value).replace(/\d/g, (digit) => '۰۱۲۳۴۵۶۷۸۹'[Number(digit)]);
+}
+
+function clearErrors() {
     errors.street = undefined;
     errors.plaque = undefined;
     errors.unit = undefined;
@@ -81,7 +85,7 @@ export function useAddressFields() {
     const cities = citiesOfProvince(province.value);
     const savedCity = address.city?.trim() || '';
     city.value = cities.includes(savedCity) ? savedCity : cities[0] || DEFAULT_CITY;
-    postalCode.value = address.postalCode?.trim() || '';
+    postalCode.value = normalizeDigits(address.postalCode || '').replace(/\D/g, '').slice(0, 10);
 
     let streetText = address.address.trim();
     if (plaque.value && unit.value) {
@@ -108,7 +112,7 @@ export function useAddressFields() {
       valid = false;
     }
     if (street.value.trim().length < 5) {
-      errors.street = 'خیابان و محله را کامل وارد کنید';
+      errors.street = 'خیابان و محله حداقل ۵ حرف باشد';
       valid = false;
     }
     if (!plaque.value.trim()) {
@@ -116,12 +120,14 @@ export function useAddressFields() {
       valid = false;
     }
     if (!unit.value.trim()) {
-      errors.unit = 'واحد را وارد کنید';
+      errors.unit = 'واحد را وارد کنید. اگر واحد ندارد، بنویسید -';
       valid = false;
     }
     const postalNormalized = normalizeDigits(postalCode.value).replace(/\D/g, '');
-    if (!/^\d{10}$/.test(postalNormalized)) {
-      errors.postalCode = 'کدپستی باید ۱۰ رقم باشد';
+    if (postalNormalized.length !== 10) {
+      errors.postalCode = postalNormalized.length
+        ? `کدپستی باید دقیقاً ۱۰ رقم باشد؛ الان ${faNum(postalNormalized.length)} رقم شمرده شد`
+        : 'کدپستی را با ۱۰ رقم وارد کنید';
       valid = false;
     } else {
       postalCode.value = postalNormalized;

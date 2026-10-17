@@ -261,8 +261,8 @@ export class OrderService {
     return orders.map((order) => this.formatOrder(order));
   }
 
-  async requestShipment(userId: string, shipDate: string) {
-    const requestedShipDate = assertShipDate(shipDate);
+  async requestShipment(userId: string, shipDate?: string) {
+    const requestedShipDate = shipDate ? assertShipDate(shipDate) : todayTehranIso();
     const orders = await prisma.order.findMany({
       where: { userId, status: 'NEW' },
       include: { items: true },
@@ -289,7 +289,7 @@ export class OrderService {
           data: {
             orderId: order.id,
             status: 'PREPARING',
-            note: `مشتری درخواست ارسال داد. روز مراجعه: ${requestedShipDate}`,
+            note: 'مشتری با دکمه ارسال، درخواست ارسال ثبت کرد',
           },
         });
       }
@@ -541,23 +541,27 @@ export class OrderService {
   }
 }
 
+function todayTehranIso() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tehran',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
 function assertShipDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throw new AppError(400, 'روز مراجعه را انتخاب کنید');
+    throw new AppError(400, 'تاریخ نامعتبر است');
   }
   const [year, month, day] = value.split('-').map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
   if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
     throw new AppError(400, 'تاریخ نامعتبر است');
   }
-  const today = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Tehran',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date());
+  const today = todayTehranIso();
   if (value < today) {
-    throw new AppError(400, 'روز مراجعه نمی‌تواند گذشته باشد');
+    throw new AppError(400, 'تاریخ نمی‌تواند گذشته باشد');
   }
   return value;
 }

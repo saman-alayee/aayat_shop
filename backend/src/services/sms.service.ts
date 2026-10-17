@@ -35,34 +35,32 @@ export class SmsService {
 
   isConfigured(): boolean {
     if (this.usesMeliPayamak()) {
-      const { username, password } = config.sms.melipayamak;
-      return Boolean(username && password);
+      const { username, password, apiKey } = config.sms.melipayamak;
+      return Boolean(username && (apiKey || password));
     }
     const { apiKey, lineNumber } = config.sms.farazsms;
     return Boolean(apiKey && lineNumber);
   }
 
-  /** Pattern SMS on the Melli Payamak service line. Variables are joined with `;`. */
-  private async sendMeliPattern(bodyId: string, variables: string[], recipient: string): Promise<void> {
-    const { username, password } = config.sms.melipayamak;
-    if (!username || !password || !bodyId) {
+  /** Panel error -110 means the password field must carry the API key. */
+  private meliCredential(): string {
+    const { apiKey, password } = config.sms.melipayamak;
+    return apiKey || password;
+  }
+
+  private async postMeli(path: string, fields: Record<string, string>): Promise<{ RetStatus?: number; StrRetStatus?: string; Value?: string }> {
+    const { username } = config.sms.melipayamak;
+    const credential = this.meliCredential();
+    if (!username || !credential) {
       throw new AppError(503, 'سرویس پیامک پیکربندی نشده است', 'SMS_NOT_CONFIGURED');
     }
 
-    const body = new URLSearchParams({
-      username,
-      password,
-      text: variables.map((value) => value.replace(/[;\r\n]/g, ' ').trim() || '-').join(';'),
-      to: this.formatRecipient(recipient),
-      bodyId,
-    });
-
     let response: Response;
     try {
-      response = await fetch('https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber', {
+      response = await fetch(`https://rest.payamak-panel.com/api/SendSMS/${path}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body,
+        body: new URLSearchParams({ username, password: credential, ...fields }),
       });
     } catch (error) {
       console.error('MeliPayamak request failed:', error);
@@ -74,10 +72,42 @@ export class SmsService {
       StrRetStatus?: string;
       Value?: string;
     };
-    if (!response.ok || payload.RetStatus !== 1) {
-      console.error('MeliPayamak error:', payload.StrRetStatus || payload.Value || response.status);
+    const value = String(payload.Value ?? '');
+    const sent = /^\d{15,}$/.test(value);
+    if (!response.ok || !sent) {
+      console.error('MeliPayamak error:', payload.StrRetStatus || value || response.status);
       throw new AppError(502, 'ارسال پیامک ناموفق بود', 'SMS_SEND_FAILED');
     }
+    return payload;
+  }
+
+  /** Pattern SMS on the Melli Payamak service line. Variables are joined with `;`. */
+  private async sendMeliPattern(bodyId: string, variables: string[], recipient: string): Promise<void> {
+    if (!bodyId) {
+      throw new AppError(503, 'سرویس پیامک پیکربندی نشده است', 'SMS_NOT_CONFIGURED');
+    }
+    await this.postMeli('BaseServiceNumber', {
+      text: variables.map((value) => value.replace(/[;\r\n]/g, ' ').trim() || '-').join(';'),
+      to: this.formatRecipient(recipient),
+      bodyId,
+    });
+  }
+
+  /** Fixed OTP text from SendOtp: «کد تایید شما Code: {code}». */
+  private async sendMeliOtp(recipient: string, otpCode: string): Promise<void> {
+    const { sender } = config.sms.melipayamak;
+    if (!sender) {
+      throw new AppError(503, 'شماره خط پیامک تنظیم نشده است', 'SMS_NOT_CONFIGURED');
+    }
+    const code = otpCode.replace(/\D/g, '');
+    if (!code) {
+      throw new AppError(400, 'کد تأیید نامعتبر است', 'SMS_SEND_FAILED');
+    }
+    await this.postMeli('SendOtp', {
+      from: sender,
+      to: this.formatRecipient(recipient),
+      code,
+    });
   }
 
   /** Customer + shop manager SMS after a paid order, using the old shop patterns. */
@@ -205,6 +235,11 @@ export class SmsService {
 
     if (this.usesMeliPayamak()) {
       const { otpBodyId } = config.sms.melipayamak;
+      if (otpBodyId) {
+        await this.sendMeliPattern(otpBodyId, [otpCode], recipient);
+      } else {
+        await this.sendMeliOtp(recipient, otpCode);
+      }
       if (!otpBodyId) {
         throw new AppError(503, 'الگوی پیامک ورود روی پنل ملی‌پیامک تنظیم نشده است', 'SMS_NOT_CONFIGURED');
       }

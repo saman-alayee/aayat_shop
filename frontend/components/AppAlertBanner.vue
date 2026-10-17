@@ -17,7 +17,7 @@ const classes: Record<string, string> = {
 <template>
   <div
     v-if="message"
-    :class="['text-sm p-3 rounded-xl border leading-relaxed', classes[variant]]"
+    :class="['whitespace-pre-line text-sm p-3 rounded-xl border leading-relaxed', classes[variant]]"
     role="alert"
   >
     {{ message }}

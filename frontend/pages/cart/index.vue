@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import type { Order, Product } from '~/types';
 import { SITE_NAME } from '~/constants/site';
-import { getTodayGregorianIso } from '~/utils/jalali';
 
 const cartStore = useCartStore();
 const authStore = useAuthStore();
 const api = useApi();
-const { formatPrice, getProductImage, toPersianDigits, formatShortDate } = useFormat();
-const { nationwideHint, loadShippingSettings } = useShippingSettings();
+const { formatPrice, getProductImage, toPersianDigits } = useFormat();
+const { nationwideHint, cartHoldMinutes, loadShippingSettings } = useShippingSettings();
 
 const suggestedProducts = ref<Product[]>([]);
 const suggestionsLoading = ref(false);
@@ -18,8 +17,6 @@ const heldOrders = ref<Order[]>([]);
 const heldLoading = ref(false);
 const requestingShip = ref(false);
 const shipMessage = ref('');
-const shipDate = ref<string | null>(null);
-const todayIso = getTodayGregorianIso();
 
 const heldItems = computed(() =>
   heldOrders.value.flatMap((order) =>
@@ -58,20 +55,16 @@ async function loadHeldOrders() {
 
 async function requestShipment() {
   if (requestingShip.value || !heldOrders.value.length) return;
-  if (!shipDate.value) {
-    actionError.value = 'روز مراجعه را انتخاب کنید';
-    return;
-  }
   requestingShip.value = true;
   actionError.value = '';
   shipMessage.value = '';
   try {
-    const { data } = await api.post<{ count: number; requestedShipDate: string }>('/orders/request-shipment', {
-      shipDate: shipDate.value,
-    });
+    const { data } = await api.post<{ count: number }>('/orders/request-shipment', {});
     heldOrders.value = [];
-    shipDate.value = null;
-    shipMessage.value = `${toPersianDigits(data.count)} سفارش برای ${formatShortDate(data.requestedShipDate)} ثبت شد.`;
+    shipMessage.value =
+      data.count > 1
+        ? `درخواست ارسال برای ${toPersianDigits(data.count)} سفارش ثبت شد.`
+        : 'درخواست ارسال برای شما ثبت شد.';
   } catch (e: unknown) {
     actionError.value = e instanceof Error ? e.message : 'ثبت درخواست ارسال انجام نشد';
   } finally {
@@ -190,18 +183,14 @@ useHead({
           <div>
             <h2 class="text-base font-bold text-[#3c322b]">لباس‌های خریداری‌شده</h2>
             <p class="mt-1 text-sm leading-6 text-gray-500">
-              پول پرداخت شده است. روزی که می‌خواهید لباس‌ها بیاید را انتخاب کنید، بعد ارسال را بزنید.
+              هر وقت دکمه ارسال بزنید، درخواست ارسال برای شما ثبت می‌شود.
             </p>
           </div>
         </div>
-        <label class="mt-4 block max-w-xs">
-          <span class="mb-1.5 block text-sm text-[#3c322b]">چه روزی بیاید؟</span>
-          <AppDatePicker v-model="shipDate" :min="todayIso" placeholder="انتخاب روز" :clearable="false" />
-        </label>
         <button
           type="button"
           class="btn-primary mt-4 h-11 px-5 text-sm"
-          :disabled="requestingShip || !shipDate"
+          :disabled="requestingShip"
           @click="requestShipment"
         >
           {{ requestingShip ? 'در حال ثبت...' : 'ارسال' }}
@@ -307,7 +296,11 @@ useHead({
               <dd>{{ formatPrice(cartStore.totalPrice) }}</dd>
             </div>
           </dl>
-          <p class="mt-3 text-xs leading-6 text-gray-500">{{ nationwideHint }}</p>
+          <p class="mt-4 text-sm font-medium text-[#3c322b]">هزینه ارسال</p>
+          <p class="mt-1 text-xs leading-6 text-gray-500">{{ nationwideHint }}</p>
+          <p class="mt-2 text-xs leading-6 text-gray-500">
+            سبد خرید {{ toPersianDigits(cartHoldMinutes) }} دقیقه نگه داشته می‌شود.
+          </p>
           <button type="button" class="btn-primary btn-action mt-5 hidden w-full lg:inline-flex" @click="continueCheckout">
             ادامه و ثبت سفارش
           </button>

@@ -223,6 +223,8 @@ export interface Cart {
   items: CartItem[];
   totalItems: number;
   totalPrice: number;
+  holdMinutes?: number;
+  expiresAt?: string | null;
   sessionId?: string;
 }
 

@@ -1,6 +1,7 @@
 import prisma from '../config/database';
 import { AppError } from '../utils/errors';
 import { v4 as uuidv4 } from 'uuid';
+import { settingsService } from './settings.service';
 
 export class CartService {
   private async resolveUserId(userId?: string): Promise<string | undefined> {
@@ -53,7 +54,25 @@ export class CartService {
 
   async getCart(userId?: string, sessionId?: string) {
     const cart = await this.getOrCreateCart(userId, sessionId);
-    return this.formatCart(cart);
+    const holdMinutes = await this.expireStaleItems(cart.id);
+    const fresh = await prisma.cart.findUnique({
+      where: { id: cart.id },
+      include: { items: { include: { product: true } } },
+    });
+    const formatted = this.formatCart(fresh!, holdMinutes);
+    if ('newSessionId' in cart) {
+      (formatted as typeof formatted & { sessionId: string }).sessionId = cart.newSessionId;
+    }
+    return formatted;
+  }
+
+  private async expireStaleItems(cartId: string) {
+    const { cartHoldMinutes } = await settingsService.getShipping();
+    const cutoff = new Date(Date.now() - cartHoldMinutes * 60 * 1000);
+    await prisma.cartItem.deleteMany({
+      where: { cartId, updatedAt: { lt: cutoff } },
+    });
+    return cartHoldMinutes;
   }
 
   async addItem(userId: string | undefined, sessionId: string | undefined, productId: string, quantity = 1) {
@@ -62,6 +81,7 @@ export class CartService {
     if (product.stock < quantity) throw new AppError(400, 'موجودی کافی نیست');
 
     const cart = await this.getOrCreateCart(userId, sessionId);
+    await this.expireStaleItems(cart.id);
     const cartId = cart.id;
 
     const existingItem = await prisma.cartItem.findUnique({
@@ -86,7 +106,8 @@ export class CartService {
       include: { items: { include: { product: true } } },
     });
 
-    const result = this.formatCart(updatedCart!);
+    const holdMinutes = (await settingsService.getShipping()).cartHoldMinutes;
+    const result = this.formatCart(updatedCart!, holdMinutes);
     if ('newSessionId' in cart) {
       (result as typeof result & { sessionId: string }).sessionId = cart.newSessionId;
     }
@@ -114,7 +135,8 @@ export class CartService {
       include: { items: { include: { product: true } } },
     });
 
-    return this.formatCart(updatedCart!);
+    const holdMinutes = (await settingsService.getShipping()).cartHoldMinutes;
+    return this.formatCart(updatedCart!, holdMinutes);
   }
 
   async removeItem(userId: string | undefined, sessionId: string | undefined, productId: string) {
@@ -170,6 +192,7 @@ export class CartService {
     items: Array<{
       id: string;
       quantity: number;
+      updatedAt?: Date;
       product: {
         id: string;
         name: string;
@@ -182,7 +205,7 @@ export class CartService {
         isActive: boolean;
       };
     }>;
-  }) {
+  }, holdMinutes = 30) {
     const items = cart.items
       .filter((item) => item.product.isActive)
       .map((item) => {
@@ -208,12 +231,21 @@ export class CartService {
 
     const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
     const totalPrice = items.reduce((sum, item) => sum + item.subtotal, 0);
+    const touched = cart.items
+      .map((item) => item.updatedAt)
+      .filter((value): value is Date => value instanceof Date);
+    const expiresAt =
+      touched.length > 0
+        ? new Date(Math.min(...touched.map((value) => value.getTime())) + holdMinutes * 60 * 1000).toISOString()
+        : null;
 
     return {
       id: cart.id,
       items,
       totalItems,
       totalPrice,
+      holdMinutes,
+      expiresAt,
     };
   }
 }
