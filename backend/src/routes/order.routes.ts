@@ -4,8 +4,14 @@ import { orderService } from '../services/order.service';
 import { asyncHandler, successResponse, validate } from '../utils/errors';
 import { authenticate, sessionMiddleware } from '../middleware/auth';
 import { paramId } from '../utils/params';
+import { normalizeDigits } from '../utils/normalize';
 
 const router = Router();
+
+const postalCodeSchema = z
+  .string()
+  .transform((v) => normalizeDigits(v).replace(/\D/g, ''))
+  .pipe(z.string().regex(/^\d{10}$/, 'کدپستی باید ۱۰ رقم باشد'));
 
 const createOrderSchema = z
   .object({
@@ -18,7 +24,7 @@ const createOrderSchema = z
     unit: z.string().optional(),
     province: z.string().min(2, 'استان الزامی است').optional(),
     city: z.string().min(2, 'شهر الزامی است').optional(),
-    postalCode: z.string().regex(/^\d{10}$/, 'کدپستی باید ۱۰ رقم باشد').optional(),
+    postalCode: postalCodeSchema.optional(),
     addressId: z.string().optional(),
     addressTitle: z.string().optional(),
     notes: z.string().optional(),

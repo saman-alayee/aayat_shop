@@ -189,32 +189,27 @@ async function handleDecrease(event: Event) {
       <AppIcon name="lucide:bookmark" size="md" class="product-card-fav__icon" />
     </button>
 
-    <div class="flex flex-col pt-3 pb-1 min-h-[4.5rem]">
+    <div class="flex flex-col gap-2 px-3 pb-3.5 pt-3.5 md:px-3.5 md:pb-4 md:pt-4">
       <NuxtLink
         :to="`/products/${product.slug}`"
-        class="text-sm font-normal leading-snug text-black line-clamp-2 hover:opacity-80 transition-opacity"
+        class="line-clamp-2 text-[0.9375rem] font-medium leading-6 tracking-tight text-primary-900 transition-opacity hover:opacity-70 md:text-base md:leading-7"
         draggable="false"
       >
         {{ product.name }}
       </NuxtLink>
 
-      <ProductRating
-        v-if="product.ratingCount"
-        class="mt-1.5"
-        :value="product.ratingAvg || 0"
-        :count="product.ratingCount"
-      />
-
-      <p v-if="outOfStock" class="product-card-oos mt-2">ناموجود</p>
-      <div v-else class="mt-2 flex flex-wrap items-baseline gap-x-1.5 text-sm font-normal leading-tight">
+      <p v-if="outOfStock" class="product-card-oos">ناموجود</p>
+      <div v-else class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span
           v-if="product.discountPrice"
-          class="price-text text-neutral-400 line-through decoration-neutral-400"
+          class="price-text text-[0.75rem] font-normal leading-none text-primary-400 line-through decoration-primary-300"
         >
           {{ formatPriceCompact(product.price) }}
         </span>
-        <span class="price-text text-black">{{ formatPriceCompact(product.effectivePrice) }}</span>
-        <span class="text-sm font-normal text-neutral-500">تومان</span>
+        <span class="price-text text-[0.9375rem] font-semibold leading-none tracking-tight text-primary-900 md:text-base">
+          {{ formatPriceCompact(product.effectivePrice) }}
+        </span>
+        <span class="text-[0.6875rem] font-normal leading-none text-primary-500">تومان</span>
       </div>
     </div>
   </article>
@@ -346,12 +341,6 @@ async function handleDecrease(event: Event) {
       >
         {{ fabricLabel }}
       </p>
-      <ProductRating
-        v-if="product.ratingCount"
-        class="mt-1"
-        :value="product.ratingAvg || 0"
-        :count="product.ratingCount"
-      />
 
       <div :class="isCompact ? 'mt-auto pt-1' : 'mt-auto flex flex-col gap-2.5 pt-2'">
         <div :class="isCompact ? 'shrink-0' : 'h-[2.6rem] shrink-0'">
@@ -410,13 +399,14 @@ async function handleDecrease(event: Event) {
 .product-card-oos {
   align-self: flex-start;
   width: fit-content;
-  border-radius: 4px;
-  background: #fde8e6;
-  padding: 1px 6px;
-  font-size: 10px;
+  border-radius: 9999px;
+  background: #f3ebe3;
+  padding: 3px 9px;
+  font-size: 0.6875rem;
   font-weight: 600;
-  line-height: 1.6;
-  color: #b42318;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  color: #6f5644;
 }
 
 .product-card-sarak-media {

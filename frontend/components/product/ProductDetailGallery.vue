@@ -108,7 +108,7 @@ function step(delta: number) {
 
 .product-fav-btn:hover {
   transform: scale(1.05);
-  color: #652a3b;
+  color: #6f5644;
 }
 
 .product-fav-btn.is-on {

@@ -170,7 +170,7 @@ onUnmounted(() => {
               :class="[
                 'relative px-2 py-3 text-center text-[11px] font-medium leading-4 transition-colors',
                 activeRootSlug === root.slug
-                  ? 'bg-white text-primary-900 shadow-[inset_3px_0_0_#652a3b]'
+                  ? 'bg-white text-primary-900 shadow-[inset_3px_0_0_#6f5644]'
                   : 'text-neutral-500 hover:bg-white/70 hover:text-neutral-800',
               ]"
               :aria-current="activeRootSlug === root.slug ? 'true' : undefined"

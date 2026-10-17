@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AddressFieldErrors } from '~/composables/useAddressFields';
 import { IRAN_PROVINCES } from '~/constants/iranLocations';
+import { normalizeDigits } from '~/utils/normalize';
 
 const props = defineProps<{
   errors?: AddressFieldErrors;
@@ -19,6 +20,11 @@ const provinceOptions = IRAN_PROVINCES.map((item) => ({ value: item.name, label:
 const citySelectOptions = computed(() =>
   (props.cityOptions ?? []).map((name) => ({ value: name, label: name }))
 );
+
+function onPostalInput(event: Event) {
+  const el = event.target as HTMLInputElement;
+  postalCode.value = normalizeDigits(el.value).replace(/\D/g, '').slice(0, 10);
+}
 </script>
 
 <template>
@@ -82,7 +88,7 @@ const citySelectOptions = computed(() =>
     <div>
       <label class="field-label">کدپستی</label>
       <input
-        v-model="postalCode"
+        :value="postalCode"
         type="text"
         required
         inputmode="numeric"
@@ -91,6 +97,7 @@ const citySelectOptions = computed(() =>
         :class="{ 'input-invalid': errors?.postalCode }"
         placeholder="۱۰ رقم"
         dir="ltr"
+        @input="onPostalInput"
       />
       <AppFormError :message="errors?.postalCode" />
     </div>

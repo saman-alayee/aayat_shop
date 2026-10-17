@@ -1,29 +1,29 @@
 <script setup lang="ts">
-/** کارت‌های دسته از صفحه اصلی aaytay.ir — متن داخل خود تصویر است. */
+/** دسته‌های صفحه اصلی — کارت آیکون، مثل اودما. */
 const tiles = [
-  { slug: 'pants', image: '/wp-home/cat-pants.webp', name: 'شلوار' },
-  { slug: 'overalls', image: '/wp-home/cat-overalls.webp', name: 'اورال' },
-  { slug: 'paperbacks-and-shirts', image: '/wp-home/cat-blouse.webp', name: 'شومیز' },
-  { slug: 'coat', image: '/wp-home/cat-coat.webp', name: 'کت' },
-  { slug: 'beach-shirt', image: '/wp-home/cat-beach.webp', name: 'پیراهن ساحلی' },
-  { slug: 't-shirt', image: '/wp-home/cat-tshirt.webp', name: 'تیشرت' },
-];
+  { slug: 't-shirt', name: 'تیشرت', image: '/wp-home/categories/tshirt.png' },
+  { slug: 'paperbacks-and-shirts', name: 'شومیز', image: '/wp-home/categories/blouse.png' },
+  { slug: 'pants', name: 'شلوار', image: '/wp-home/categories/pants.png' },
+  { slug: 'overalls', name: 'اورال', image: '/wp-home/categories/overalls.png' },
+  { slug: 'knitted-blouse', name: 'بافت', image: '/wp-home/categories/knitted-blouse.png' },
+  { slug: 'beach-shirt', name: 'پیراهن', image: '/wp-home/categories/dress.png' },
+  { slug: 'coat', name: 'کت', image: '/wp-home/categories/coat.png' },
+] as const;
 </script>
 
 <template>
-  <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 px-3 md:px-6 py-4 md:py-6">
+  <section class="grid grid-cols-2 gap-3 px-4 py-5 md:grid-cols-3 md:gap-4 md:px-6 md:py-8">
     <NuxtLink
       v-for="tile in tiles"
       :key="tile.slug"
       :to="`/categories/${tile.slug}`"
-      class="block overflow-hidden rounded-2xl bg-neutral-100"
+      :aria-label="tile.name"
+      class="relative flex h-28 items-center justify-center overflow-hidden rounded-[1.6rem] bg-[#f7f1e8] ring-1 ring-[#e4d5c4] transition-colors hover:bg-[#f3ebdf] md:h-36"
     >
       <img
         :src="tile.image"
         :alt="tile.name"
-        class="h-auto w-full object-cover"
-        width="640"
-        height="800"
+        class="h-full w-full object-cover"
         loading="lazy"
         decoding="async"
       />

@@ -942,6 +942,29 @@ router.put(
   })
 );
 
+const shippingSettingsSchema = z.object({
+  nationwideFee: z.coerce.number().int().min(0).max(10_000_000),
+  nationwideHint: z.string().trim().min(2).max(200),
+});
+
+router.get(
+  '/settings/shipping',
+  permSettings,
+  asyncHandler(async (_req, res) => {
+    successResponse(res, await settingsService.getShipping());
+  })
+);
+
+router.put(
+  '/settings/shipping',
+  permSettings,
+  validate(shippingSettingsSchema),
+  asyncHandler(async (req, res) => {
+    const settings = await settingsService.updateShipping(req.body);
+    successResponse(res, settings, 'تنظیمات ارسال ذخیره شد');
+  })
+);
+
 const maintenanceSchema = z.object({
   enabled: z.boolean(),
   message: z.string().min(2).max(280).optional(),

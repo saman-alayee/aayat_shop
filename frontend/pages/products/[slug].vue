@@ -267,7 +267,7 @@ usePageSeo(() => ({
     <ProductReviews v-if="product" :slug="product.slug" />
 
     <section v-if="relatedProducts.length" class="mx-auto mt-6 max-w-[1240px] border-t border-gray-100 px-4 pb-6 pt-8">
-      <h2 class="mb-4 text-base font-bold text-[#23254e]">محصولات مشابه</h2>
+      <h2 class="mb-4 text-base font-bold text-[#3c322b]">محصولات مشابه</h2>
       <ProductCardList :products="relatedProducts" layout="strip" />
     </section>
 
@@ -277,7 +277,7 @@ usePageSeo(() => ({
           v-if="quantity === 0 || justAdded || addingToCart"
           type="button"
           class="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-lg px-4 text-sm text-white transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-gray-300"
-          :class="justAdded ? 'bg-[#1f8a4c]' : 'bg-[#ef394e]'"
+          :class="justAdded ? 'bg-[#1f8a4c]' : 'bg-primary-700'"
           :disabled="!canPurchase || addingToCart"
           @click="addToCart"
         >
@@ -309,7 +309,7 @@ usePageSeo(() => ({
         >
           ناموجود
         </p>
-        <p v-else class="shrink-0 text-base font-bold text-[#23254e]">
+        <p v-else class="shrink-0 text-base font-bold text-[#3c322b]">
           {{ formatPrice(product.effectivePrice) }}
         </p>
       </div>

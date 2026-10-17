@@ -1,4 +1,4 @@
-export const NATIONWIDE_SHIPPING_FEE = 135_000;
+export const NATIONWIDE_SHIPPING_FEE = 0;
 
 export const SHIPPING_METHODS = {
   PICKUP: { label: 'تحویل حضوری', fee: 0 },

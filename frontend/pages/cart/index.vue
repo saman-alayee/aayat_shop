@@ -7,6 +7,7 @@ const cartStore = useCartStore();
 const authStore = useAuthStore();
 const api = useApi();
 const { formatPrice, getProductImage, toPersianDigits, formatShortDate } = useFormat();
+const { nationwideHint, loadShippingSettings } = useShippingSettings();
 
 const suggestedProducts = ref<Product[]>([]);
 const suggestionsLoading = ref(false);
@@ -145,7 +146,7 @@ async function clearCart() {
 }
 
 onMounted(async () => {
-  await Promise.all([cartStore.fetchCart(), loadHeldOrders()]);
+  await Promise.all([cartStore.fetchCart(), loadHeldOrders(), loadShippingSettings()]);
   await loadSuggestions();
 });
 
@@ -161,12 +162,12 @@ useHead({
 </script>
 
 <template>
-  <div class="bg-[#f6f3f1] pb-36 md:pb-12">
+  <div class="bg-surface-muted pb-36 md:pb-12">
     <div class="mx-auto max-w-[1100px] px-4 py-6 md:py-10">
       <div class="mb-6 flex items-end justify-between gap-3">
         <div>
           <p class="text-xs tracking-wide text-primary-700">{{ SITE_NAME }}</p>
-          <h1 class="mt-1 text-2xl font-bold text-[#23254e]">سبد خرید</h1>
+          <h1 class="mt-1 text-2xl font-bold text-[#3c322b]">سبد خرید</h1>
           <p v-if="!cartStore.loading && !cartStore.isEmpty" class="mt-1 text-sm text-gray-500">
             {{ pieceLabel }} برای تسویه آماده است
           </p>
@@ -187,14 +188,14 @@ useHead({
       <section v-if="heldItems.length" class="mb-6 rounded-3xl bg-white p-4 shadow-card sm:p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 class="text-base font-bold text-[#23254e]">لباس‌های خریداری‌شده</h2>
+            <h2 class="text-base font-bold text-[#3c322b]">لباس‌های خریداری‌شده</h2>
             <p class="mt-1 text-sm leading-6 text-gray-500">
               پول پرداخت شده است. روزی که می‌خواهید لباس‌ها بیاید را انتخاب کنید، بعد ارسال را بزنید.
             </p>
           </div>
         </div>
         <label class="mt-4 block max-w-xs">
-          <span class="mb-1.5 block text-sm text-[#23254e]">چه روزی بیاید؟</span>
+          <span class="mb-1.5 block text-sm text-[#3c322b]">چه روزی بیاید؟</span>
           <AppDatePicker v-model="shipDate" :min="todayIso" placeholder="انتخاب روز" :clearable="false" />
         </label>
         <button
@@ -208,10 +209,10 @@ useHead({
         <ul class="mt-4 divide-y divide-[#f0ebe8]">
           <li v-for="item in heldItems" :key="item.id" class="flex items-center justify-between gap-3 py-3 text-sm">
             <span class="min-w-0">
-              <span class="block truncate font-medium text-[#23254e]">{{ item.name }}</span>
+              <span class="block truncate font-medium text-[#3c322b]">{{ item.name }}</span>
               <span class="text-xs text-gray-400">{{ toPersianDigits(item.quantity) }} عدد · {{ item.orderNumber }}</span>
             </span>
-            <span class="shrink-0 font-bold text-[#23254e]">{{ formatPrice(item.price * item.quantity) }}</span>
+            <span class="shrink-0 font-bold text-[#3c322b]">{{ formatPrice(item.price * item.quantity) }}</span>
           </li>
         </ul>
       </section>
@@ -238,7 +239,7 @@ useHead({
             <div class="flex min-w-0 flex-1 flex-col">
               <div class="flex items-start justify-between gap-2">
                 <NuxtLink :to="`/products/${item.slug}`" class="min-w-0">
-                  <h2 class="line-clamp-2 text-sm font-bold leading-6 text-[#23254e] sm:text-base">
+                  <h2 class="line-clamp-2 text-sm font-bold leading-6 text-[#3c322b] sm:text-base">
                     {{ item.name }}
                   </h2>
                 </NuxtLink>
@@ -286,7 +287,7 @@ useHead({
                     <AppIcon name="lucide:plus" size="sm" />
                   </button>
                 </div>
-                <p class="text-sm font-bold text-[#23254e]">
+                <p class="text-sm font-bold text-[#3c322b]">
                   {{ formatPrice(item.subtotal) }}
                 </p>
               </div>
@@ -295,18 +296,18 @@ useHead({
         </TransitionGroup>
 
         <aside class="rounded-3xl bg-white p-5 shadow-card lg:sticky lg:top-24">
-          <h2 class="text-base font-bold text-[#23254e]">خلاصه سفارش</h2>
+          <h2 class="text-base font-bold text-[#3c322b]">خلاصه سفارش</h2>
           <dl class="mt-4 space-y-3 text-sm">
             <div class="flex items-center justify-between text-gray-600">
               <dt>تعداد لباس</dt>
               <dd>{{ pieceLabel }}</dd>
             </div>
-            <div class="flex items-center justify-between border-t border-[#f0ebe8] pt-3 text-base font-bold text-[#23254e]">
+            <div class="flex items-center justify-between border-t border-[#f0ebe8] pt-3 text-base font-bold text-[#3c322b]">
               <dt>مبلغ قابل پرداخت</dt>
               <dd>{{ formatPrice(cartStore.totalPrice) }}</dd>
             </div>
           </dl>
-          <p class="mt-3 text-xs leading-6 text-gray-500">هزینه ارسال در مرحله بعد محاسبه می‌شود.</p>
+          <p class="mt-3 text-xs leading-6 text-gray-500">{{ nationwideHint }}</p>
           <button type="button" class="btn-primary btn-action mt-5 hidden w-full lg:inline-flex" @click="continueCheckout">
             ادامه و ثبت سفارش
           </button>
@@ -339,7 +340,7 @@ useHead({
       <div class="mx-auto flex max-w-lg items-center gap-3">
         <div class="min-w-0">
           <p class="text-xs text-gray-500">قابل پرداخت</p>
-          <p class="truncate text-sm font-bold text-[#23254e]">{{ formatPrice(cartStore.totalPrice) }}</p>
+          <p class="truncate text-sm font-bold text-[#3c322b]">{{ formatPrice(cartStore.totalPrice) }}</p>
         </div>
         <button type="button" class="btn-primary inline-flex h-12 flex-1 items-center justify-center rounded-xl text-sm font-bold" @click="continueCheckout">
           ادامه و ثبت سفارش

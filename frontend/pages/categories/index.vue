@@ -82,7 +82,7 @@ usePageSeo({
       <section
         v-for="(section, index) in categorySections"
         :key="section.category.id"
-        :class="['px-4 py-5', index % 2 === 1 ? 'bg-gray-50/70' : '']"
+        :class="['py-5', index % 2 === 1 ? 'bg-gray-50/70' : '']"
       >
         <HomeSection
           :title="section.category.name"
@@ -90,8 +90,8 @@ usePageSeo({
         />
         <ProductCardList
           :products="section.products.slice(0, 10)"
-          layout="strip"
-          density="compact"
+          layout="grid"
+          density="sarak"
         />
       </section>
 

@@ -40,6 +40,7 @@ export const config = {
       sender: process.env.MELIPAYAMAK_SENDER || '',
       customerBodyId: process.env.MELIPAYAMAK_CUSTOMER_BODY_ID || '',
       adminBodyId: process.env.MELIPAYAMAK_ADMIN_BODY_ID || '',
+      otpBodyId: process.env.MELIPAYAMAK_OTP_BODY_ID || '',
       adminPhones: (process.env.MELIPAYAMAK_ADMIN_PHONES || '')
         .split(',')
         .map((phone) => phone.trim())

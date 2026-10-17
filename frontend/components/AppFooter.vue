@@ -32,7 +32,7 @@ const channels = [
 </script>
 
 <template>
-  <footer class="mt-12 border-t border-gray-200 bg-surface-muted pb-24 md:pb-0">
+  <footer class="mt-12 border-t border-primary-200/80 bg-[#efe8df] pb-24 md:pb-0">
     <div class="max-w-store mx-auto px-4 py-10">
       <div class="grid grid-cols-1 gap-8 md:grid-cols-4">
         <div>

@@ -104,7 +104,7 @@ usePageSeo({
 </script>
 
 <template>
-  <div class="pb-10 bg-white">
+  <div class="pb-10 bg-surface-muted">
     <HomeHeroSlider v-if="displayTopSliders.length" :sliders="displayTopSliders" layout="banner" />
 
     <HomeWpCategoryBanners />

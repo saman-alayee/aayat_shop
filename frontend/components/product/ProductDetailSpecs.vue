@@ -40,7 +40,7 @@ function share(kind: 'whatsapp' | 'telegram' | 'twitter' | 'facebook') {
 
 <template>
   <div class="mt-5 flex min-w-0 flex-col md:mt-1">
-    <h1 class="text-[19px] font-bold leading-8 text-[#23254e] md:text-xl">
+    <h1 class="text-[19px] font-bold leading-8 text-[#3c322b] md:text-xl">
       {{ product.name }}
     </h1>
     <ProductRating
@@ -52,7 +52,7 @@ function share(kind: 'whatsapp' | 'telegram' | 'twitter' | 'facebook') {
     />
 
     <div class="mt-4 flex flex-wrap items-end gap-x-3 gap-y-2">
-      <p class="text-[22px] font-bold leading-none text-[#23254e]">
+      <p class="text-[22px] font-bold leading-none text-[#3c322b]">
         {{ formatPrice(product.effectivePrice) }}
       </p>
       <p v-if="product.discountPrice" class="text-sm text-gray-400 line-through">
@@ -97,7 +97,7 @@ function share(kind: 'whatsapp' | 'telegram' | 'twitter' | 'facebook') {
         v-if="quantity === 0 || justAdded || adding"
         type="button"
         class="inline-flex h-12 min-w-[190px] items-center justify-center gap-2 rounded-lg px-6 text-sm text-white transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-gray-300"
-        :class="justAdded ? 'bg-[#1f8a4c]' : 'bg-[#ef394e] hover:bg-[#d63245]'"
+        :class="justAdded ? 'bg-[#1f8a4c]' : 'bg-primary-700 hover:bg-primary-800'"
         :disabled="!canPurchase || adding"
         @click="emit('addToCart')"
       >
@@ -143,13 +143,13 @@ function share(kind: 'whatsapp' | 'telegram' | 'twitter' | 'facebook') {
 
     <div
       v-if="product.description"
-      class="mt-8 text-sm leading-8 text-[#3f4064] whitespace-pre-line"
+      class="mt-8 text-sm leading-8 text-[#6e655d] whitespace-pre-line"
     >
       {{ product.description }}
     </div>
 
-    <div v-if="clothingMeta?.sizeGuide" class="mt-6 text-sm leading-8 text-[#3f4064] whitespace-pre-line">
-      <p class="mb-1 font-bold text-[#23254e]">راهنمای سایز</p>
+    <div v-if="clothingMeta?.sizeGuide" class="mt-6 text-sm leading-8 text-[#6e655d] whitespace-pre-line">
+      <p class="mb-1 font-bold text-[#3c322b]">راهنمای سایز</p>
       {{ clothingMeta.sizeGuide }}
     </div>
   </div>

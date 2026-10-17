@@ -18,7 +18,7 @@ function isActive(path: string) {
 </script>
 
 <template>
-  <nav class="fixed bottom-0 inset-x-0 z-50 bg-white border-t border-gray-100 md:hidden pb-[env(safe-area-inset-bottom)]">
+  <nav class="fixed bottom-0 inset-x-0 z-50 bg-surface-muted border-t border-primary-200/80 md:hidden pb-[env(safe-area-inset-bottom)]">
     <div class="flex items-center justify-around py-2 px-1">
       <NuxtLink
         v-for="item in navItems"

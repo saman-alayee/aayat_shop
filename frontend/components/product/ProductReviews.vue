@@ -95,14 +95,14 @@ onMounted(async () => {
   <section class="mx-auto mt-8 max-w-[1240px] border-t border-gray-100 px-4 pb-10 pt-8">
     <div class="flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h2 class="text-lg font-bold text-[#23254e]">امتیاز و نظرات</h2>
+        <h2 class="text-lg font-bold text-[#3c322b]">امتیاز و نظرات</h2>
         <p class="mt-1 text-xs text-neutral-500">هر کاربر برای هر محصول یک نظر می‌تواند ثبت کند؛ همه نظرات عمومی‌اند.</p>
       </div>
       <div class="flex items-center gap-3 rounded-2xl bg-[#faf8f5] px-4 py-3">
         <ProductRating :value="summary.ratingAvg" size="lg" />
         <p class="text-sm leading-6 text-neutral-600">
           <template v-if="summary.ratingCount">
-            <span class="font-semibold text-[#23254e]">{{ toPersianDigits(summary.ratingAvg.toFixed(1)) }}</span>
+            <span class="font-semibold text-[#3c322b]">{{ toPersianDigits(summary.ratingAvg.toFixed(1)) }}</span>
             از ۵
             <span class="mx-1 text-neutral-300">·</span>
             {{ toPersianDigits(summary.ratingCount) }} نظر
@@ -117,7 +117,7 @@ onMounted(async () => {
       @submit.prevent="submit"
     >
       <div class="border-b border-[#f0e7db] bg-[#faf8f5] px-5 py-4">
-        <p class="text-sm font-semibold text-[#23254e]">
+        <p class="text-sm font-semibold text-[#3c322b]">
           {{ hasMine ? 'نظر شما برای این محصول' : 'ثبت دیدگاه' }}
         </p>
         <p class="mt-1 text-xs text-neutral-500">
@@ -152,7 +152,7 @@ onMounted(async () => {
               v-model="body"
               rows="4"
               maxlength="500"
-              class="w-full rounded-xl border border-[#e8e0d4] bg-[#fcfbf9] px-4 py-3 text-sm leading-7 text-[#23254e] outline-none transition-colors focus:border-[#c4922a] focus:bg-white"
+              class="w-full rounded-xl border border-[#e8e0d4] bg-[#fcfbf9] px-4 py-3 text-sm leading-7 text-[#3c322b] outline-none transition-colors focus:border-[#c4922a] focus:bg-white"
               placeholder="تجربه خرید این لباس را بنویسید"
             />
           </label>
@@ -160,7 +160,7 @@ onMounted(async () => {
             <p class="text-[11px] text-neutral-400">{{ toPersianDigits(bodyLen) }} / ۵۰۰</p>
             <button
               type="submit"
-              class="inline-flex h-11 items-center rounded-xl bg-[#23254e] px-5 text-sm text-white transition-opacity disabled:opacity-60"
+              class="inline-flex h-11 items-center rounded-xl bg-[#3c322b] px-5 text-sm text-white transition-opacity disabled:opacity-60"
               :disabled="saving"
             >
               {{ saving ? 'در حال ثبت' : hasMine ? 'به‌روزرسانی نظر' : 'ثبت نظر' }}
@@ -171,7 +171,7 @@ onMounted(async () => {
           <p class="text-sm text-neutral-600">برای ثبت دیدگاه وارد حساب شوید.</p>
           <NuxtLink
             :to="loginTo"
-            class="mt-3 inline-flex h-10 items-center rounded-xl bg-[#652a3b] px-4 text-sm text-white"
+            class="mt-3 inline-flex h-10 items-center rounded-xl bg-primary-700 px-4 text-sm text-white"
           >
             ورود و ثبت نظر
           </NuxtLink>
@@ -187,11 +187,11 @@ onMounted(async () => {
         class="rounded-2xl border border-gray-100 bg-white px-4 py-4 shadow-[0_4px_16px_rgba(35,37,78,0.03)]"
       >
         <div class="flex flex-wrap items-center gap-2.5">
-          <p class="text-sm font-semibold text-[#23254e]">{{ review.authorName }}</p>
+          <p class="text-sm font-semibold text-[#3c322b]">{{ review.authorName }}</p>
           <ProductRating :value="review.rating" size="md" />
           <p class="text-xs text-neutral-400">{{ formatShortDate(review.createdAt) }}</p>
         </div>
-        <p v-if="review.body" class="mt-2.5 text-sm leading-7 text-[#3f4064]">{{ review.body }}</p>
+        <p v-if="review.body" class="mt-2.5 text-sm leading-7 text-[#6e655d]">{{ review.body }}</p>
       </li>
     </ul>
     <p v-else class="mt-8 text-sm text-neutral-500">هنوز دیدگاهی برای این محصول نیست.</p>

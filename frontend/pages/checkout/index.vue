@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Address } from '~/types';
 import { SITE_NAME } from '~/constants/site';
-import { SHIPPING_OPTIONS, type ShippingMethod } from '~/constants/shipping';
+import { type ShippingMethod } from '~/constants/shipping';
 import { useOrdersStore } from '~/stores/orders';
 
 const route = useRoute();
@@ -11,6 +11,7 @@ const authStore = useAuthStore();
 const api = useApi();
 const toast = useToast();
 const { formatPrice } = useFormat();
+const { shippingOptions, feeFor, loadShippingSettings } = useShippingSettings();
 const manualAddress = useAddressFields();
 const { street, plaque, unit, province, city, postalCode, cityOptions, errors: addressErrors, validate: validateAddress, payload: manualPayload, loadFromAddress } = manualAddress;
 
@@ -34,9 +35,7 @@ const appliedCoupon = ref<{
 
 const displaySubtotal = computed(() => appliedCoupon.value?.totalPrice ?? cartStore.totalPrice);
 const displayDiscount = computed(() => appliedCoupon.value?.discountAmount ?? 0);
-const deliveryFee = computed(
-  () => SHIPPING_OPTIONS.find((item) => item.value === form.deliveryMethod)?.fee ?? 0,
-);
+const deliveryFee = computed(() => feeFor(form.deliveryMethod));
 const displayTotal = computed(() => displaySubtotal.value + deliveryFee.value);
 
 function scrollToFirstError() {
@@ -46,6 +45,7 @@ function scrollToFirstError() {
 }
 
 onMounted(async () => {
+  void loadShippingSettings();
   if (route.query.payment === 'failed') {
     error.value = 'پرداخت زیبال انجام نشد. اگر مبلغی کم شده باشد به حساب برمی‌گردد. می‌توانید دوباره پرداخت کنید.';
   }
@@ -191,7 +191,7 @@ useHead({
           بعد از پرداخت، لباس در سبد خرید می‌ماند. پست زمانی انجام می‌شود که خودتان دکمهٔ ارسال را بزنید.
         </p>
         <label
-          v-for="option in SHIPPING_OPTIONS"
+          v-for="option in shippingOptions"
           :key="option.value"
           class="flex cursor-pointer items-center justify-between gap-4 border-b border-neutral-200 py-3"
         >

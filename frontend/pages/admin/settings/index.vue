@@ -4,7 +4,7 @@ definePageMeta({ layout: 'admin', middleware: 'admin' });
 const api = useApi();
 const toast = useToast();
 
-type SettingsTab = 'announcement' | 'maintenance' | 'new-order-sms';
+type SettingsTab = 'announcement' | 'shipping' | 'maintenance' | 'new-order-sms';
 
 interface NewOrderSmsSettings {
   enabled: boolean;
@@ -15,6 +15,7 @@ interface NewOrderSmsSettings {
 
 const tabs: Array<{ id: SettingsTab; label: string; icon: string }> = [
   { id: 'announcement', label: 'متن بالای سایت', icon: 'lucide:megaphone' },
+  { id: 'shipping', label: 'هزینه و متن پست', icon: 'lucide:truck' },
   { id: 'maintenance', label: 'تعمیر فروشگاه', icon: 'lucide:scissors' },
   { id: 'new-order-sms', label: 'پیامک نوتیف سفارش', icon: 'lucide:message-square-text' },
 ];
@@ -34,6 +35,11 @@ const maintenance = reactive({
 const maintenanceSaving = ref(false);
 const announcementText = ref('');
 const announcementSaving = ref(false);
+const shippingForm = reactive({
+  nationwideFee: 0,
+  nationwideHint: 'پرداخت هزینه پست در محل (هنگام تحویل) انجام می‌شود',
+});
+const shippingSaving = ref(false);
 
 const form = reactive({
   enabled: true,
@@ -58,7 +64,7 @@ const phoneCount = computed(() =>
 );
 
 onMounted(async () => {
-  await Promise.all([loadAnnouncement(), loadMaintenance(), loadSettings()]);
+  await Promise.all([loadAnnouncement(), loadShipping(), loadMaintenance(), loadSettings()]);
 });
 
 async function loadAnnouncement() {
@@ -82,6 +88,38 @@ async function saveAnnouncement() {
     toast.error(e instanceof Error ? e.message : 'خطا در ذخیره');
   } finally {
     announcementSaving.value = false;
+  }
+}
+
+async function loadShipping() {
+  try {
+    const { data } = await api.get<{ nationwideFee: number; nationwideHint: string }>(
+      '/admin/settings/shipping'
+    );
+    shippingForm.nationwideFee = data.nationwideFee;
+    shippingForm.nationwideHint = data.nationwideHint;
+  } catch (e: unknown) {
+    toast.error(e instanceof Error ? e.message : 'خطا در بارگذاری تنظیمات ارسال');
+  }
+}
+
+async function saveShipping() {
+  shippingSaving.value = true;
+  try {
+    const { data } = await api.put<{ nationwideFee: number; nationwideHint: string }>(
+      '/admin/settings/shipping',
+      {
+        nationwideFee: Number(shippingForm.nationwideFee) || 0,
+        nationwideHint: shippingForm.nationwideHint.trim(),
+      }
+    );
+    shippingForm.nationwideFee = data.nationwideFee;
+    shippingForm.nationwideHint = data.nationwideHint;
+    toast.success('تنظیمات ارسال ذخیره شد');
+  } catch (e: unknown) {
+    toast.error(e instanceof Error ? e.message : 'خطا در ذخیره');
+  } finally {
+    shippingSaving.value = false;
   }
 }
 
@@ -205,7 +243,7 @@ useHead({ title: 'تنظیمات - پنل مدیریت' });
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
       <div>
         <h1 class="text-2xl font-bold text-gray-900">تنظیمات</h1>
-        <p class="text-sm text-gray-500 mt-1">متن بالای سایت، تعمیر فروشگاه و پیامک</p>
+        <p class="text-sm text-gray-500 mt-1">متن بالای سایت، هزینه پست، تعمیر فروشگاه و پیامک</p>
       </div>
       <button type="button" class="btn-secondary text-sm self-start" @click="showGuide = !showGuide">
         {{ showGuide ? 'بستن راهنما' : 'نمایش راهنما' }}
@@ -242,6 +280,54 @@ useHead({ title: 'تنظیمات - پنل مدیریت' });
       <div class="flex justify-end">
         <button type="button" class="btn-primary px-5 py-2.5 disabled:opacity-60" :disabled="announcementSaving" @click="saveAnnouncement">
           {{ announcementSaving ? 'در حال ذخیره…' : 'ذخیره متن' }}
+        </button>
+      </div>
+    </div>
+
+    <div v-if="activeTab === 'shipping'" class="bg-white rounded-xl border border-gray-100 p-6 space-y-4 max-w-2xl">
+      <div>
+        <h2 class="text-lg font-semibold text-gray-900">ارسال به سراسر ایران</h2>
+        <p class="text-sm text-gray-500 mt-1">
+          هزینهٔ آنلاین و متن راهنما برای روش ارسال پستی. اگر هزینه صفر باشد، مبلغ ارسال در درگاه گرفته نمی‌شود.
+        </p>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">هزینه پست در پرداخت آنلاین (تومان)</label>
+        <input
+          v-model.number="shippingForm.nationwideFee"
+          type="number"
+          min="0"
+          max="10000000"
+          step="1000"
+          class="input-field"
+          dir="ltr"
+        />
+        <p class="mt-1 text-xs text-gray-500">برای پرداخت در محل، این عدد را ۰ بگذارید.</p>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">متن نمایش به مشتری</label>
+        <textarea
+          v-model="shippingForm.nationwideHint"
+          rows="3"
+          maxlength="200"
+          class="input-field resize-none"
+          placeholder="مثلاً: پرداخت هزینه پست در محل (هنگام تحویل) انجام می‌شود"
+        />
+      </div>
+      <div class="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+        پیش‌نمایش: {{ shippingForm.nationwideHint || '—' }}
+        <span v-if="shippingForm.nationwideFee > 0" class="text-gray-500">
+          — {{ shippingForm.nationwideFee.toLocaleString('fa-IR') }} تومان
+        </span>
+      </div>
+      <div class="flex justify-end">
+        <button
+          type="button"
+          class="btn-primary px-5 py-2.5 disabled:opacity-60"
+          :disabled="shippingSaving || !shippingForm.nationwideHint.trim()"
+          @click="saveShipping"
+        >
+          {{ shippingSaving ? 'در حال ذخیره…' : 'ذخیره تنظیمات ارسال' }}
         </button>
       </div>
     </div>

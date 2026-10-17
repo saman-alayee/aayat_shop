@@ -1,4 +1,5 @@
 import { citiesOfProvince, DEFAULT_CITY, DEFAULT_PROVINCE } from '~/constants/iranLocations';
+import { normalizeDigits } from '~/utils/normalize';
 
 export interface AddressFieldErrors {
   street?: string;
@@ -118,9 +119,12 @@ export function useAddressFields() {
       errors.unit = 'واحد را وارد کنید';
       valid = false;
     }
-    if (!/^\d{10}$/.test(postalCode.value.trim())) {
+    const postalNormalized = normalizeDigits(postalCode.value).replace(/\D/g, '');
+    if (!/^\d{10}$/.test(postalNormalized)) {
       errors.postalCode = 'کدپستی باید ۱۰ رقم باشد';
       valid = false;
+    } else {
+      postalCode.value = postalNormalized;
     }
 
     return valid;
@@ -132,7 +136,7 @@ export function useAddressFields() {
     const unitVal = unit.value.trim();
     const provinceVal = province.value.trim();
     const cityVal = city.value.trim();
-    const postalVal = postalCode.value.trim();
+    const postalVal = normalizeDigits(postalCode.value).replace(/\D/g, '');
     const composed = composeAddress({
       province: provinceVal,
       city: cityVal,

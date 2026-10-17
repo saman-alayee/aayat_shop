@@ -1,4 +1,4 @@
-export const NATIONWIDE_SHIPPING_FEE = 135_000;
+export const NATIONWIDE_SHIPPING_FEE = 0;
 
 export const SHIPPING_OPTIONS = [
   {
@@ -10,7 +10,7 @@ export const SHIPPING_OPTIONS = [
   {
     value: 'NATIONWIDE',
     label: 'ارسال به سراسر ایران',
-    hint: 'هزینه ارسال ۱۳۵ هزار تومان',
+    hint: 'پرداخت هزینه پست در محل (هنگام تحویل) انجام می‌شود',
     fee: NATIONWIDE_SHIPPING_FEE,
   },
 ] as const;

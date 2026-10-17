@@ -104,7 +104,7 @@ const centerIcon = computed(() => {
             cx="80"
             cy="80"
             r="62"
-            stroke="#652a3b"
+            stroke="#6f5644"
             stroke-opacity="0.12"
             stroke-width="1.2"
             stroke-dasharray="2 10"
@@ -121,13 +121,13 @@ const centerIcon = computed(() => {
           />
 
           <!-- void hole -->
-          <circle cx="80" cy="80" r="34" fill="#652a3b" fill-opacity="0.05" />
+          <circle cx="80" cy="80" r="34" fill="#6f5644" fill-opacity="0.05" />
           <circle
             class="void-empty__pulse"
             cx="80"
             cy="80"
             r="34"
-            stroke="#652a3b"
+            stroke="#6f5644"
             stroke-opacity="0.22"
             stroke-width="1.4"
           />
@@ -135,12 +135,12 @@ const centerIcon = computed(() => {
           <!-- رگال + جالباسی خالی -->
           <g v-if="centerIcon === 'rack'" class="void-empty__motif">
             <!-- میله رگال -->
-            <line x1="48" y1="58" x2="112" y2="58" stroke="#652a3b" stroke-width="2.4" stroke-linecap="round" />
-            <circle cx="48" cy="58" r="2.8" fill="#652a3b" fill-opacity="0.45" />
-            <circle cx="112" cy="58" r="2.8" fill="#652a3b" fill-opacity="0.45" />
+            <line x1="48" y1="58" x2="112" y2="58" stroke="#6f5644" stroke-width="2.4" stroke-linecap="round" />
+            <circle cx="48" cy="58" r="2.8" fill="#6f5644" fill-opacity="0.45" />
+            <circle cx="112" cy="58" r="2.8" fill="#6f5644" fill-opacity="0.45" />
             <path
               d="M80 58c0-8 10-8 10 1 0 6-5 8-7 11"
-              stroke="#652a3b"
+              stroke="#6f5644"
               stroke-width="2.2"
               stroke-linecap="round"
               fill="none"
@@ -148,15 +148,15 @@ const centerIcon = computed(() => {
             <path
               d="M83 70 58 96c-3 4 1 8 5 8h40c4 0 8-4 5-8L83 70z"
               fill="none"
-              stroke="#652a3b"
+              stroke="#6f5644"
               stroke-width="2"
               stroke-linejoin="round"
             />
-            <path d="M66 98h28" stroke="#652a3b" stroke-width="1.6" stroke-linecap="round" />
+            <path d="M66 98h28" stroke="#6f5644" stroke-width="1.6" stroke-linecap="round" />
             <!-- جای خالی لباس (نقطه‌چین) -->
             <path
               d="M62 88c5 4 11 6 18 6s13-2 18-6"
-              stroke="#652a3b"
+              stroke="#6f5644"
               stroke-opacity="0.3"
               stroke-width="1.3"
               stroke-dasharray="3 4"
@@ -168,12 +168,12 @@ const centerIcon = computed(() => {
           <g v-else-if="centerIcon === 'bag'" class="void-empty__motif">
             <path
               d="M58 72h44l-4 36c0 4-3 7-7 7H69c-4 0-7-3-7-7l-4-36z"
-              stroke="#652a3b"
+              stroke="#6f5644"
               stroke-width="2"
-              fill="#652a3b"
+              fill="#6f5644"
               fill-opacity="0.06"
             />
-            <path d="M70 72c0-8 4-14 10-14s10 6 10 14" stroke="#652a3b" stroke-width="2" fill="none" />
+            <path d="M70 72c0-8 4-14 10-14s10 6 10 14" stroke="#6f5644" stroke-width="2" fill="none" />
             <path
               d="M68 88h24"
               stroke="#b8924a"
@@ -186,9 +186,9 @@ const centerIcon = computed(() => {
           <g v-else-if="centerIcon === 'bookmark'" class="void-empty__motif">
             <path
               d="M64 52h32c3 0 6 3 6 6v52l-16-10-16 10V58c0-3 3-6 6-6z"
-              stroke="#652a3b"
+              stroke="#6f5644"
               stroke-width="2"
-              fill="#652a3b"
+              fill="#6f5644"
               fill-opacity="0.07"
               stroke-dasharray="4 5"
               class="void-empty__dash"
@@ -196,8 +196,8 @@ const centerIcon = computed(() => {
           </g>
 
           <g v-else-if="centerIcon === 'lens'" class="void-empty__motif">
-            <circle cx="74" cy="74" r="16" stroke="#652a3b" stroke-width="2.2" fill="#652a3b" fill-opacity="0.05" />
-            <line x1="86" y1="86" x2="102" y2="102" stroke="#652a3b" stroke-width="2.4" stroke-linecap="round" />
+            <circle cx="74" cy="74" r="16" stroke="#6f5644" stroke-width="2.2" fill="#6f5644" fill-opacity="0.05" />
+            <line x1="86" y1="86" x2="102" y2="102" stroke="#6f5644" stroke-width="2.4" stroke-linecap="round" />
             <circle
               cx="74"
               cy="74"
@@ -213,16 +213,16 @@ const centerIcon = computed(() => {
 
           <!-- floating size chips -->
           <g class="void-empty__chip void-empty__chip--a">
-            <rect x="18" y="40" width="22" height="16" rx="3" fill="#fff" stroke="#652a3b" stroke-opacity="0.25" />
-            <text x="29" y="51" text-anchor="middle" fill="#652a3b" font-size="8" font-family="Tahoma, sans-serif">S</text>
+            <rect x="18" y="40" width="22" height="16" rx="3" fill="#fff" stroke="#6f5644" stroke-opacity="0.25" />
+            <text x="29" y="51" text-anchor="middle" fill="#6f5644" font-size="8" font-family="Tahoma, sans-serif">S</text>
           </g>
           <g class="void-empty__chip void-empty__chip--b">
             <rect x="122" y="48" width="22" height="16" rx="3" fill="#fff" stroke="#b8924a" stroke-opacity="0.4" />
             <text x="133" y="59" text-anchor="middle" fill="#9a7838" font-size="8" font-family="Tahoma, sans-serif">M</text>
           </g>
           <g class="void-empty__chip void-empty__chip--c">
-            <rect x="112" y="112" width="22" height="16" rx="3" fill="#fff" stroke="#652a3b" stroke-opacity="0.25" />
-            <text x="123" y="123" text-anchor="middle" fill="#652a3b" font-size="8" font-family="Tahoma, sans-serif">L</text>
+            <rect x="112" y="112" width="22" height="16" rx="3" fill="#fff" stroke="#6f5644" stroke-opacity="0.25" />
+            <text x="123" y="123" text-anchor="middle" fill="#6f5644" font-size="8" font-family="Tahoma, sans-serif">L</text>
           </g>
         </svg>
       </div>

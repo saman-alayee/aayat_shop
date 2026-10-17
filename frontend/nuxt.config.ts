@@ -71,14 +71,14 @@ export default defineNuxtConfig({
         { property: 'og:type', content: 'website' },
         { property: 'og:locale', content: 'fa_IR' },
         { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'theme-color', content: '#652a3b' },
+        { name: 'theme-color', content: '#4a382d' },
         { name: 'apple-mobile-web-app-capable', content: 'yes' },
         { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
       ],
       style: [
         {
           innerHTML:
-            'body{margin:0;background:#fff}#__nuxt:empty{display:flex;min-height:100vh;align-items:center;justify-content:center}#__nuxt:empty::after{content:"";width:2.5rem;height:2.5rem;border:3px solid #652a3b;border-top-color:transparent;border-radius:9999px;animation:kk-spin .8s linear infinite}@keyframes kk-spin{to{transform:rotate(360deg)}}',
+            'body{margin:0;background:#f6f1ea}#__nuxt:empty{display:flex;min-height:100vh;align-items:center;justify-content:center}#__nuxt:empty::after{content:"";width:2.5rem;height:2.5rem;border:3px solid #6f5644;border-top-color:transparent;border-radius:9999px;animation:kk-spin .8s linear infinite}@keyframes kk-spin{to{transform:rotate(360deg)}}',
         },
       ],
       link: [
@@ -135,8 +135,8 @@ export default defineNuxtConfig({
       name: 'آیتای | فروشگاه پوشاک',
       short_name: 'آیتای',
       description: 'فروشگاه اینترنتی پوشاک — زنانه، مردانه و بچگانه',
-      theme_color: '#652a3b',
-      background_color: '#ffffff',
+      theme_color: '#4a382d',
+      background_color: '#f6f1ea',
       display: 'standalone',
       orientation: 'portrait',
       lang: 'fa',

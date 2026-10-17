@@ -204,11 +204,15 @@ export class SmsService {
     }
 
     if (this.usesMeliPayamak()) {
-      throw new AppError(
-        503,
-        'الگوی پیامک ورود روی پنل ملی‌پیامک تنظیم نشده است',
-        'SMS_NOT_CONFIGURED'
-      );
+      const { otpBodyId } = config.sms.melipayamak;
+      if (!otpBodyId) {
+        throw new AppError(503, 'الگوی پیامک ورود روی پنل ملی‌پیامک تنظیم نشده است', 'SMS_NOT_CONFIGURED');
+      }
+      await this.sendMeliPattern(otpBodyId, [otpCode], recipient);
+      if (config.nodeEnv !== 'production') {
+        console.log(`📱 OTP SMS queued for ${this.formatRecipient(recipient)}`);
+      }
+      return;
     }
 
     const { patternCode, otpAttribute } = config.sms.farazsms;

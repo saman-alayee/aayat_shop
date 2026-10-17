@@ -54,18 +54,18 @@ const emit = defineEmits<{
             y1="28"
             x2="312"
             y2="28"
-            stroke="#652a3b"
+            stroke="#6f5644"
             stroke-opacity="0.22"
             stroke-width="3"
             stroke-linecap="round"
           />
-          <circle cx="48" cy="28" r="4" fill="#652a3b" fill-opacity="0.35" />
-          <circle cx="312" cy="28" r="4" fill="#652a3b" fill-opacity="0.35" />
+          <circle cx="48" cy="28" r="4" fill="#6f5644" fill-opacity="0.35" />
+          <circle cx="312" cy="28" r="4" fill="#6f5644" fill-opacity="0.35" />
 
           <g class="err-hanger">
             <path
               d="M180 28c0-14 18-14 18 2 0 10-8 14-12 20"
-              stroke="#652a3b"
+              stroke="#6f5644"
               stroke-width="3"
               stroke-linecap="round"
               fill="none"
@@ -73,13 +73,13 @@ const emit = defineEmits<{
             <path
               d="M186 50 112 118c-6 8 2 14 10 14h128c8 0 16-6 10-14L186 50z"
               fill="none"
-              stroke="#652a3b"
+              stroke="#6f5644"
               stroke-width="3"
               stroke-linejoin="round"
             />
             <path
               d="M132 122h96"
-              stroke="#652a3b"
+              stroke="#6f5644"
               stroke-width="2.4"
               stroke-linecap="round"
             />
@@ -87,9 +87,9 @@ const emit = defineEmits<{
             <g class="err-garment" transform="translate(0 42)">
               <path
                 d="M126 86c10 8 22 12 54 12s44-4 54-12l18 22c-8 6-14 18-14 34v78c0 8-6 14-14 14H136c-8 0-14-6-14-14v-78c0-16-6-28-14-34l18-22z"
-                fill="#652a3b"
+                fill="#6f5644"
                 fill-opacity="0.07"
-                stroke="#652a3b"
+                stroke="#6f5644"
                 stroke-opacity="0.45"
                 stroke-width="1.6"
                 stroke-dasharray="6 5"
@@ -97,7 +97,7 @@ const emit = defineEmits<{
               />
               <path
                 d="M168 98v16M180 98v16M192 98v16"
-                stroke="#652a3b"
+                stroke="#6f5644"
                 stroke-opacity="0.35"
                 stroke-width="1.4"
                 stroke-linecap="round"
@@ -121,14 +121,14 @@ const emit = defineEmits<{
               height="28"
               rx="4"
               fill="#fff"
-              stroke="#652a3b"
+              stroke="#6f5644"
               stroke-opacity="0.35"
             />
             <text
               x="69"
               y="166"
               text-anchor="middle"
-              fill="#652a3b"
+              fill="#6f5644"
               font-size="11"
               font-family="Tahoma, sans-serif"
             >
@@ -158,10 +158,10 @@ const emit = defineEmits<{
             </text>
           </g>
 
-          <circle class="err-dot err-dot-1" cx="78" cy="210" r="5" fill="#652a3b" fill-opacity="0.35" />
+          <circle class="err-dot err-dot-1" cx="78" cy="210" r="5" fill="#6f5644" fill-opacity="0.35" />
           <circle class="err-dot err-dot-2" cx="290" cy="200" r="4" fill="#b8924a" fill-opacity="0.55" />
           <circle class="err-dot err-dot-3" cx="110" cy="118" r="3.5" fill="#9f4d62" fill-opacity="0.4" />
-          <circle class="err-dot err-dot-4" cx="250" cy="230" r="3" fill="#652a3b" fill-opacity="0.3" />
+          <circle class="err-dot err-dot-4" cx="250" cy="230" r="3" fill="#6f5644" fill-opacity="0.3" />
         </svg>
 
         <p

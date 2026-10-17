@@ -4,10 +4,16 @@ import { addressService } from '../services/user.service';
 import { asyncHandler, successResponse, validate } from '../utils/errors';
 import { authenticate } from '../middleware/auth';
 import { paramId } from '../utils/params';
+import { normalizeDigits } from '../utils/normalize';
 
 const router = Router();
 
 router.use(authenticate);
+
+const postalCodeSchema = z
+  .string()
+  .transform((v) => normalizeDigits(v).replace(/\D/g, ''))
+  .pipe(z.string().regex(/^\d{10}$/, 'کدپستی باید ۱۰ رقم باشد'));
 
 const addressBodySchema = z.object({
   title: z.string().optional(),
@@ -16,7 +22,7 @@ const addressBodySchema = z.object({
   unit: z.string().min(1, 'واحد الزامی است'),
   province: z.string().min(2, 'استان الزامی است'),
   city: z.string().min(2, 'شهر الزامی است'),
-  postalCode: z.string().regex(/^\d{10}$/, 'کدپستی باید ۱۰ رقم باشد'),
+  postalCode: postalCodeSchema,
   isDefault: z.boolean().optional(),
 });
 
@@ -27,7 +33,7 @@ const addressUpdateSchema = z.object({
   unit: z.string().min(1, 'واحد الزامی است').optional(),
   province: z.string().min(2, 'استان الزامی است').optional(),
   city: z.string().min(2, 'شهر الزامی است').optional(),
-  postalCode: z.string().regex(/^\d{10}$/, 'کدپستی باید ۱۰ رقم باشد').optional(),
+  postalCode: postalCodeSchema.optional(),
   isDefault: z.boolean().optional(),
 });
 

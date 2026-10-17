@@ -18,6 +18,9 @@ function demoProductList(): Product[] {
   } else if (route.query.featured === '1') {
     list = list.filter((p) => p.isFeatured || p.isHomeFeatured);
   }
+  if (onlyInStock.value) {
+    list = list.filter((p) => p.inStock);
+  }
   if (sort.value === 'discount') {
     list.sort((a, b) => b.discountPercent - a.discountPercent);
   }
@@ -30,6 +33,7 @@ type SortMode = 'newest' | 'discount' | 'bestsellers';
 
 const query = ref('');
 const sort = ref<SortMode>('newest');
+const onlyInStock = ref(false);
 const products = ref<Product[]>([]);
 const pagination = ref<Pagination | null>(null);
 const loading = ref(false);
@@ -60,6 +64,7 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 function syncFromRoute() {
   query.value = (route.query.q as string) || '';
+  onlyInStock.value = route.query.inStock === '1' || route.query.inStock === 'true';
   const routeSort = route.query.sort as string;
   if (routeSort === 'discount' || routeSort === 'bestsellers') {
     sort.value = routeSort;
@@ -74,6 +79,8 @@ function buildQuery(overrides: Record<string, string | undefined> = {}) {
   const next: Record<string, string> = {};
   const q = overrides.q !== undefined ? overrides.q : query.value.trim();
   const nextSort = (overrides.sort as SortMode | undefined) ?? sort.value;
+  const nextInStock =
+    overrides.inStock !== undefined ? overrides.inStock === '1' : onlyInStock.value;
 
   if (route.query.featured === '1' && overrides.featured !== '0') {
     next.featured = '1';
@@ -83,6 +90,7 @@ function buildQuery(overrides: Record<string, string | undefined> = {}) {
   }
   if (q) next.q = q;
   if (nextSort && nextSort !== 'newest') next.sort = nextSort;
+  if (nextInStock) next.inStock = '1';
   return next;
 }
 
@@ -93,6 +101,7 @@ async function fetchProducts(page: number, append: boolean) {
   });
 
   if (sort.value !== 'newest') params.set('sort', sort.value);
+  if (onlyInStock.value) params.set('inStock', 'true');
 
   if (route.query.discounted === '1' || sort.value === 'discount') {
     pageTitle.value = sort.value === 'bestsellers' ? 'پرفروش‌ترین‌ها' : 'بیشترین تخفیف';
@@ -181,8 +190,22 @@ function setSort(next: SortMode) {
   void router.replace({ path: '/search', query: buildQuery(overrides) });
 }
 
+function toggleInStock() {
+  onlyInStock.value = !onlyInStock.value;
+  void router.replace({
+    path: '/search',
+    query: buildQuery({ inStock: onlyInStock.value ? '1' : '0' }),
+  });
+}
+
 watch(
-  () => [route.query.q, route.query.discounted, route.query.featured, route.query.sort],
+  () => [
+    route.query.q,
+    route.query.discounted,
+    route.query.featured,
+    route.query.sort,
+    route.query.inStock,
+  ],
   () => {
     syncFromRoute();
     void loadSearch();
@@ -216,6 +239,20 @@ usePageSeo(() => ({
     </form>
 
     <div class="flex gap-2 overflow-x-auto scrollbar-hide pb-3 mb-1">
+      <button
+        type="button"
+        :class="[
+          'shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold border transition-colors',
+          onlyInStock
+            ? 'bg-primary-600 text-white border-primary-600'
+            : 'bg-white text-gray-600 border-gray-200',
+        ]"
+        :aria-pressed="onlyInStock"
+        @click="toggleInStock"
+      >
+        <AppIcon name="lucide:package-check" size="sm" />
+        فقط موجود
+      </button>
       <button
         v-for="option in sortOptions"
         :key="option.value"

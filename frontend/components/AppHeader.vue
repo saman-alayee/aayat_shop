@@ -51,7 +51,7 @@ onUnmounted(() => {
         'transition-colors duration-300',
         isLightOnHero
           ? 'bg-transparent border-transparent text-white'
-          : 'bg-white border-b border-gray-100/90 text-gray-900 shadow-sm',
+          : 'bg-surface-muted border-b border-primary-200/80 text-primary-900 shadow-sm',
       ]"
     >
       <div class="w-full px-4 md:px-8 lg:px-10">
@@ -60,7 +60,7 @@ onUnmounted(() => {
           <div class="flex items-center gap-1 z-10">
             <button
               type="button"
-              :class="['p-2 -ms-1', isLightOnHero ? 'text-white' : 'text-gray-900']"
+              :class="['p-2 -ms-1', isLightOnHero ? 'text-white' : 'text-primary-900']"
               aria-label="منو"
               @click="catalogNavOpen = !catalogNavOpen"
             >
@@ -82,7 +82,7 @@ onUnmounted(() => {
           <div class="flex items-center gap-0.5 md:gap-1 z-10">
             <NuxtLink
               to="/cart"
-              :class="['relative p-2', isLightOnHero ? 'text-white' : 'text-gray-900']"
+              :class="['relative p-2', isLightOnHero ? 'text-white' : 'text-primary-900']"
               aria-label="سبد خرید"
             >
               <AppIcon name="lucide:shopping-bag" size="lg" />
@@ -95,7 +95,7 @@ onUnmounted(() => {
             </NuxtLink>
             <button
               type="button"
-              :class="['p-2', isLightOnHero ? 'text-white' : 'text-gray-900']"
+              :class="['p-2', isLightOnHero ? 'text-white' : 'text-primary-900']"
               aria-label="جستجو"
               @click="showSearch = !showSearch"
             >
@@ -106,7 +106,7 @@ onUnmounted(() => {
               to="/auth/login"
               :class="[
                 'hidden sm:flex items-center gap-1.5 text-xs md:text-sm px-1 md:px-2',
-                isLightOnHero ? 'text-white' : 'text-gray-900',
+                isLightOnHero ? 'text-white' : 'text-primary-900',
               ]"
             >
               <AppIcon name="lucide:user" size="md" />
@@ -117,7 +117,7 @@ onUnmounted(() => {
               to="/profile"
               :class="[
                 'hidden sm:flex items-center gap-1 p-1',
-                isLightOnHero ? 'text-white' : 'text-gray-900',
+                isLightOnHero ? 'text-white' : 'text-primary-900',
               ]"
             >
               <AppIcon name="lucide:user-circle" size="md" />

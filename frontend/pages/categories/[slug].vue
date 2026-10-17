@@ -8,11 +8,12 @@ const slug = computed(() => route.params.slug as string);
 
 const PAGE_SIZE = 24;
 
-type ListingFilter = 'all' | 'discount' | 'new' | 'other';
+type ListingFilter = 'all' | 'instock' | 'discount' | 'new' | 'other';
 type SortMode = 'newest' | 'discount' | 'bestsellers';
 
 const filterOptions: { value: ListingFilter; label: string }[] = [
   { value: 'all', label: 'همه' },
+  { value: 'instock', label: 'موجود' },
   { value: 'discount', label: 'تخفیف' },
   { value: 'new', label: 'جدید' },
   { value: 'other', label: 'سایر' },
@@ -24,8 +25,9 @@ const sortOptions: { value: SortMode; label: string }[] = [
   { value: 'bestsellers', label: 'پرفروش' },
 ];
 
-function readFilter(value: unknown): ListingFilter {
-  if (value === 'discount' || value === 'new' || value === 'other') return value;
+function readFilter(value: unknown, inStockQuery?: unknown): ListingFilter {
+  if (value === 'instock' || value === 'discount' || value === 'new' || value === 'other') return value;
+  if (inStockQuery === '1' || inStockQuery === 'true') return 'instock';
   return 'all';
 }
 
@@ -34,7 +36,7 @@ function readSort(value: unknown): SortMode {
   return 'newest';
 }
 
-const listingFilter = ref<ListingFilter>(readFilter(route.query.filter));
+const listingFilter = ref<ListingFilter>(readFilter(route.query.filter, route.query.inStock));
 const sort = ref<SortMode>(readSort(route.query.sort));
 
 const { data: category } = await useAsyncData(
@@ -69,12 +71,14 @@ const hasMore = computed(() => {
 });
 
 function applyClientFilter(list: Product[]) {
-  if (listingFilter.value === 'discount') return list.filter((item) => item.discountPrice != null);
-  if (listingFilter.value === 'new') return list.filter((item) => item.isNew);
+  let next = list;
+  if (listingFilter.value === 'instock') next = next.filter((item) => item.inStock);
+  if (listingFilter.value === 'discount') next = next.filter((item) => item.discountPrice != null);
+  if (listingFilter.value === 'new') next = next.filter((item) => item.isNew);
   if (listingFilter.value === 'other') {
-    return list.filter((item) => !item.isNew && item.discountPrice == null);
+    next = next.filter((item) => !item.isNew && item.discountPrice == null);
   }
-  return list;
+  return next;
 }
 
 function syncQuery() {
@@ -105,6 +109,7 @@ async function loadProducts(nextPage = 1, append = false) {
     page: String(nextPage),
   });
   if (sort.value !== 'newest') params.set('sort', sort.value);
+  if (listingFilter.value === 'instock') params.set('inStock', 'true');
   if (listingFilter.value === 'discount') params.set('listing', 'discount');
   if (listingFilter.value === 'new') params.set('listing', 'new');
   if (listingFilter.value === 'other') params.set('listing', 'other');

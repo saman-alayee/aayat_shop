@@ -19,6 +19,8 @@ interface ProductFilters {
   homeDeal?: boolean;
   homeFeatured?: boolean;
   isNew?: boolean;
+  /** When true, only products with stock > 0. */
+  inStock?: boolean;
   /** Storefront listing bucket: discounted, newest slice, or the rest. */
   listing?: 'discount' | 'new' | 'other';
   /** newest | discount | bestsellers */
@@ -124,6 +126,7 @@ export class ProductService {
       homeDeal,
       homeFeatured,
       isNew,
+      inStock,
       listing,
       sort,
       page = 1,
@@ -150,6 +153,7 @@ export class ProductService {
     }
     if (featured) where.isFeatured = true;
     if (isNew) where.isNew = true;
+    if (inStock) where.stock = { gt: 0 };
     if (discounted || listing === 'discount') where.discountPrice = { not: null };
     if (homeDeal) where.isHomeDeal = true;
     if (homeFeatured) where.isHomeFeatured = true;
@@ -173,7 +177,9 @@ export class ProductService {
 
     const sortMode = this.normalizeSort(sort);
     const listingBucket = listing === 'new' || listing === 'other';
-    const skipCache = Boolean(search || includeInactive || barcode || sortMode !== 'newest' || listingBucket);
+    const skipCache = Boolean(
+      search || includeInactive || barcode || inStock || sortMode !== 'newest' || listingBucket
+    );
     const cacheKey = `products:${JSON.stringify(filters)}`;
     if (!skipCache) {
       const cached = await cacheGet<unknown>(cacheKey);

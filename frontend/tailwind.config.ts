@@ -4,28 +4,28 @@ export default {
   theme: {
     extend: {
       colors: {
-        /** Inspired by minimal apparel storefronts: deep wine + neutral grays */
+        /** Warm apparel palette: cream page, brown type, taupe gray */
         primary: {
-          50: '#faf5f6',
-          100: '#f3e8eb',
-          200: '#e7d1d7',
-          300: '#d4aab5',
-          400: '#b97a8a',
-          500: '#9f4d62',
-          600: '#7a3347',
-          700: '#652a3b',
-          800: '#552433',
-          900: '#49202d',
+          50: '#faf6f1',
+          100: '#f3ebe3',
+          200: '#e6d8cb',
+          300: '#d2bfae',
+          400: '#b89a82',
+          500: '#8f735c',
+          600: '#6f5644',
+          700: '#5c4638',
+          800: '#4a382d',
+          900: '#3c322b',
         },
         accent: {
-          400: '#c9a962',
-          500: '#b8924a',
-          600: '#9a7838',
+          400: '#c4b8ab',
+          500: '#a89b8d',
+          600: '#8c7f72',
         },
         surface: {
-          DEFAULT: '#ffffff',
-          muted: '#f7f7f7',
-          dark: '#111111',
+          DEFAULT: '#fffdfb',
+          muted: '#f6f1ea',
+          dark: '#3c322b',
         },
       },
       fontFamily: {

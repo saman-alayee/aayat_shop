@@ -8,6 +8,7 @@ import { notificationService } from './notification.service';
 import { smsService } from './sms.service';
 import { zibalService } from './zibal.service';
 import { isShippingMethod, SHIPPING_METHODS, type ShippingMethod } from '../config/shipping';
+import { settingsService } from './settings.service';
 
 export type OrderStatus =
   | 'NEW'
@@ -100,7 +101,9 @@ export class OrderService {
       throw new AppError(400, 'روش ارسال را انتخاب کنید');
     }
     const deliveryMethod = input.deliveryMethod;
-    const deliveryFee = SHIPPING_METHODS[deliveryMethod].fee;
+    const shippingSettings = await settingsService.getShipping();
+    const deliveryFee =
+      deliveryMethod === 'NATIONWIDE' ? shippingSettings.nationwideFee : SHIPPING_METHODS.PICKUP.fee;
     totalPrice += deliveryFee;
 
     const paymentMethod: PaymentMethod = input.paymentMethod === 'ZIBAL' || !input.paymentMethod ? 'ZIBAL' : input.paymentMethod;

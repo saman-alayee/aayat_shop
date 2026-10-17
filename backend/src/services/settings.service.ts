@@ -9,6 +9,17 @@ export const NEW_ORDER_SMS_KEY = 'new_order_sms';
 export const MAINTENANCE_KEY = 'maintenance';
 export const ANNOUNCEMENT_KEY = 'announcement';
 export const DEFAULT_ANNOUNCEMENT_TEXT = 'زمان ارسال یک هفته کاری';
+export const SHIPPING_SETTINGS_KEY = 'shipping';
+export const DEFAULT_NATIONWIDE_SHIPPING_FEE = 0;
+export const DEFAULT_NATIONWIDE_SHIPPING_HINT =
+  'پرداخت هزینه پست در محل (هنگام تحویل) انجام می‌شود';
+
+export interface ShippingSettings {
+  /** Fee charged at online checkout for nationwide shipping (toman). */
+  nationwideFee: number;
+  /** Storefront hint under «ارسال به سراسر ایران». */
+  nationwideHint: string;
+}
 
 export const DEFAULT_NEW_ORDER_SMS_TEMPLATE =
   `سفارش جدید {orderNumber}\nمشتری: {customerName}\n${SITE_NAME}`;
@@ -233,6 +244,46 @@ export class SettingsService {
       update: { value: next },
     });
     return next;
+  }
+
+  async getShipping(): Promise<ShippingSettings> {
+    const row = await prisma.appSetting.findUnique({ where: { key: SHIPPING_SETTINGS_KEY } });
+    return this.normalizeShipping(row?.value);
+  }
+
+  async updateShipping(input: Partial<ShippingSettings>): Promise<ShippingSettings> {
+    const current = await this.getShipping();
+    const next = this.normalizeShipping({
+      nationwideFee: input.nationwideFee ?? current.nationwideFee,
+      nationwideHint: input.nationwideHint ?? current.nationwideHint,
+    });
+
+    await prisma.appSetting.upsert({
+      where: { key: SHIPPING_SETTINGS_KEY },
+      create: { key: SHIPPING_SETTINGS_KEY, value: next as unknown as Prisma.InputJsonValue },
+      update: { value: next as unknown as Prisma.InputJsonValue },
+    });
+
+    return next;
+  }
+
+  private normalizeShipping(raw: unknown): ShippingSettings {
+    const data = isRecord(raw) ? raw : {};
+    const feeRaw = data.nationwideFee;
+    const fee =
+      typeof feeRaw === 'number'
+        ? feeRaw
+        : typeof feeRaw === 'string' && feeRaw.trim()
+          ? Number(feeRaw)
+          : DEFAULT_NATIONWIDE_SHIPPING_FEE;
+    const nationwideFee = Number.isFinite(fee)
+      ? Math.max(0, Math.min(10_000_000, Math.round(fee)))
+      : DEFAULT_NATIONWIDE_SHIPPING_FEE;
+    const hint =
+      typeof data.nationwideHint === 'string' && data.nationwideHint.trim()
+        ? data.nationwideHint.trim().slice(0, 200)
+        : DEFAULT_NATIONWIDE_SHIPPING_HINT;
+    return { nationwideFee, nationwideHint: hint };
   }
 }
 

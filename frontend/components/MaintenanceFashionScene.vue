@@ -47,19 +47,19 @@ const steps = [
           aria-label="مانکن در حال دوخت و تعمیر"
         >
           <!-- rod -->
-          <line x1="40" y1="32" x2="360" y2="32" stroke="#652a3b" stroke-opacity="0.2" stroke-width="3" stroke-linecap="round" />
-          <circle cx="40" cy="32" r="4.5" fill="#652a3b" fill-opacity="0.35" />
-          <circle cx="360" cy="32" r="4.5" fill="#652a3b" fill-opacity="0.35" />
+          <line x1="40" y1="32" x2="360" y2="32" stroke="#6f5644" stroke-opacity="0.2" stroke-width="3" stroke-linecap="round" />
+          <circle cx="40" cy="32" r="4.5" fill="#6f5644" fill-opacity="0.35" />
+          <circle cx="360" cy="32" r="4.5" fill="#6f5644" fill-opacity="0.35" />
 
           <!-- mannequin + dress -->
           <g class="atelier-mannequin">
-            <line x1="200" y1="32" x2="200" y2="58" stroke="#652a3b" stroke-width="2.5" stroke-linecap="round" />
-            <ellipse cx="200" cy="72" rx="16" ry="14" fill="#652a3b" fill-opacity="0.12" stroke="#652a3b" stroke-width="1.6" />
+            <line x1="200" y1="32" x2="200" y2="58" stroke="#6f5644" stroke-width="2.5" stroke-linecap="round" />
+            <ellipse cx="200" cy="72" rx="16" ry="14" fill="#6f5644" fill-opacity="0.12" stroke="#6f5644" stroke-width="1.6" />
             <path
               d="M168 88c10 10 22 14 32 14s22-4 32-14l22 18c-10 8-16 20-16 38v90c0 10-8 16-16 16H178c-8 0-16-6-16-16v-90c0-18-6-30-16-38l22-18z"
-              fill="#652a3b"
+              fill="#6f5644"
               fill-opacity="0.08"
-              stroke="#652a3b"
+              stroke="#6f5644"
               stroke-width="1.7"
             />
             <path
@@ -77,20 +77,20 @@ const steps = [
 
           <!-- scissors -->
           <g class="atelier-scissors">
-            <circle cx="78" cy="168" r="10" stroke="#652a3b" stroke-width="2" fill="#fff" fill-opacity="0.7" />
-            <circle cx="78" cy="196" r="10" stroke="#652a3b" stroke-width="2" fill="#fff" fill-opacity="0.7" />
-            <path d="M78 178l42-38" stroke="#652a3b" stroke-width="2.4" stroke-linecap="round" />
-            <path d="M78 186l48 8" stroke="#652a3b" stroke-width="2.4" stroke-linecap="round" />
+            <circle cx="78" cy="168" r="10" stroke="#6f5644" stroke-width="2" fill="#fff" fill-opacity="0.7" />
+            <circle cx="78" cy="196" r="10" stroke="#6f5644" stroke-width="2" fill="#fff" fill-opacity="0.7" />
+            <path d="M78 178l42-38" stroke="#6f5644" stroke-width="2.4" stroke-linecap="round" />
+            <path d="M78 186l48 8" stroke="#6f5644" stroke-width="2.4" stroke-linecap="round" />
             <path d="M118 142l8-4-2 10z" fill="#b8924a" />
           </g>
 
           <!-- thread spool -->
           <g class="atelier-spool">
-            <rect x="308" y="150" width="36" height="52" rx="4" fill="#652a3b" fill-opacity="0.12" stroke="#652a3b" stroke-width="1.6" />
+            <rect x="308" y="150" width="36" height="52" rx="4" fill="#6f5644" fill-opacity="0.12" stroke="#6f5644" stroke-width="1.6" />
             <line x1="312" y1="160" x2="340" y2="160" stroke="#b8924a" stroke-width="1.4" />
-            <line x1="312" y1="170" x2="340" y2="170" stroke="#652a3b" stroke-opacity="0.35" stroke-width="1.2" />
+            <line x1="312" y1="170" x2="340" y2="170" stroke="#6f5644" stroke-opacity="0.35" stroke-width="1.2" />
             <line x1="312" y1="180" x2="340" y2="180" stroke="#b8924a" stroke-width="1.4" />
-            <line x1="312" y1="190" x2="340" y2="190" stroke="#652a3b" stroke-opacity="0.35" stroke-width="1.2" />
+            <line x1="312" y1="190" x2="340" y2="190" stroke="#6f5644" stroke-opacity="0.35" stroke-width="1.2" />
             <path
               class="atelier-thread-path"
               d="M326 150c-18-20-40-28-58-18"
@@ -118,7 +118,7 @@ const steps = [
               stroke-linecap="round"
               fill="none"
             />
-            <g fill="#652a3b" font-size="7" font-family="Tahoma, sans-serif">
+            <g fill="#6f5644" font-size="7" font-family="Tahoma, sans-serif">
               <text x="70" y="236">۱</text>
               <text x="110" y="228">۲</text>
               <text x="155" y="226">۳</text>
@@ -128,8 +128,8 @@ const steps = [
 
           <!-- floating tags -->
           <g class="atelier-tag atelier-tag-a">
-            <rect x="28" y="88" width="70" height="28" rx="6" fill="#fff" stroke="#652a3b" stroke-opacity="0.3" />
-            <text x="63" y="106" text-anchor="middle" fill="#652a3b" font-size="11" font-family="Tahoma, sans-serif">در حال دوخت</text>
+            <rect x="28" y="88" width="70" height="28" rx="6" fill="#fff" stroke="#6f5644" stroke-opacity="0.3" />
+            <text x="63" y="106" text-anchor="middle" fill="#6f5644" font-size="11" font-family="Tahoma, sans-serif">در حال دوخت</text>
           </g>
           <g class="atelier-tag atelier-tag-b">
             <rect x="300" y="72" width="64" height="26" rx="6" fill="#fff" stroke="#b8924a" stroke-opacity="0.45" />
@@ -162,7 +162,7 @@ const steps = [
       </div>
 
       <div class="atelier-progress mt-6 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-primary-900/10" aria-hidden="true">
-        <span class="atelier-progress-bar block h-full rounded-full bg-gradient-to-l from-[#b8924a] to-[#652a3b]" />
+        <span class="atelier-progress-bar block h-full rounded-full bg-gradient-to-l from-[#b8924a] to-[#6f5644]" />
       </div>
 
       <p class="mt-4 flex items-center justify-center gap-2 text-xs tracking-wide text-primary-800/75">
@@ -350,7 +350,7 @@ const steps = [
 }
 
 .atelier-step.is-done {
-  color: #652a3b;
+  color: #6f5644;
 }
 
 .atelier-step.is-active {
@@ -384,7 +384,7 @@ const steps = [
   width: 0.45rem;
   height: 0.45rem;
   border-radius: 999px;
-  background: #652a3b;
+  background: #6f5644;
   animation: atelier-pulse 1.5s ease-in-out infinite;
 }
 

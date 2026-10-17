@@ -14,6 +14,15 @@ router.get(
 );
 
 router.get(
+  '/shipping',
+  asyncHandler(async (_req, res) => {
+    const settings = await settingsService.getShipping();
+    res.setHeader('Cache-Control', 'no-store');
+    successResponse(res, settings);
+  })
+);
+
+router.get(
   '/maintenance',
   asyncHandler(async (_req, res) => {
     const settings = await settingsService.getMaintenance();
