@@ -5,33 +5,38 @@ import { HOME_CATEGORY_TILES } from '~/constants/homeCategoryTiles';
 const api = useApi();
 const { getCategoryImage } = useFormat();
 
-const { data: categories } = await useAsyncData(
-  'home-category-tiles',
-  async () => {
-    const { data } = await api.get<Category[]>('/categories?lite=1');
-    return data;
-  },
-  { default: () => [] as Category[] }
-);
+const categories = ref<Category[]>([]);
+const loaded = ref(false);
 
+/** Always show the homepage tiles; enrich from API when available. */
 const tiles = computed(() => {
   const bySlug = new Map((categories.value || []).map((category) => [category.slug, category]));
   return HOME_CATEGORY_TILES.map((tile) => {
     const category = bySlug.get(tile.slug);
-    const image = category?.image?.trim() || tile.fallbackImage;
     return {
       slug: tile.slug,
-      name: category?.name || tile.slug,
-      image,
+      name: category?.name || tile.label,
+      image: category?.image?.trim() || tile.fallbackImage,
     };
-  }).filter((tile) => bySlug.has(tile.slug));
+  });
+});
+
+onMounted(async () => {
+  try {
+    const { data } = await api.get<Category[]>('/categories?lite=1');
+    categories.value = Array.isArray(data) ? data : [];
+  } catch {
+    categories.value = [];
+  } finally {
+    loaded.value = true;
+  }
 });
 </script>
 
 <template>
   <section
-    v-if="tiles.length"
     class="grid grid-cols-2 gap-3 px-4 py-5 md:grid-cols-3 md:gap-4 md:px-6 md:py-8"
+    :aria-busy="!loaded"
   >
     <NuxtLink
       v-for="tile in tiles"

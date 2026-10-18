@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { CONTACT_PHONE, ENAMAD, SOCIAL_LINKS, STORE_HOURS } from '~/constants/site';
+import { ENAMAD, SOCIAL_LINKS, STORE_HOURS } from '~/constants/site';
 
 const channels = [
-  { label: 'واتساپ', value: CONTACT_PHONE, href: SOCIAL_LINKS.whatsapp },
+  { label: 'واتساپ', value: 'پیام در واتساپ', href: SOCIAL_LINKS.whatsapp },
   { label: 'آیدی ادمین در روبیکا', value: 'Aytay_irr', href: SOCIAL_LINKS.rubikaAdmin },
   { label: 'کانال روبیکا', value: 'aytayir', href: SOCIAL_LINKS.rubikaChannel },
   { label: 'گروه واتساپ', value: 'ورود به گروه', href: SOCIAL_LINKS.whatsappGroup },

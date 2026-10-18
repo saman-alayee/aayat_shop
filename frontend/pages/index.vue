@@ -93,7 +93,6 @@ usePageSeo({
       description: SITE_DESCRIPTION,
       url: siteUrl,
       image: `${siteUrl}/wp-home/hero-fall-desktop.webp`,
-      telephone: '+989108677853',
       address: {
         '@type': 'PostalAddress',
         addressCountry: 'IR',

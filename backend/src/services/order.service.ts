@@ -218,10 +218,6 @@ export class OrderService {
       });
     }
 
-    if (!payWithZibal) {
-      void smsService.notifyOperatorsNewOrder(order.orderNumber, order.customerName);
-    }
-
     let paymentUrl: string | undefined;
     if (payWithZibal) {
       try {

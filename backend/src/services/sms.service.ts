@@ -118,21 +118,15 @@ export class SmsService {
     itemNames: string[];
   }): Promise<void> {
     if (!this.usesMeliPayamak()) {
-      await this.notifyOperatorsNewOrder(input.orderNumber, input.customerName);
       return;
     }
 
     const items = input.itemNames.filter(Boolean).join('، ').slice(0, 180) || '-';
     const firstName = input.customerName.trim().split(/\s+/)[0] || 'مشتری';
-    const { customerBodyId, adminBodyId, adminPhones } = config.sms.melipayamak;
+    const { customerBodyId } = config.sms.melipayamak;
 
     if (customerBodyId) {
       await this.sendMeliPattern(customerBodyId, [firstName, input.orderNumber, items], input.phone);
-    }
-    if (adminBodyId) {
-      for (const phone of adminPhones) {
-        await this.sendMeliPattern(adminBodyId, [input.orderNumber, items], phone);
-      }
     }
   }
 

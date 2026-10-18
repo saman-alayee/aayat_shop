@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import {
-  CONTACT_PHONE,
   ENAMAD,
   SITE_NAME,
   SITE_TAGLINE,
@@ -67,9 +66,6 @@ const channels = [
         <div>
           <h3 class="mb-3 text-sm font-bold text-gray-900">پشتیبانی و کانال‌ها</h3>
           <p class="text-sm leading-relaxed text-gray-600">{{ STORE_HOURS }}</p>
-          <a :href="`tel:${CONTACT_PHONE}`" class="mt-2 block text-sm text-primary-700 hover:underline" dir="ltr">
-            {{ CONTACT_PHONE }}
-          </a>
           <nav class="mt-3 flex flex-col gap-2 text-sm text-gray-600">
             <a
               v-for="channel in channels"
