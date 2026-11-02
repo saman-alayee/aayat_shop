@@ -8,10 +8,11 @@ import { normalizeDigits } from '../utils/normalize';
 
 const router = Router();
 
+/** Optional: empty OK; if provided must be exactly 10 digits. */
 const postalCodeSchema = z
   .string()
-  .transform((v) => normalizeDigits(v).replace(/\D/g, ''))
-  .pipe(z.string().regex(/^\d{10}$/, 'کدپستی باید ۱۰ رقم باشد'));
+  .transform((v) => normalizeDigits(v || '').replace(/\D/g, ''))
+  .refine((v) => v === '' || /^\d{10}$/.test(v), { message: 'کدپستی باید ۱۰ رقم باشد' });
 
 const createOrderSchema = z
   .object({
@@ -37,9 +38,8 @@ const createOrderSchema = z
       Boolean(data.addressId) ||
       (Boolean(data.province?.trim()) &&
         Boolean(data.city?.trim()) &&
-        Boolean(data.postalCode?.trim()) &&
         (Boolean(data.deliveryAddress?.trim()) || Boolean(data.address?.trim()) || Boolean(data.street?.trim()))),
-    { message: 'استان، شهر، کدپستی و آدرس ارسال الزامی است' }
+    { message: 'استان، شهر و آدرس ارسال الزامی است' }
   );
 
 router.use(sessionMiddleware);

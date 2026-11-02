@@ -86,11 +86,10 @@ function onPostalInput(event: Event) {
     </div>
 
     <div>
-      <label class="field-label">کدپستی</label>
+      <label class="field-label">کدپستی <span class="font-normal text-gray-400">(اختیاری)</span></label>
       <input
         :value="postalCode"
         type="text"
-        required
         inputmode="numeric"
         maxlength="10"
         class="input-field"
@@ -100,7 +99,7 @@ function onPostalInput(event: Event) {
         @input="onPostalInput"
       />
       <AppFormError :message="errors?.postalCode" />
-      <p v-if="!errors?.postalCode" class="mt-1 text-[11px] text-gray-400">۱۰ رقم، بدون خط تیره. رقم فارسی هم قبول است.</p>
+      <p v-if="!errors?.postalCode" class="mt-1 text-[11px] text-gray-400">اختیاری؛ اگر وارد می‌کنید ۱۰ رقم بدون خط تیره (رقم فارسی هم قبول است).</p>
     </div>
   </div>
 </template>

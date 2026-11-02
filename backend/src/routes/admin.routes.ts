@@ -966,6 +966,42 @@ router.put(
   })
 );
 
+const hexColor = z
+  .string()
+  .trim()
+  .regex(/^#?[0-9a-fA-F]{6}$/, 'رنگ باید کد هگز ۶ رقمی باشد');
+
+const themeSettingsSchema = z.object({
+  primary: hexColor,
+  onPrimary: hexColor,
+  accent: hexColor,
+  pageBg: hexColor,
+  adminPageBg: hexColor,
+  surface: hexColor,
+  header: hexColor,
+  text: hexColor,
+  textMuted: hexColor,
+  border: hexColor,
+});
+
+router.get(
+  '/settings/theme',
+  permSettings,
+  asyncHandler(async (_req, res) => {
+    successResponse(res, await settingsService.getTheme());
+  })
+);
+
+router.put(
+  '/settings/theme',
+  permSettings,
+  validate(themeSettingsSchema),
+  asyncHandler(async (req, res) => {
+    const settings = await settingsService.updateTheme(req.body);
+    successResponse(res, settings, 'تم رنگی ذخیره شد');
+  })
+);
+
 const maintenanceSchema = z.object({
   enabled: z.boolean(),
   message: z.string().min(2).max(280).optional(),

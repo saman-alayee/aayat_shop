@@ -1,9 +1,47 @@
+function looksLikeHtml(text: string): boolean {
+  return /<\/?[a-z][\s\S]*>/i.test(text);
+}
+
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0*39;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)));
+}
+
+/** Strip HTML (e.g. WordPress imports) down to readable plain text. */
+export function htmlToPlainText(html: string): string {
+  const withBreaks = html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<\/(p|div|h[1-6]|li|tr|blockquote|section|article)>/gi, '\n')
+    .replace(/<(br|hr)\s*\/?>/gi, '\n')
+    .replace(/<\/?(ul|ol|table|thead|tbody|tfoot)>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '• ')
+    .replace(/<[^>]+>/g, '');
+
+  return decodeEntities(withBreaks)
+    .replace(/\r\n/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 /** Simple markdown-ish renderer for CMS pages (headings, lists, tables, paragraphs). */
 export function renderContentHtml(text: string) {
-  const escaped = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  // WP-imported pages store HTML; never show raw tags — convert to plain text first.
+  const source = looksLikeHtml(text) ? htmlToPlainText(text) : text;
+  const escaped = escapeHtml(source);
 
   const lines = escaped.split('\n');
   const html: string[] = [];
@@ -43,9 +81,7 @@ export function renderContentHtml(text: string) {
     const header = parsed[0] || [];
     const body = parsed.slice(1).filter((row) => !isSeparator(row));
 
-    const head = header
-      .map((cell) => `<th>${cell}</th>`)
-      .join('');
+    const head = header.map((cell) => `<th>${cell}</th>`).join('');
     const rows = body
       .map((row) => `<tr>${row.map((cell) => `<td>${cell || '—'}</td>`).join('')}</tr>`)
       .join('');
@@ -83,8 +119,8 @@ export function renderContentHtml(text: string) {
 
     flushTable();
 
-    if (/^[-*] /.test(trimmed)) {
-      listItems.push(trimmed.replace(/^[-*] /, ''));
+    if (/^[-*] /.test(trimmed) || /^• /.test(trimmed)) {
+      listItems.push(trimmed.replace(/^([-*] |• )/, ''));
       continue;
     }
 

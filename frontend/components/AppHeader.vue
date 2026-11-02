@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { SITE_NAME } from '~/constants/site';
+import { normalizeSearchText, stripInvisibleChars } from '~/utils/normalize';
 
 const props = withDefaults(defineProps<{ overlay?: boolean }>(), { overlay: false });
 
@@ -16,11 +17,25 @@ const catalogNavOpen = ref(false);
 const solidHeader = ref(false);
 
 function handleSearch() {
-  if (searchQuery.value.trim()) {
-    navigateTo(`/search?q=${encodeURIComponent(searchQuery.value.trim())}`);
+  const term = normalizeSearchText(searchQuery.value);
+  searchQuery.value = term;
+  if (term) {
+    navigateTo(`/search?q=${encodeURIComponent(term)}`);
     showSearch.value = false;
     catalogNavOpen.value = false;
   }
+}
+
+function onHeaderSearchInput(event: Event) {
+  searchQuery.value = stripInvisibleChars((event.target as HTMLInputElement).value);
+}
+
+function onHeaderSearchPaste(event: ClipboardEvent) {
+  const text = event.clipboardData?.getData('text') ?? '';
+  event.preventDefault();
+  searchQuery.value = normalizeSearchText(text);
+  // Paste in header → go straight to results (same intent as pressing Enter).
+  if (searchQuery.value) handleSearch();
 }
 
 function onScroll() {
@@ -51,7 +66,7 @@ onUnmounted(() => {
         'transition-colors duration-300',
         isLightOnHero
           ? 'bg-transparent border-transparent text-white'
-          : 'bg-surface-muted border-b border-primary-200/80 text-primary-900 shadow-sm',
+          : 'theme-header border-b border-primary-200/80 text-primary-900 shadow-sm',
       ]"
     >
       <div class="w-full px-4 md:px-8 lg:px-10">
@@ -128,11 +143,18 @@ onUnmounted(() => {
         <div v-if="showSearch" class="pb-3 md:pb-4">
           <form class="relative max-w-xl mx-auto" @submit.prevent="handleSearch">
             <input
-              v-model="searchQuery"
+              :value="searchQuery"
               type="search"
+              enterkeyhint="search"
+              autocomplete="off"
+              autocorrect="off"
+              spellcheck="false"
               :placeholder="`جستجو در ${SITE_NAME}...`"
               class="input-field pe-8"
               autofocus
+              @input="onHeaderSearchInput"
+              @paste="onHeaderSearchPaste"
+              @search="handleSearch"
             />
             <button type="submit" class="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary-700">
               <AppIcon name="lucide:search" size="md" />

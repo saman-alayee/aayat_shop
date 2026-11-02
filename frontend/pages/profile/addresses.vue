@@ -120,7 +120,7 @@ useHead({ title: `آدرس‌ها - ${SITE_NAME}` });
 
 <template>
   <div>
-    <ProfilePageHeader title="آدرس‌های من" subtitle="استان، شهر، کدپستی و آدرس را وارد کنید" back-to="/profile">
+    <ProfilePageHeader title="آدرس‌های من" subtitle="استان، شهر و آدرس را وارد کنید" back-to="/profile">
       <template #action>
         <button class="btn-primary text-sm py-2.5 px-4 min-h-[44px]" @click="openForm()">
           <span class="flex items-center gap-1">

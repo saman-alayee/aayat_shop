@@ -1,5 +1,6 @@
 import type { PaymentMethod, Prisma } from '@prisma/client';
 import prisma from '../config/database';
+import { cacheDel } from '../config/redis';
 import { AppError } from '../utils/errors';
 import { generateOrderNumber } from '../utils/helpers';
 import { cartService } from './cart.service';
@@ -209,6 +210,10 @@ export class OrderService {
       return newOrder;
     });
 
+    // Refresh storefront lists so sold-out items sink to the end promptly.
+    await cacheDel('products:*');
+    await cacheDel('home:*');
+
     if (!payWithZibal) {
       await notificationService.notifyOrderStatusChange({
         userId,
@@ -412,7 +417,10 @@ export class OrderService {
   }
 
   async updateStatus(orderId: string, status: OrderStatus, note?: string) {
-    const current = await prisma.order.findUnique({ where: { id: orderId } });
+    const current = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { items: true },
+    });
     if (!current) throw new AppError(404, 'سفارش یافت نشد');
 
     const allowed = ALLOWED_TRANSITIONS[current.status as OrderStatus];
@@ -420,7 +428,24 @@ export class OrderService {
       throw new AppError(400, `تغییر وضعیت از ${current.status} به ${status} مجاز نیست`);
     }
 
+    const restoringStock = status === 'CANCELLED' && current.status !== 'CANCELLED';
+
     const order = await prisma.$transaction(async (tx) => {
+      if (restoringStock) {
+        for (const item of current.items) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stock: { increment: item.quantity } },
+          });
+        }
+        if (current.couponId) {
+          await tx.coupon.update({
+            where: { id: current.couponId },
+            data: { usedCount: { decrement: 1 } },
+          });
+        }
+      }
+
       await tx.order.update({
         where: { id: orderId },
         data: { status },
@@ -430,7 +455,7 @@ export class OrderService {
         data: {
           orderId,
           status,
-          note: note || undefined,
+          note: note || (restoringStock ? 'لغو سفارش و بازگشت موجودی' : undefined),
         },
       });
 
@@ -444,6 +469,11 @@ export class OrderService {
     });
 
     if (!order) throw new AppError(404, 'سفارش یافت نشد');
+
+    if (restoringStock) {
+      await cacheDel('products:*');
+      await cacheDel('home:*');
+    }
 
     if (status === 'PREPARING') {
       await smsService.sendOrderPacked(order.customerPhone, order.orderNumber);

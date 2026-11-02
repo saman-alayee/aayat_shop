@@ -124,10 +124,9 @@ function clearErrors() {
       valid = false;
     }
     const postalNormalized = normalizeDigits(postalCode.value).replace(/\D/g, '');
-    if (postalNormalized.length !== 10) {
-      errors.postalCode = postalNormalized.length
-        ? `کدپستی باید دقیقاً ۱۰ رقم باشد؛ الان ${faNum(postalNormalized.length)} رقم شمرده شد`
-        : 'کدپستی را با ۱۰ رقم وارد کنید';
+    // Postal code is optional; if entered, must be exactly 10 digits.
+    if (postalNormalized.length > 0 && postalNormalized.length !== 10) {
+      errors.postalCode = `کدپستی باید دقیقاً ۱۰ رقم باشد؛ الان ${faNum(postalNormalized.length)} رقم شمرده شد`;
       valid = false;
     } else {
       postalCode.value = postalNormalized;

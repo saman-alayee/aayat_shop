@@ -231,6 +231,7 @@ export interface Cart {
 export interface User {
   id: string;
   phone: string;
+  email?: string | null;
   firstName: string | null;
   lastName: string | null;
   role: UserRole;
@@ -295,8 +296,10 @@ export type PaymentMethod =
 export interface Order {
   id: string;
   orderNumber: string;
+  externalId?: string | null;
   subtotal?: number;
   discountAmount?: number;
+  shippingAmount?: number;
   couponCode?: string | null;
   totalPrice: number;
   status: OrderStatus;
@@ -314,6 +317,7 @@ export interface Order {
   } | null;
   customerName: string;
   customerPhone?: string;
+  customerEmail?: string | null;
   deliveryAddress?: string;
   addressId?: string | null;
   addressTitle?: string | null;

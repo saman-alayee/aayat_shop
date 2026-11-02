@@ -18,6 +18,8 @@
     "test:endpoints": "tsx scripts/test-endpoints.ts",
     "import:woocommerce": "tsx scripts/import-woocommerce-store.ts",
     "import:woocommerce:images": "tsx scripts/import-woocommerce-store.ts --download-only",
+    "import:woocommerce:orders": "tsx scripts/import-woocommerce-orders.ts",
+    "import:woocommerce:content": "tsx scripts/import-woocommerce-content-coupons.ts",
     "db:purge-test-catalog": "tsx scripts/purge-test-catalog.ts",
     "db:studio": "prisma studio",
     "lint": "eslint src --ext .ts"

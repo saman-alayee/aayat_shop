@@ -3,7 +3,7 @@ import { Prisma, CategoryFeedSortMode } from '@prisma/client';
 import { cacheGet, cacheSet, cacheDel } from '../config/redis';
 import { AppError } from '../utils/errors';
 import { slugify } from '../utils/helpers';
-import { searchTermVariants } from '../utils/normalize';
+import { searchTermsFromQuery, searchTermVariants } from '../utils/normalize';
 
 interface ProductFilters {
   categoryId?: string;
@@ -74,16 +74,21 @@ function textContains(value: string) {
 }
 
 function buildSearchClause(search: string) {
-  const terms = search
-    .trim()
-    .split(/\s+/)
-    .map((term) => term.trim())
-    .filter((term) => term.length >= 1);
+  let terms = searchTermsFromQuery(search);
+
+  // Pasted titles can be long; keep distinctive terms so AND stays useful.
+  if (terms.length > 5) {
+    const digitTerms = terms.filter((t) => /^\d+$/.test(t));
+    const wordTerms = terms
+      .filter((t) => !/^\d+$/.test(t))
+      .sort((a, b) => b.length - a.length)
+      .slice(0, 4);
+    terms = [...new Set([...digitTerms, ...wordTerms])];
+  }
 
   if (!terms.length) return null;
 
-  // Every word must match somewhere (AND of ORs). Previously all words were OR'd
-  // together, so "ماست میهن" returned almost anything containing either word.
+  // Every kept word must match somewhere (AND of ORs).
   return {
     AND: terms.map((term) => {
       const variants = searchTermVariants(term);
@@ -186,26 +191,9 @@ export class ProductService {
       if (cached) return cached;
     }
 
-    const curatedList = Boolean(homeDeal || homeFeatured || featured);
-    const needsCustomSort = sortMode === 'discount' || sortMode === 'bestsellers' || listingBucket;
-
-    if (needsCustomSort) {
-      const allProducts = await prisma.product.findMany({
-        where,
-        include: productListInclude,
-        orderBy: { createdAt: 'desc' },
-      });
-      const bucketed = listingBucket ? this.applyListingBucket(allProducts, listing) : allProducts;
-      const ordered = sortMode === 'newest'
-        ? bucketed
-        : await this.applyCustomSort(bucketed, sortMode);
-      const total = ordered.length;
-      const pageItems = ordered.slice((page - 1) * limit, page * limit);
-      return {
-        products: pageItems.map((product) => this.formatProduct(product)),
-        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
-      };
-    }
+    const demoteOutOfStock = !includeInactive && !inStock;
+    const needsCustomSort =
+      sortMode === 'discount' || sortMode === 'bestsellers' || listingBucket || demoteOutOfStock;
 
     const orderBy = homeDeal
       ? [{ homeDealSort: 'asc' as const }, { createdAt: 'desc' as const }]
@@ -214,6 +202,29 @@ export class ProductService {
         : featured
           ? [{ homeFeaturedSort: 'asc' as const }, { createdAt: 'desc' as const }]
           : { createdAt: 'desc' as const };
+
+    if (needsCustomSort) {
+      const allProducts = await prisma.product.findMany({
+        where,
+        include: productListInclude,
+        orderBy,
+      });
+      const bucketed = listingBucket ? this.applyListingBucket(allProducts, listing) : allProducts;
+      let ordered =
+        sortMode === 'newest' ? bucketed : await this.applyCustomSort(bucketed, sortMode);
+      // Sold-out items stay visible but sink to the end until restocked.
+      if (demoteOutOfStock) ordered = this.pushOutOfStockLast(ordered);
+      const total = ordered.length;
+      const pageItems = ordered.slice((page - 1) * limit, page * limit);
+      const result = {
+        products: pageItems.map((product) => this.formatProduct(product)),
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
+      };
+      if (!skipCache) {
+        await cacheSet(cacheKey, result, 300);
+      }
+      return result;
+    }
 
     const [products, total] = await Promise.all([
       prisma.product.findMany({
@@ -227,9 +238,8 @@ export class ProductService {
     ]);
 
     const formatted = products.map((product) => this.formatProduct(product));
-    // Keep DB order for search/curated lists; discount-sort only for casual browsing.
     const result = {
-      products: curatedList || search ? formatted : this.sortByDiscountPercent(formatted),
+      products: formatted,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
 
@@ -252,6 +262,17 @@ export class ProductService {
   private normalizeSort(sort?: string): 'newest' | 'discount' | 'bestsellers' {
     if (sort === 'discount' || sort === 'bestsellers') return sort;
     return 'newest';
+  }
+
+  /** Keep relative order, but move stock=0 products to the end (until restocked). */
+  private pushOutOfStockLast<T extends { stock?: number; inStock?: boolean }>(products: T[]): T[] {
+    const available: T[] = [];
+    const soldOut: T[] = [];
+    for (const product of products) {
+      const ok = typeof product.inStock === 'boolean' ? product.inStock : (product.stock ?? 0) > 0;
+      (ok ? available : soldOut).push(product);
+    }
+    return [...available, ...soldOut];
   }
 
   private async applyCustomSort<T extends { id: string; price: unknown; discountPrice: unknown | null; createdAt: Date }>(
@@ -616,41 +637,41 @@ export class ProductService {
       prisma.product.findMany({
         where: { isActive: true, isFeatured: true },
         include: productListInclude,
-        take: 8,
+        take: 24,
         orderBy: { createdAt: 'desc' },
       }),
       prisma.product.findMany({
         where: { isActive: true, discountPrice: { not: null } },
         include: productListInclude,
-        take: 8,
+        take: 24,
         orderBy: { updatedAt: 'desc' },
       }),
       prisma.product.findMany({
         where: { isActive: true, isNew: true },
         include: productListInclude,
-        take: 8,
+        take: 24,
         orderBy: { createdAt: 'desc' },
       }),
       prisma.product.findMany({
         where: { isActive: true, isHomeDeal: true },
         include: productListInclude,
-        take: 10,
+        take: 30,
         orderBy: [{ homeDealSort: 'asc' }, { createdAt: 'desc' }],
       }),
       prisma.product.findMany({
         where: { isActive: true, isHomeFeatured: true },
         include: productListInclude,
-        take: 10,
+        take: 30,
         orderBy: [{ homeFeaturedSort: 'asc' }, { createdAt: 'desc' }],
       }),
     ]);
 
     const result = {
-      featured: featured.map((product) => this.formatProduct(product)),
-      discounted: discounted.map((product) => this.formatProduct(product)),
-      newProducts: newProducts.map((product) => this.formatProduct(product)),
-      homeDeals: homeDeals.map((product) => this.formatProduct(product)),
-      homeFeatured: homeFeatured.map((product) => this.formatProduct(product)),
+      featured: this.pushOutOfStockLast(featured.map((product) => this.formatProduct(product))).slice(0, 8),
+      discounted: this.pushOutOfStockLast(discounted.map((product) => this.formatProduct(product))).slice(0, 8),
+      newProducts: this.pushOutOfStockLast(newProducts.map((product) => this.formatProduct(product))).slice(0, 8),
+      homeDeals: this.pushOutOfStockLast(homeDeals.map((product) => this.formatProduct(product))).slice(0, 10),
+      homeFeatured: this.pushOutOfStockLast(homeFeatured.map((product) => this.formatProduct(product))).slice(0, 10),
     };
 
     await cacheSet(cacheKey, result, 300);
@@ -682,7 +703,10 @@ export class ProductService {
     const rankedRows = await prisma.$queryRaw<Array<{ id: string; categoryId: string }>>(Prisma.sql`
       SELECT id, categoryId FROM (
         SELECT p.id, link.categoryId,
-          ROW_NUMBER() OVER (PARTITION BY link.categoryId ORDER BY p.createdAt DESC) AS rn
+          ROW_NUMBER() OVER (
+            PARTITION BY link.categoryId
+            ORDER BY CASE WHEN p.stock > 0 THEN 0 ELSE 1 END, p.createdAt DESC
+          ) AS rn
         FROM products p
         INNER JOIN (
           SELECT id AS productId, categoryId FROM products WHERE categoryId IN (${Prisma.join(categoryIds)})
@@ -774,11 +798,11 @@ export class ProductService {
     const related = await prisma.product.findMany({
       where,
       include: productListInclude,
-      take: limit,
+      take: Math.max(limit * 3, 24),
       orderBy: { createdAt: 'desc' },
     });
 
-    return this.sortByDiscountPercent(related.map((p) => this.formatProduct(p)));
+    return this.pushOutOfStockLast(related.map((p) => this.formatProduct(p))).slice(0, limit);
   }
 
   private orderCategoryFeedProducts(
@@ -796,14 +820,15 @@ export class ProductService {
         .map((product) => this.formatProduct(product!));
       const pickedSet = new Set(picked.map((product) => product.id));
       const fill = pool.filter((product) => !pickedSet.has(product.id));
-      return [...picked, ...fill].slice(0, limit);
+      return this.pushOutOfStockLast([...picked, ...fill]).slice(0, limit);
     }
 
-    if (mode === CategoryFeedSortMode.NEWEST) {
-      return pool.slice(0, limit);
+    if (mode === CategoryFeedSortMode.DISCOUNT) {
+      return this.pushOutOfStockLast(this.sortByDiscountPercent(pool)).slice(0, limit);
     }
 
-    return this.sortByDiscountPercent(pool).slice(0, limit);
+    // NEWEST (default): SQL already ranks in-stock first, then createdAt DESC
+    return this.pushOutOfStockLast(pool).slice(0, limit);
   }
 
   private sortByDiscountPercent<T extends { discountPercent?: number; effectivePrice?: number }>(

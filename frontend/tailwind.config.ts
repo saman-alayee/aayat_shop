@@ -4,28 +4,28 @@ export default {
   theme: {
     extend: {
       colors: {
-        /** Warm apparel palette: cream page, brown type, taupe gray */
+        /** Warm apparel palette — overridden at runtime via CSS variables from admin theme. */
         primary: {
-          50: '#faf6f1',
-          100: '#f3ebe3',
-          200: '#e6d8cb',
-          300: '#d2bfae',
-          400: '#b89a82',
-          500: '#8f735c',
-          600: '#6f5644',
-          700: '#5c4638',
-          800: '#4a382d',
-          900: '#3c322b',
+          50: 'rgb(var(--color-primary-50) / <alpha-value>)',
+          100: 'rgb(var(--color-primary-100) / <alpha-value>)',
+          200: 'rgb(var(--color-primary-200) / <alpha-value>)',
+          300: 'rgb(var(--color-primary-300) / <alpha-value>)',
+          400: 'rgb(var(--color-primary-400) / <alpha-value>)',
+          500: 'rgb(var(--color-primary-500) / <alpha-value>)',
+          600: 'rgb(var(--color-primary-600) / <alpha-value>)',
+          700: 'rgb(var(--color-primary-700) / <alpha-value>)',
+          800: 'rgb(var(--color-primary-800) / <alpha-value>)',
+          900: 'rgb(var(--color-primary-900) / <alpha-value>)',
         },
         accent: {
-          400: '#c4b8ab',
-          500: '#a89b8d',
-          600: '#8c7f72',
+          400: 'rgb(var(--color-accent-400) / <alpha-value>)',
+          500: 'rgb(var(--color-accent-500) / <alpha-value>)',
+          600: 'rgb(var(--color-accent-600) / <alpha-value>)',
         },
         surface: {
-          DEFAULT: '#fffdfb',
-          muted: '#f6f1ea',
-          dark: '#3c322b',
+          DEFAULT: 'rgb(var(--color-surface) / <alpha-value>)',
+          muted: 'rgb(var(--color-surface-muted) / <alpha-value>)',
+          dark: 'rgb(var(--color-surface-dark) / <alpha-value>)',
         },
       },
       fontFamily: {

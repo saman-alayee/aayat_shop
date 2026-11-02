@@ -1,10 +1,17 @@
 <script setup lang="ts">
+import {
+  DEFAULT_THEME,
+  THEME_PRESETS,
+  normalizeThemeColors,
+  type ThemeColors,
+} from '~/utils/themeColors';
+
 definePageMeta({ layout: 'admin', middleware: 'admin' });
 
 const api = useApi();
 const toast = useToast();
 
-type SettingsTab = 'announcement' | 'shipping' | 'maintenance' | 'new-order-sms';
+type SettingsTab = 'announcement' | 'shipping' | 'theme' | 'maintenance' | 'new-order-sms';
 
 interface NewOrderSmsSettings {
   enabled: boolean;
@@ -16,6 +23,7 @@ interface NewOrderSmsSettings {
 const tabs: Array<{ id: SettingsTab; label: string; icon: string }> = [
   { id: 'announcement', label: 'متن بالای سایت', icon: 'lucide:megaphone' },
   { id: 'shipping', label: 'هزینه ارسال و سبد', icon: 'lucide:truck' },
+  { id: 'theme', label: 'تم رنگی', icon: 'lucide:palette' },
   { id: 'maintenance', label: 'تعمیر فروشگاه', icon: 'lucide:scissors' },
   { id: 'new-order-sms', label: 'پیامک نوتیف سفارش', icon: 'lucide:message-square-text' },
 ];
@@ -41,6 +49,42 @@ const shippingForm = reactive({
   cartHoldMinutes: 30,
 });
 const shippingSaving = ref(false);
+const themeForm = reactive<ThemeColors>({ ...DEFAULT_THEME });
+const themeSaving = ref(false);
+const themeReady = ref(false);
+
+const { saveTheme, apply } = useThemeSettings();
+
+const themeGroups: Array<{
+  title: string;
+  fields: Array<{ key: keyof ThemeColors; label: string; hint?: string }>;
+}> = [
+  {
+    title: 'پس‌زمینه',
+    fields: [
+      { key: 'pageBg', label: 'پس‌زمینه صفحات فروشگاه', hint: 'صفحات کاربری، سبد و پروفایل' },
+      { key: 'adminPageBg', label: 'پس‌زمینه صفحات ادمین', hint: 'زمینه پنل مدیریت' },
+      { key: 'surface', label: 'پس‌زمینه کارت‌ها', hint: 'جعبه‌ها و جدول‌ها' },
+      { key: 'header', label: 'پس‌زمینه هدر و منو', hint: 'نوار بالا و سایدبار' },
+    ],
+  },
+  {
+    title: 'رنگ‌های اصلی',
+    fields: [
+      { key: 'primary', label: 'رنگ اصلی', hint: 'دکمه‌ها و لینک‌های برجسته' },
+      { key: 'onPrimary', label: 'متن روی دکمه اصلی' },
+      { key: 'accent', label: 'رنگ مکمل' },
+    ],
+  },
+  {
+    title: 'متن و خطوط',
+    fields: [
+      { key: 'text', label: 'متن اصلی' },
+      { key: 'textMuted', label: 'متن کم‌رنگ' },
+      { key: 'border', label: 'رنگ حاشیه' },
+    ],
+  },
+];
 
 const form = reactive({
   enabled: true,
@@ -65,7 +109,7 @@ const phoneCount = computed(() =>
 );
 
 onMounted(async () => {
-  await Promise.all([loadAnnouncement(), loadShipping(), loadMaintenance(), loadSettings()]);
+  await Promise.all([loadAnnouncement(), loadShipping(), loadThemeSettings(), loadMaintenance(), loadSettings()]);
 });
 
 async function loadAnnouncement() {
@@ -124,6 +168,45 @@ async function saveShipping() {
     toast.error(e instanceof Error ? e.message : 'خطا در ذخیره');
   } finally {
     shippingSaving.value = false;
+  }
+}
+
+async function loadThemeSettings() {
+  try {
+    const { data } = await api.get<ThemeColors>('/admin/settings/theme');
+    Object.assign(themeForm, normalizeThemeColors(data));
+  } catch (e: unknown) {
+    toast.error(e instanceof Error ? e.message : 'خطا در بارگذاری تم رنگی');
+  } finally {
+    themeReady.value = true;
+  }
+}
+
+function applyPreset(presetId: string) {
+  const preset = THEME_PRESETS.find((p) => p.id === presetId);
+  if (!preset) return;
+  Object.assign(themeForm, { ...preset.colors });
+}
+
+watch(
+  themeForm,
+  () => {
+    if (!themeReady.value) return;
+    apply({ ...themeForm });
+  },
+  { deep: true }
+);
+
+async function saveThemeSettings() {
+  themeSaving.value = true;
+  try {
+    const data = await saveTheme({ ...themeForm });
+    Object.assign(themeForm, data);
+    toast.success('تم رنگی ذخیره شد و روی کل سایت اعمال شد');
+  } catch (e: unknown) {
+    toast.error(e instanceof Error ? e.message : 'خطا در ذخیره تم');
+  } finally {
+    themeSaving.value = false;
   }
 }
 
@@ -247,7 +330,7 @@ useHead({ title: 'تنظیمات - پنل مدیریت' });
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
       <div>
         <h1 class="text-2xl font-bold text-gray-900">تنظیمات</h1>
-        <p class="text-sm text-gray-500 mt-1">متن بالای سایت، هزینه ارسال، زمان سبد، تعمیر فروشگاه و پیامک</p>
+        <p class="text-sm text-gray-500 mt-1">متن بالای سایت، هزینه ارسال، تم رنگی، تعمیر فروشگاه و پیامک</p>
       </div>
       <button type="button" class="btn-secondary text-sm self-start" @click="showGuide = !showGuide">
         {{ showGuide ? 'بستن راهنما' : 'نمایش راهنما' }}
@@ -347,6 +430,103 @@ useHead({ title: 'تنظیمات - پنل مدیریت' });
           @click="saveShipping"
         >
           {{ shippingSaving ? 'در حال ذخیره…' : 'ذخیره تنظیمات ارسال' }}
+        </button>
+      </div>
+    </div>
+
+    <div
+      v-if="activeTab === 'theme' && themeReady"
+      class="bg-white rounded-xl border border-gray-100 p-6 space-y-6 max-w-2xl"
+    >
+      <div>
+        <h2 class="text-lg font-semibold text-gray-900">تم رنگی کل سایت</h2>
+        <p class="text-sm text-gray-500 mt-1">
+          رنگ فروشگاه و پنل ادمین جداست. با جابه‌جایی رنگ، پیش‌نمایش همین‌جا دیده می‌شود؛ بعد از ذخیره برای همه کاربران می‌ماند.
+        </p>
+      </div>
+
+      <div>
+        <p class="text-sm font-medium text-gray-700 mb-2">پیش‌فرض‌های آماده</p>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+          <button
+            v-for="preset in THEME_PRESETS"
+            :key="preset.id"
+            type="button"
+            class="rounded-lg border border-gray-200 p-2.5 text-right hover:border-gray-400 transition-colors"
+            @click="applyPreset(preset.id)"
+          >
+            <span class="flex gap-1 mb-2">
+              <span
+                class="h-5 w-5 rounded-full border border-black/10"
+                :style="{ backgroundColor: preset.colors.primary }"
+              />
+              <span
+                class="h-5 w-5 rounded-full border border-black/10"
+                :style="{ backgroundColor: preset.colors.accent }"
+              />
+              <span
+                class="h-5 w-5 rounded-full border border-black/10"
+                :style="{ backgroundColor: preset.colors.pageBg }"
+              />
+            </span>
+            <span class="text-xs font-medium text-gray-800">{{ preset.label }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div v-for="group in themeGroups" :key="group.title" class="space-y-3">
+        <h3 class="text-sm font-semibold text-gray-800">{{ group.title }}</h3>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div v-for="field in group.fields" :key="field.key">
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ field.label }}</label>
+            <div class="flex items-center gap-2">
+              <input
+                v-model="themeForm[field.key]"
+                type="color"
+                class="h-10 w-12 cursor-pointer rounded border border-gray-200 bg-white p-1"
+              />
+              <input
+                v-model="themeForm[field.key]"
+                type="text"
+                dir="ltr"
+                maxlength="7"
+                class="input-field font-mono text-sm"
+                placeholder="#000000"
+              />
+            </div>
+            <p v-if="field.hint" class="mt-1 text-xs text-gray-500">{{ field.hint }}</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid sm:grid-cols-2 gap-3">
+        <div class="rounded-lg border p-4 space-y-3" :style="{ backgroundColor: themeForm.pageBg, borderColor: themeForm.border }">
+          <p class="text-sm font-medium" :style="{ color: themeForm.text }">فروشگاه</p>
+          <div class="rounded-lg border p-3" :style="{ backgroundColor: themeForm.header, borderColor: themeForm.border }">
+            <span class="text-xs" :style="{ color: themeForm.textMuted }">هدر</span>
+          </div>
+          <div class="rounded-lg border p-3 flex flex-wrap gap-2" :style="{ backgroundColor: themeForm.surface, borderColor: themeForm.border }">
+            <button type="button" class="rounded-lg px-3 py-1.5 text-sm" :style="{ backgroundColor: themeForm.primary, color: themeForm.onPrimary }">دکمه</button>
+            <span class="text-sm" :style="{ color: themeForm.text }">متن</span>
+          </div>
+        </div>
+        <div class="rounded-lg border p-4 space-y-3" :style="{ backgroundColor: themeForm.adminPageBg, borderColor: themeForm.border }">
+          <p class="text-sm font-medium" :style="{ color: themeForm.text }">ادمین</p>
+          <div class="rounded-lg border p-3" :style="{ backgroundColor: themeForm.surface, borderColor: themeForm.border }">
+            <span class="text-sm" :style="{ color: themeForm.text }">کارت</span>
+            <span class="text-xs mr-2" :style="{ color: themeForm.textMuted }">توضیح</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end">
+        <button
+          type="button"
+          class="btn-primary px-5 py-2.5 disabled:opacity-60"
+          :disabled="themeSaving"
+          @click="saveThemeSettings"
+        >
+          {{ themeSaving ? 'در حال ذخیره…' : 'ذخیره تم رنگی' }}
         </button>
       </div>
     </div>

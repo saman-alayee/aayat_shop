@@ -31,4 +31,13 @@ router.get(
   })
 );
 
+router.get(
+  '/theme',
+  asyncHandler(async (_req, res) => {
+    const settings = await settingsService.getTheme();
+    res.setHeader('Cache-Control', 'no-store');
+    successResponse(res, settings);
+  })
+);
+
 export default router;

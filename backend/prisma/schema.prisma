@@ -57,6 +57,7 @@ enum CategoryFeedSortMode {
 model User {
   id              String   @id @default(cuid())
   phone           String   @unique
+  email           String?
   firstName       String?
   lastName        String?
   passwordHash    String?
@@ -130,7 +131,7 @@ model Category {
   slug          String               @unique
   image         String?
   sortOrder     Int                  @default(0)
-  feedSortMode  CategoryFeedSortMode @default(DISCOUNT)
+  feedSortMode  CategoryFeedSortMode @default(NEWEST)
   isActive      Boolean              @default(true)
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
@@ -432,9 +433,12 @@ model CartItem {
 model Order {
   id                String        @id @default(cuid())
   orderNumber       String        @unique
+  /** External source id for imports, e.g. wc:817 */
+  externalId        String?       @unique
   userId            String?
   subtotal          Int?
   discountAmount    Int           @default(0)
+  shippingAmount    Int           @default(0)
   totalPrice        Int
   couponCode        String?
   couponId          String?
@@ -443,6 +447,7 @@ model Order {
   paymentDetails    Json?
   customerName      String
   customerPhone     String
+  customerEmail     String?
   deliveryAddress    String
   addressId          String?
   addressTitle       String?

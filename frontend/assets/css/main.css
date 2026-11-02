@@ -4,6 +4,33 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Default brown Aayat palette (RGB channels for Tailwind opacity) */
+  --color-primary-50: 250 246 241;
+  --color-primary-100: 243 235 227;
+  --color-primary-200: 230 216 203;
+  --color-primary-300: 210 191 174;
+  --color-primary-400: 184 154 130;
+  --color-primary-500: 143 115 92;
+  --color-primary-600: 111 86 68;
+  --color-primary-700: 92 70 56;
+  --color-primary-800: 74 56 45;
+  --color-primary-900: 60 50 43;
+  --color-accent-400: 196 184 171;
+  --color-accent-500: 168 155 141;
+  --color-accent-600: 140 127 114;
+  --color-surface: 255 253 251;
+  --color-surface-muted: 246 241 234;
+  --color-surface-dark: 60 50 43;
+  --color-page: 246 241 234;
+  --color-admin-page: 246 241 234;
+  --color-header: 255 253 251;
+  --color-text: 60 50 43;
+  --color-text-muted: 107 94 85;
+  --color-border: 231 224 216;
+  --color-on-primary: 255 255 255;
+}
+
 @layer base {
   html {
     font-family: 'IRANSansX', Tahoma, sans-serif;
@@ -11,7 +38,9 @@
   }
 
   body {
-    @apply bg-surface-muted text-stone-800 antialiased;
+    background-color: rgb(var(--color-page));
+    color: rgb(var(--color-text));
+    @apply antialiased;
     padding-bottom: env(safe-area-inset-bottom);
   }
 
@@ -29,9 +58,10 @@
 
 @layer components {
   .btn-primary {
-    @apply bg-primary-600 text-white font-medium rounded-xl px-6 py-3
+    @apply bg-primary-600 font-medium rounded-xl px-6 py-3
            hover:bg-primary-700 active:bg-primary-800 transition-colors
            disabled:opacity-50 disabled:cursor-not-allowed;
+    color: rgb(var(--color-on-primary));
   }
 
   .btn-secondary {
@@ -79,7 +109,7 @@
 
   input[type='radio'],
   input[type='checkbox'] {
-    accent-color: #6f5644;
+    accent-color: rgb(var(--color-primary-600));
   }
 
   .card {
@@ -547,4 +577,48 @@
     transition: none !important;
     transform: none !important;
   }
+}
+
+/* Saved theme paints common surfaces, text, and borders site-wide. */
+html.theme-live .bg-white,
+html.theme-live .bg-surface {
+  background-color: rgb(var(--color-surface)) !important;
+}
+html.theme-live .bg-gray-50,
+html.theme-live .bg-gray-100,
+html.theme-live .bg-stone-50,
+html.theme-live .bg-neutral-50,
+html.theme-live .bg-surface-muted {
+  background-color: rgb(var(--color-page)) !important;
+}
+html.theme-live .admin-theme-shell,
+html.theme-live .admin-theme-shell .bg-gray-50,
+html.theme-live .admin-theme-shell .bg-gray-100,
+html.theme-live .admin-theme-shell .bg-surface-muted {
+  background-color: rgb(var(--color-admin-page)) !important;
+}
+html.theme-live .theme-header {
+  background-color: rgb(var(--color-header)) !important;
+}
+html.theme-live .text-gray-900,
+html.theme-live .text-gray-800,
+html.theme-live .text-gray-700,
+html.theme-live .text-stone-800,
+html.theme-live .text-stone-900,
+html.theme-live .text-neutral-900,
+html.theme-live .text-neutral-800 {
+  color: rgb(var(--color-text)) !important;
+}
+html.theme-live .text-gray-600,
+html.theme-live .text-gray-500,
+html.theme-live .text-gray-400,
+html.theme-live .text-neutral-500,
+html.theme-live .text-neutral-400 {
+  color: rgb(var(--color-text-muted)) !important;
+}
+html.theme-live .border-gray-100,
+html.theme-live .border-gray-200,
+html.theme-live .border-neutral-200,
+html.theme-live .border-neutral-300 {
+  border-color: rgb(var(--color-border)) !important;
 }

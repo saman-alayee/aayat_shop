@@ -14,7 +14,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col bg-gray-50">
+  <div class="min-h-screen flex flex-col bg-surface-muted">
     <AppHeader />
     <main class="flex-1 safe-bottom">
       <div class="max-w-3xl mx-auto px-4 py-5">

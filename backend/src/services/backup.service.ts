@@ -1,11 +1,12 @@
 import { spawn } from 'child_process';
-import { createWriteStream, createReadStream, promises as fs } from 'fs';
+import { createWriteStream, createReadStream, existsSync, promises as fs } from 'fs';
 import { createGzip } from 'zlib';
 import { pipeline } from 'stream/promises';
 import path from 'path';
 import os from 'os';
 import type { Response } from 'express';
 import { config } from '../config';
+import prisma from '../config/database';
 import { AppError } from '../utils/errors';
 
 export interface MysqlConnectionParts {
@@ -14,6 +15,10 @@ export interface MysqlConnectionParts {
   user: string;
   password: string;
   database: string;
+}
+
+function stamp() {
+  return new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 }
 
 export function parseMysqlUrl(databaseUrl: string): MysqlConnectionParts {
@@ -25,7 +30,7 @@ export function parseMysqlUrl(databaseUrl: string): MysqlConnectionParts {
   }
 
   if (!parsed.protocol.startsWith('mysql')) {
-    throw new AppError(500, 'بکاپ فقط برای دیتابیس MySQL پشتیبانی می‌شود');
+    throw new AppError(500, 'آدرس دیتابیس MySQL نامعتبر است');
   }
 
   const database = decodeURIComponent(parsed.pathname.replace(/^\//, '').split('?')[0] || '');
@@ -42,17 +47,115 @@ export function parseMysqlUrl(databaseUrl: string): MysqlConnectionParts {
   };
 }
 
-function buildFilename(database: string) {
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+/** Resolve Prisma `file:...` URL to an absolute filesystem path. */
+export function resolveSqlitePath(databaseUrl: string): string {
+  if (!databaseUrl.startsWith('file:')) {
+    throw new AppError(500, 'آدرس دیتابیس SQLite نامعتبر است');
+  }
+
+  let raw = databaseUrl.slice('file:'.length);
+  // file:///var/... or file:/var/...
+  if (raw.startsWith('///')) raw = raw.slice(2);
+  else if (raw.startsWith('//') && !raw.startsWith('///')) {
+    // file://localhost/path — rare; strip host
+    const withoutHost = raw.replace(/^\/\/[^/]*/, '');
+    raw = withoutHost || raw;
+  }
+
+  const decoded = decodeURIComponent(raw);
+  if (path.isAbsolute(decoded)) {
+    if (!existsSync(decoded)) {
+      throw new AppError(500, 'فایل دیتابیس پیدا نشد');
+    }
+    return decoded;
+  }
+
+  const relative = decoded.replace(/^\.\//, '');
+  const candidates = [
+    path.resolve(process.cwd(), 'prisma', relative),
+    path.resolve(process.cwd(), relative),
+    path.resolve(__dirname, '../../prisma', relative),
+    path.resolve(__dirname, '../prisma', relative),
+  ];
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate;
+  }
+
+  throw new AppError(500, 'فایل دیتابیس پیدا نشد');
+}
+
+function buildMysqlFilename(database: string) {
   const safeDb = database.replace(/[^a-zA-Z0-9_-]/g, '_');
-  return `${safeDb}-backup-${stamp}.sql.gz`;
+  return `${safeDb}-backup-${stamp()}.sql.gz`;
+}
+
+function buildSqliteFilename(dbPath: string) {
+  const base = path.basename(dbPath, path.extname(dbPath)) || 'database';
+  const safe = base.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `${safe}-backup-${stamp()}.db.gz`;
 }
 
 export class BackupService {
   async streamDatabaseBackup(res: Response) {
-    const db = parseMysqlUrl(config.databaseUrl);
-    const filename = buildFilename(db.database);
-    const tmpPath = path.join(os.tmpdir(), `jetkala-${Date.now()}-${filename}`);
+    const url = config.databaseUrl || '';
+    if (url.startsWith('file:')) {
+      return this.streamSqliteBackup(res, url);
+    }
+    if (url.startsWith('mysql')) {
+      return this.streamMysqlBackup(res, url);
+    }
+    throw new AppError(500, 'نوع دیتابیس برای بکاپ پشتیبانی نمی‌شود');
+  }
+
+  private async streamSqliteBackup(res: Response, databaseUrl: string) {
+    const dbPath = resolveSqlitePath(databaseUrl);
+    const filename = buildSqliteFilename(dbPath);
+    const tmpDb = path.join(os.tmpdir(), `aayat-sqlite-${Date.now()}.db`);
+    const tmpGz = `${tmpDb}.gz`;
+
+    try {
+      // Consistent online snapshot (includes WAL contents).
+      const escaped = tmpDb.replace(/'/g, "''");
+      await prisma.$executeRawUnsafe(`VACUUM INTO '${escaped}'`);
+
+      const snapStat = await fs.stat(tmpDb);
+      if (!snapStat.size) {
+        throw new AppError(500, 'فایل بکاپ خالی است');
+      }
+
+      await pipeline(createReadStream(tmpDb), createGzip({ level: 9 }), createWriteStream(tmpGz));
+
+      const gzStat = await fs.stat(tmpGz);
+      if (!gzStat.size) {
+        throw new AppError(500, 'فایل بکاپ خالی است');
+      }
+
+      res.setHeader('Content-Type', 'application/gzip');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', String(gzStat.size));
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('X-Backup-Filename', filename);
+
+      await new Promise<void>((resolve, reject) => {
+        const stream = createReadStream(tmpGz);
+        stream.on('error', reject);
+        res.on('error', reject);
+        res.on('finish', resolve);
+        stream.pipe(res);
+      });
+
+      return { filename, database: path.basename(dbPath), bytes: gzStat.size };
+    } finally {
+      await fs.unlink(tmpDb).catch(() => undefined);
+      await fs.unlink(tmpGz).catch(() => undefined);
+    }
+  }
+
+  private async streamMysqlBackup(res: Response, databaseUrl: string) {
+    const db = parseMysqlUrl(databaseUrl);
+    const filename = buildMysqlFilename(db.database);
+    const tmpPath = path.join(os.tmpdir(), `aayat-mysql-${Date.now()}-${filename}`);
 
     const args = [
       `--host=${db.host}`,

@@ -106,6 +106,7 @@ export class CustomerService {
         select: {
           id: true,
           phone: true,
+          email: true,
           firstName: true,
           lastName: true,
           role: true,

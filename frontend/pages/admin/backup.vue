@@ -49,7 +49,7 @@ async function downloadBackup() {
     const disposition = response.headers.get('Content-Disposition') || '';
     const matched = disposition.match(/filename="?([^"]+)"?/i);
     const filename =
-      headerName || matched?.[1] || `database-backup-${Date.now()}.sql.gz`;
+      headerName || matched?.[1] || `database-backup-${Date.now()}.db.gz`;
 
     lastFilename.value = filename;
 
@@ -78,7 +78,8 @@ useHead({ title: 'بکاپ دیتابیس - پنل مدیریت' });
     <div class="mb-6">
       <h1 class="text-xl font-bold text-gray-800">بکاپ دیتابیس</h1>
       <p class="text-sm text-gray-500 mt-1 max-w-2xl">
-        ادمین اصلی می‌تواند یک نسخهٔ فشرده (`.sql.gz`) از دیتابیس اصلی سایت بگیرد و دانلود کند.
+        ادمین اصلی می‌تواند یک نسخهٔ فشرده از دیتابیس سایت بگیرد و دانلود کند
+        (برای SQLite فایل `.db.gz` و برای MySQL فایل `.sql.gz`).
       </p>
     </div>
 
@@ -90,7 +91,7 @@ useHead({ title: 'بکاپ دیتابیس - پنل مدیریت' });
         <div>
           <h2 class="font-bold text-gray-800">پشتیبان‌گیری کامل</h2>
           <p class="text-sm text-gray-500 mt-1 leading-relaxed">
-            فایل شامل جداول، داده‌ها، روتین و تریگرهاست و با gzip فشرده می‌شود.
+            یک اسنپ‌شات کامل از دیتابیس گرفته و با gzip فشرده می‌شود.
             این عملیات فقط برای نقش «مدیر» فعال است.
           </p>
         </div>
@@ -99,7 +100,7 @@ useHead({ title: 'بکاپ دیتابیس - پنل مدیریت' });
       <ul class="text-xs text-gray-500 space-y-1.5 list-disc pe-5">
         <li>قبل از تغییرات مهم یا آپدیت، یک بکاپ بگیرید.</li>
         <li>فایل را در جای امن نگهداری کنید؛ شامل اطلاعات مشتریان و سفارش‌هاست.</li>
-        <li>اگر mysqldump روی سرور نصب نباشد، بکاپ ناموفق می‌شود.</li>
+        <li>برای بازگردانی SQLite، فایل را از gzip خارج کنید و به‌جای دیتابیس فعلی قرار دهید.</li>
       </ul>
 
       <button

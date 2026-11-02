@@ -58,6 +58,7 @@ type StoreProduct = {
   categories: Array<{ id: number; name: string; slug: string }>;
   is_in_stock: boolean;
   low_stock_remaining: number | null;
+  stock_availability?: { text?: string; class?: string } | null;
 };
 
 async function fetchJson<T>(url: string): Promise<{ data: T; total: number; totalPages: number }> {
@@ -90,10 +91,28 @@ function parsePriceToman(raw: string | undefined): number {
 }
 
 function pickStock(p: StoreProduct): number {
+  // Prefer WooCommerce exact remaining count when the store exposes it.
   if (typeof p.low_stock_remaining === 'number' && p.low_stock_remaining > 0) {
     return p.low_stock_remaining;
   }
-  return p.is_in_stock ? 10 : 0;
+
+  const text = String(p.stock_availability?.text ?? '')
+    .replace(/<[^>]+>/g, '')
+    .trim();
+
+  if (!p.is_in_stock || /ناموجود/.test(text)) {
+    return 0;
+  }
+
+  // e.g. «فقط 3 عدد در انبار موجود است»
+  const match = text.match(/(\d+)/);
+  if (match && /موجود|انبار/.test(text)) {
+    const qty = parseInt(match[1], 10);
+    if (Number.isFinite(qty) && qty >= 0) return qty;
+  }
+
+  // In-stock but no exact qty in public Store API — keep a small positive buffer.
+  return 10;
 }
 
 function primaryDescription(p: StoreProduct): string | null {

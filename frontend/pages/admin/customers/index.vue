@@ -174,6 +174,7 @@ useHead({ title: 'مشتریان - پنل مدیریت' });
           <tr>
             <th>مشتری</th>
             <th>شماره تلفن</th>
+            <th>ایمیل</th>
             <th>آدرس</th>
             <th class="data-num">سفارش</th>
             <th class="data-num">جمع خرید</th>
@@ -186,6 +187,7 @@ useHead({ title: 'مشتریان - پنل مدیریت' });
             <td>
               <span dir="ltr" class="inline-block text-slate-600 tabular-nums">{{ customer.phone }}</span>
             </td>
+            <td class="text-slate-500 max-w-[180px] truncate" dir="ltr">{{ customer.email || '—' }}</td>
             <td class="text-slate-500 max-w-[220px] truncate">{{ customer.address || '—' }}</td>
             <td class="data-num">{{ formatNumber(customer._count.orders) }}</td>
             <td class="data-num font-medium">{{ formatPrice(customer.totalSpend || 0) }}</td>

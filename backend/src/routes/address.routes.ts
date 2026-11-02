@@ -10,10 +10,11 @@ const router = Router();
 
 router.use(authenticate);
 
+/** Optional: empty OK; if provided must be exactly 10 digits. */
 const postalCodeSchema = z
   .string()
-  .transform((v) => normalizeDigits(v).replace(/\D/g, ''))
-  .pipe(z.string().regex(/^\d{10}$/, 'کدپستی باید ۱۰ رقم باشد'));
+  .transform((v) => normalizeDigits(v || '').replace(/\D/g, ''))
+  .refine((v) => v === '' || /^\d{10}$/.test(v), { message: 'کدپستی باید ۱۰ رقم باشد' });
 
 const addressBodySchema = z.object({
   title: z.string().optional(),
@@ -22,7 +23,7 @@ const addressBodySchema = z.object({
   unit: z.string().min(1, 'واحد الزامی است'),
   province: z.string().min(2, 'استان الزامی است'),
   city: z.string().min(2, 'شهر الزامی است'),
-  postalCode: postalCodeSchema,
+  postalCode: postalCodeSchema.optional(),
   isDefault: z.boolean().optional(),
 });
 

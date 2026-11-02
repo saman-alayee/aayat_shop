@@ -60,9 +60,9 @@ watch(() => route.path, () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="admin-theme-shell min-h-screen bg-surface-muted">
     <!-- Desktop sidebar -->
-    <aside class="fixed top-0 start-0 h-full w-64 bg-white border-e border-gray-200 z-40 hidden lg:flex lg:flex-col">
+    <aside class="theme-header fixed top-0 start-0 h-full w-64 border-e border-gray-200 z-40 hidden lg:flex lg:flex-col">
       <div class="p-6 border-b border-gray-100">
         <NuxtLink to="/admin">
           <AppLogo size="sm" :link="false" />
@@ -98,10 +98,10 @@ watch(() => route.path, () => {
     <Transition name="admin-drawer">
       <div v-if="mobileNavOpen" class="fixed inset-0 z-50 lg:hidden">
         <div class="admin-drawer-backdrop absolute inset-0 bg-black/40" @click="mobileNavOpen = false" />
-        <aside class="admin-drawer-panel absolute top-0 start-0 h-full w-72 bg-white shadow-xl flex flex-col">
+        <aside class="theme-header admin-drawer-panel absolute top-0 start-0 h-full w-72 shadow-xl flex flex-col">
           <div class="p-4 border-b flex items-center justify-between">
             <AppLogo size="sm" :link="false" />
-            <button class="p-2 rounded-lg hover:bg-gray-100 text-gray-500" @click="mobileNavOpen = false">
+            <button class="p-2 rounded-lg hover:bg-surface-muted text-gray-500" @click="mobileNavOpen = false">
               <AppIcon name="lucide:x" size="lg" />
             </button>
           </div>
@@ -133,11 +133,11 @@ watch(() => route.path, () => {
     </Transition>
 
     <div class="lg:ms-64">
-      <header class="sticky top-0 z-30 bg-white border-b border-gray-100 px-4 lg:px-6 py-3">
+      <header class="theme-header sticky top-0 z-30 border-b border-gray-100 px-4 lg:px-6 py-3">
         <div class="flex items-center justify-between gap-3">
           <div class="flex items-center gap-3">
             <button
-              class="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200"
+              class="lg:hidden p-2 rounded-lg bg-surface-muted text-gray-600 hover:bg-primary-50"
               @click="mobileNavOpen = true"
             >
               <AppIcon name="lucide:menu" size="lg" />
@@ -243,7 +243,7 @@ watch(() => route.path, () => {
 
 <style scoped>
 .admin-nav-link {
-  @apply flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-800;
+  @apply flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-gray-600 hover:bg-surface-muted hover:text-gray-800;
   transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 .admin-nav-link:hover {
@@ -308,3 +308,4 @@ watch(() => route.path, () => {
   }
 }
 </style>
+

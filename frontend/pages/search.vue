@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Product, Pagination } from '~/types';
 import { DEMO_PRODUCTS } from '~/constants/demoCatalog';
+import { normalizeSearchText, stripInvisibleChars } from '~/utils/normalize';
 
 const route = useRoute();
 const router = useRouter();
@@ -63,7 +64,7 @@ const isBrowseMode = computed(
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 function syncFromRoute() {
-  query.value = (route.query.q as string) || '';
+  query.value = normalizeSearchText((route.query.q as string) || '');
   onlyInStock.value = route.query.inStock === '1' || route.query.inStock === 'true';
   const routeSort = route.query.sort as string;
   if (routeSort === 'discount' || routeSort === 'bestsellers') {
@@ -77,7 +78,12 @@ function syncFromRoute() {
 
 function buildQuery(overrides: Record<string, string | undefined> = {}) {
   const next: Record<string, string> = {};
-  const q = overrides.q !== undefined ? overrides.q : query.value.trim();
+  const q =
+    overrides.q !== undefined
+      ? overrides.q
+        ? normalizeSearchText(overrides.q)
+        : undefined
+      : normalizeSearchText(query.value) || undefined;
   const nextSort = (overrides.sort as SortMode | undefined) ?? sort.value;
   const nextInStock =
     overrides.inStock !== undefined ? overrides.inStock === '1' : onlyInStock.value;
@@ -115,7 +121,7 @@ async function fetchProducts(page: number, append: boolean) {
     pageTitle.value = query.value.trim() ? 'جستجو' : 'محصولات';
   }
 
-  const term = query.value.trim();
+  const term = normalizeSearchText(query.value);
   if (
     !catalogDemo.forceDemo.value &&
     !route.query.discounted &&
@@ -176,11 +182,36 @@ async function loadMore() {
 
 const { sentinel: loadMoreSentinel } = useInfiniteScroll(loadMore);
 
-function onQueryInput() {
+function commitQuery(raw: string, immediate = false, fullyNormalize = false) {
+  const cleaned = fullyNormalize ? normalizeSearchText(raw) : stripInvisibleChars(raw);
+  query.value = cleaned;
+  const forUrl = normalizeSearchText(cleaned);
   if (debounceTimer) clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => {
-    void router.replace({ path: '/search', query: buildQuery({ q: query.value.trim() || undefined }) });
-  }, 350);
+  const run = () => {
+    void router.replace({
+      path: '/search',
+      query: buildQuery({ q: forUrl || undefined }),
+    });
+  };
+  if (immediate) run();
+  else debounceTimer = setTimeout(run, 300);
+}
+
+function onQueryInput(event: Event) {
+  // Keep typing free; only strip invisible marks so the cursor stays put.
+  commitQuery((event.target as HTMLInputElement).value, false, false);
+}
+
+function onQueryPaste(event: ClipboardEvent) {
+  const text = event.clipboardData?.getData('text') ?? '';
+  event.preventDefault();
+  // Paste often skips a reliable input cycle on mobile; clean + search immediately.
+  commitQuery(text, true, true);
+}
+
+function onQuerySubmit() {
+  commitQuery(query.value, true, true);
+  void loadSearch();
 }
 
 function setSort(next: SortMode) {
@@ -223,14 +254,20 @@ usePageSeo(() => ({
   <div class="px-4 py-4">
     <h1 class="section-title">{{ pageTitle }}</h1>
 
-    <form class="mb-4" @submit.prevent="loadSearch">
+    <form class="mb-4" @submit.prevent="onQuerySubmit">
       <div class="relative">
         <input
-          v-model="query"
+          :value="query"
           type="search"
+          enterkeyhint="search"
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
           class="input-field pe-12"
-          placeholder="نام محصول را جستجو کنید..."
+          placeholder="نام، کد یا بارکد محصول..."
           @input="onQueryInput"
+          @paste="onQueryPaste"
+          @search="onQuerySubmit"
         />
         <button type="submit" class="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400">
           <AppIcon name="lucide:search" size="md" />

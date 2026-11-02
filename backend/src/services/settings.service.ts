@@ -10,10 +10,65 @@ export const MAINTENANCE_KEY = 'maintenance';
 export const ANNOUNCEMENT_KEY = 'announcement';
 export const DEFAULT_ANNOUNCEMENT_TEXT = 'زمان ارسال یک هفته کاری';
 export const SHIPPING_SETTINGS_KEY = 'shipping';
+export const THEME_SETTINGS_KEY = 'theme';
 export const DEFAULT_NATIONWIDE_SHIPPING_FEE = 0;
 export const DEFAULT_NATIONWIDE_SHIPPING_HINT =
   'پرداخت هزینه پست در محل (هنگام تحویل) انجام می‌شود';
 export const DEFAULT_CART_HOLD_MINUTES = 30;
+
+export interface ThemeSettings {
+  primary: string;
+  onPrimary: string;
+  accent: string;
+  pageBg: string;
+  adminPageBg: string;
+  surface: string;
+  header: string;
+  text: string;
+  textMuted: string;
+  border: string;
+}
+
+export const DEFAULT_THEME: ThemeSettings = {
+  primary: '#6f5644',
+  onPrimary: '#ffffff',
+  accent: '#a89b8d',
+  pageBg: '#f6f1ea',
+  adminPageBg: '#f6f1ea',
+  surface: '#fffdfb',
+  header: '#fffdfb',
+  text: '#3c322b',
+  textMuted: '#6b5e55',
+  border: '#e7e0d8',
+};
+
+const HEX_RE = /^#([0-9a-fA-F]{6})$/;
+
+function normalizeHex(value: unknown, fallback: string): string {
+  if (typeof value !== 'string') return fallback.toLowerCase();
+  const raw = value.trim();
+  if (HEX_RE.test(raw)) return raw.toLowerCase();
+  if (/^[0-9a-fA-F]{6}$/.test(raw)) return `#${raw.toLowerCase()}`;
+  return fallback.toLowerCase();
+}
+
+function normalizeTheme(raw: unknown): ThemeSettings {
+  const data = isRecord(raw) ? raw : {};
+  const legacyPage = typeof data.surfaceMuted === 'string' ? data.surfaceMuted : undefined;
+  const pageBg = normalizeHex(data.pageBg ?? legacyPage, DEFAULT_THEME.pageBg);
+  return {
+    primary: normalizeHex(data.primary, DEFAULT_THEME.primary),
+    onPrimary: normalizeHex(data.onPrimary, DEFAULT_THEME.onPrimary),
+    accent: normalizeHex(data.accent, DEFAULT_THEME.accent),
+    pageBg,
+    adminPageBg: normalizeHex(data.adminPageBg ?? pageBg, DEFAULT_THEME.adminPageBg),
+    surface: normalizeHex(data.surface, DEFAULT_THEME.surface),
+    header: normalizeHex(data.header ?? data.surface, DEFAULT_THEME.header),
+    text: normalizeHex(data.text, DEFAULT_THEME.text),
+    textMuted: normalizeHex(data.textMuted, DEFAULT_THEME.textMuted),
+    border: normalizeHex(data.border, DEFAULT_THEME.border),
+  };
+}
 
 export interface ShippingSettings {
   /** Fee charged at online checkout for nationwide shipping (toman). */
@@ -298,6 +353,27 @@ export class SettingsService {
       ? Math.max(5, Math.min(24 * 60, Math.round(minutes)))
       : DEFAULT_CART_HOLD_MINUTES;
     return { nationwideFee, nationwideHint: hint, cartHoldMinutes };
+  }
+
+  async getTheme(): Promise<ThemeSettings> {
+    const row = await prisma.appSetting.findUnique({ where: { key: THEME_SETTINGS_KEY } });
+    return normalizeTheme(row?.value);
+  }
+
+  async updateTheme(input: Partial<ThemeSettings>): Promise<ThemeSettings> {
+    const current = await this.getTheme();
+    const next = normalizeTheme({
+      ...current,
+      ...input,
+    });
+
+    await prisma.appSetting.upsert({
+      where: { key: THEME_SETTINGS_KEY },
+      create: { key: THEME_SETTINGS_KEY, value: next as unknown as Prisma.InputJsonValue },
+      update: { value: next as unknown as Prisma.InputJsonValue },
+    });
+
+    return next;
   }
 }
 
