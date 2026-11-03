@@ -65,6 +65,12 @@ onUnmounted(() => {
 });
 
 const outOfStock = computed(() => !props.product.inStock);
+const holdLocked = computed(() => Boolean(props.product.isHeld));
+const stockLabel = computed(() =>
+  holdLocked.value
+    ? props.product.holdMessage || 'این لباس انتخاب شده؛ در حال خرید است'
+    : 'ناموجود'
+);
 const quantity = computed(() => cartStore.getItemQuantity(props.product.id));
 const isAdding = computed(() => cartStore.addingProductId === props.product.id);
 const favorited = computed(() => isFavorite(props.product.id));
@@ -198,7 +204,9 @@ async function handleDecrease(event: Event) {
         {{ product.name }}
       </NuxtLink>
 
-      <p v-if="outOfStock" class="product-card-oos">ناموجود</p>
+      <p v-if="outOfStock" class="product-card-oos" :class="holdLocked ? 'product-card-oos--held' : ''">
+        {{ stockLabel }}
+      </p>
       <div v-else class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span
           v-if="product.discountPrice"
@@ -344,7 +352,9 @@ async function handleDecrease(event: Event) {
 
       <div :class="isCompact ? 'mt-auto pt-1' : 'mt-auto flex flex-col gap-2.5 pt-2'">
         <div :class="isCompact ? 'shrink-0' : 'h-[2.6rem] shrink-0'">
-          <p v-if="outOfStock" class="product-card-oos">ناموجود</p>
+          <p v-if="outOfStock" class="product-card-oos" :class="holdLocked ? 'product-card-oos--held' : ''">
+            {{ stockLabel }}
+          </p>
           <template v-else>
             <p
               v-if="product.discountPrice"
@@ -399,6 +409,7 @@ async function handleDecrease(event: Event) {
 .product-card-oos {
   align-self: flex-start;
   width: fit-content;
+  max-width: 100%;
   border-radius: 9999px;
   background: #f3ebe3;
   padding: 3px 9px;
@@ -407,6 +418,13 @@ async function handleDecrease(event: Event) {
   letter-spacing: 0.02em;
   line-height: 1.4;
   color: #6f5644;
+}
+
+.product-card-oos--held {
+  background: #fff4e5;
+  color: #9a3412;
+  border-radius: 8px;
+  line-height: 1.45;
 }
 
 .product-card-sarak-media {

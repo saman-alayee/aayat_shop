@@ -13,6 +13,8 @@ export interface Category {
   parentId?: string | null;
   feedSortMode?: 'MANUAL' | 'DISCOUNT' | 'NEWEST';
   isActive: boolean;
+  /** Shown in the storefront home category tile grid */
+  showOnHome?: boolean;
   _count?: { products: number };
   tags?: Tag[];
 }
@@ -190,6 +192,11 @@ export interface Product {
   category?: { id: string; name: string; slug: string };
   tag?: Tag | null;
   inStock: boolean;
+  /** True when warehouse has stock but another shopper's cart is holding it. */
+  isHeld?: boolean;
+  holdMessage?: string | null;
+  heldQuantity?: number;
+  warehouseStock?: number;
   ratingAvg?: number;
   ratingCount?: number;
 }

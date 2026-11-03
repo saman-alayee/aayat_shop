@@ -1,16 +1,24 @@
 <script setup lang="ts">
 import type { ClothingMeta, Product } from '~/types';
 
-const props = defineProps<{
-  product: Product;
-  clothingMeta: ClothingMeta | null;
-  isDemoProduct: boolean;
-  inStockDisplay: boolean;
-  canPurchase: boolean;
-  quantity: number;
-  adding?: boolean;
-  justAdded?: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    product: Product;
+    clothingMeta: ClothingMeta | null;
+    isDemoProduct: boolean;
+    inStockDisplay: boolean;
+    canPurchase: boolean;
+    unavailableLabel?: string;
+    holdLocked?: boolean;
+    quantity: number;
+    adding?: boolean;
+    justAdded?: boolean;
+  }>(),
+  {
+    unavailableLabel: 'ناموجود',
+    holdLocked: false,
+  }
+);
 
 const selectedColor = defineModel<string | undefined>('selectedColor');
 const selectedSize = defineModel<string | undefined>('selectedSize');
@@ -59,15 +67,18 @@ function share(kind: 'whatsapp' | 'telegram' | 'twitter' | 'facebook') {
         {{ formatPrice(product.price) }}
       </p>
       <span
-        v-if="!isDemoProduct && !inStockDisplay"
-        class="inline-flex w-fit items-center rounded bg-[#fde8e6] px-1.5 py-px text-[11px] font-semibold leading-5 text-[#b42318]"
+        v-if="!isDemoProduct && !inStockDisplay && quantity === 0"
+        class="inline-flex w-fit max-w-full items-center rounded bg-[#fde8e6] px-1.5 py-px text-[11px] font-semibold leading-5 text-[#b42318]"
       >
-        ناموجود
+        {{ unavailableLabel }}
       </span>
     </div>
 
     <p v-if="isDemoProduct" class="mt-2 text-xs text-gray-500">موجود — فقط نمایشی</p>
-    <p v-else-if="!inStockDisplay" class="mt-2 text-sm text-neutral-500">
+    <p v-else-if="holdLocked" class="mt-2 text-sm text-amber-800">
+      {{ unavailableLabel }}
+    </p>
+    <p v-else-if="!inStockDisplay && quantity === 0" class="mt-2 text-sm text-neutral-500">
       این محصول فعلاً موجود نیست؛ مشخصات را می‌توانید ببینید.
     </p>
 
@@ -102,7 +113,7 @@ function share(kind: 'whatsapp' | 'telegram' | 'twitter' | 'facebook') {
         @click="emit('addToCart')"
       >
         <AppIcon v-if="justAdded" name="lucide:check" size="sm" />
-        {{ !canPurchase ? 'ناموجود' : adding ? 'در حال افزودن…' : justAdded ? 'به سبد اضافه شد' : 'افزودن به سبد خرید' }}
+        {{ !canPurchase ? unavailableLabel : adding ? 'در حال افزودن…' : justAdded ? 'به سبد اضافه شد' : 'افزودن به سبد خرید' }}
       </button>
 
       <div v-else class="inline-flex h-12 min-w-[190px] items-center justify-between gap-3 rounded-lg bg-[#1f8a4c] px-3 text-white">

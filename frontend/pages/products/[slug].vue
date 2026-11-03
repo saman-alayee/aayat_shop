@@ -121,8 +121,19 @@ const variantStock = computed(() => {
   return effectiveProductStock(product.value, selectedColor.value, selectedSize.value);
 });
 
-const inStockDisplay = computed(() => variantStock.value > 0);
+const holdLocked = computed(() => Boolean(product.value?.isHeld) && quantity.value === 0);
+const inStockDisplay = computed(() => {
+  // Already reserved in this shopper's cart — keep cart controls usable.
+  if (quantity.value > 0) return true;
+  if (product.value?.isHeld) return false;
+  return variantStock.value > 0;
+});
 const canPurchase = computed(() => !isDemoProduct.value && inStockDisplay.value);
+const unavailableLabel = computed(() =>
+  holdLocked.value
+    ? product.value?.holdMessage || 'این لباس انتخاب شده؛ در حال خرید است'
+    : 'ناموجود'
+);
 const addingToCart = ref(false);
 const justAdded = ref(false);
 let addedTimer: ReturnType<typeof setTimeout> | null = null;
@@ -253,6 +264,8 @@ usePageSeo(() => ({
           :is-demo-product="isDemoProduct"
           :in-stock-display="inStockDisplay"
           :can-purchase="canPurchase"
+          :unavailable-label="unavailableLabel"
+          :hold-locked="holdLocked"
           :quantity="quantity"
           :adding="addingToCart"
           :just-added="justAdded"
@@ -282,7 +295,7 @@ usePageSeo(() => ({
           @click="addToCart"
         >
           <AppIcon v-if="justAdded" name="lucide:check" size="sm" />
-          {{ !canPurchase ? 'ناموجود' : addingToCart ? 'در حال افزودن…' : justAdded ? 'به سبد اضافه شد' : 'افزودن به سبد خرید' }}
+          {{ !canPurchase ? unavailableLabel : addingToCart ? 'در حال افزودن…' : justAdded ? 'به سبد اضافه شد' : 'افزودن به سبد خرید' }}
         </button>
         <div v-else class="inline-flex h-12 flex-1 items-center justify-between gap-3 rounded-lg bg-[#1f8a4c] px-3 text-white">
           <button
@@ -304,10 +317,10 @@ usePageSeo(() => ({
           </button>
         </div>
         <p
-          v-if="!canPurchase"
-          class="shrink-0 rounded bg-[#fde8e6] px-1.5 py-px text-[11px] font-semibold leading-5 text-[#b42318]"
+          v-if="!canPurchase && quantity === 0"
+          class="max-w-[9.5rem] shrink-0 rounded bg-[#fde8e6] px-1.5 py-px text-[11px] font-semibold leading-5 text-[#b42318]"
         >
-          ناموجود
+          {{ unavailableLabel }}
         </p>
         <p v-else class="shrink-0 text-base font-bold text-[#3c322b]">
           {{ formatPrice(product.effectivePrice) }}

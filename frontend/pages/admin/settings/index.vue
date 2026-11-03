@@ -391,7 +391,9 @@ useHead({ title: 'تنظیمات - پنل مدیریت' });
           class="input-field"
           dir="ltr"
         />
-        <p class="mt-1 text-xs text-gray-500">بعد از این مدت، لباس‌هایی که پرداخت نشده‌اند از سبد حذف می‌شوند.</p>
+        <p class="mt-1 text-xs text-gray-500">
+          در این مدت لباس برای بقیه «در حال خرید» قفل می‌شود؛ اگر پرداخت نشود از سبد حذف و دوباره آزاد می‌شود.
+        </p>
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">هزینه ارسال در پرداخت آنلاین (تومان)</label>

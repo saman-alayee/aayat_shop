@@ -29,13 +29,42 @@ export class CategoryService {
     return category;
   }
 
-  async create(data: { name: string; image?: string; sortOrder?: number }) {
+  async create(data: {
+    name: string;
+    image?: string | null;
+    sortOrder?: number;
+    isActive?: boolean;
+    showOnHome?: boolean;
+  }) {
     const slug = slugify(data.name);
     const category = await prisma.category.create({
       data: { ...data, slug },
     });
     await cacheDel('categories:*');
     return category;
+  }
+
+  /** Active categories marked for the home page grid, ordered by sortOrder. */
+  async getHomeTiles() {
+    const cacheKey = 'categories:home-tiles';
+    const cached = await cacheGet<unknown>(cacheKey);
+    if (cached) return cached;
+
+    const categories = await prisma.category.findMany({
+      where: { isActive: true, showOnHome: true },
+      orderBy: { sortOrder: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        image: true,
+        sortOrder: true,
+        showOnHome: true,
+      },
+    });
+
+    await cacheSet(cacheKey, categories, 600);
+    return categories;
   }
 
   async update(id: string, data: Record<string, unknown>) {

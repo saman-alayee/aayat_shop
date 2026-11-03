@@ -133,6 +133,8 @@ model Category {
   sortOrder     Int                  @default(0)
   feedSortMode  CategoryFeedSortMode @default(NEWEST)
   isActive      Boolean              @default(true)
+  /** Show as a tile in the storefront home category grid */
+  showOnHome    Boolean              @default(false)
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
 
@@ -142,6 +144,7 @@ model Category {
   tags              Tag[]
   sliders           Slider[]
 
+  @@index([showOnHome, isActive, sortOrder])
   @@map("categories")
 }
 

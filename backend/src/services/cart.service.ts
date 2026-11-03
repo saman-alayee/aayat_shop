@@ -52,9 +52,33 @@ export class CartService {
     return { ...cart, newSessionId };
   }
 
+  /** Drop cart lines older than the hold window (store-wide). */
+  async expireAllStaleCartItems() {
+    const { cartHoldMinutes } = await settingsService.getShipping();
+    const cutoff = new Date(Date.now() - cartHoldMinutes * 60 * 1000);
+    await prisma.cartItem.deleteMany({
+      where: { updatedAt: { lt: cutoff } },
+    });
+    return cartHoldMinutes;
+  }
+
+  /**
+   * Active cart quantities per product (soft reservation).
+   * Optionally exclude one cart (the current shopper) so they can keep their own hold.
+   */
+  async getActiveHoldQuantities(excludeCartId?: string) {
+    await this.expireAllStaleCartItems();
+    const rows = await prisma.cartItem.groupBy({
+      by: ['productId'],
+      where: excludeCartId ? { cartId: { not: excludeCartId } } : undefined,
+      _sum: { quantity: true },
+    });
+    return new Map(rows.map((row) => [row.productId, row._sum.quantity ?? 0]));
+  }
+
   async getCart(userId?: string, sessionId?: string) {
     const cart = await this.getOrCreateCart(userId, sessionId);
-    const holdMinutes = await this.expireStaleItems(cart.id);
+    const holdMinutes = await this.expireAllStaleCartItems();
     const fresh = await prisma.cart.findUnique({
       where: { id: cart.id },
       include: { items: { include: { product: true } } },
@@ -66,23 +90,15 @@ export class CartService {
     return formatted;
   }
 
-  private async expireStaleItems(cartId: string) {
-    const { cartHoldMinutes } = await settingsService.getShipping();
-    const cutoff = new Date(Date.now() - cartHoldMinutes * 60 * 1000);
-    await prisma.cartItem.deleteMany({
-      where: { cartId, updatedAt: { lt: cutoff } },
-    });
-    return cartHoldMinutes;
-  }
-
   async addItem(userId: string | undefined, sessionId: string | undefined, productId: string, quantity = 1) {
     const product = await prisma.product.findUnique({ where: { id: productId, isActive: true } });
     if (!product) throw new AppError(404, 'محصول یافت نشد');
-    if (product.stock < quantity) throw new AppError(400, 'موجودی کافی نیست');
+    if (product.stock < 1) throw new AppError(400, 'موجودی کافی نیست');
 
     const cart = await this.getOrCreateCart(userId, sessionId);
-    await this.expireStaleItems(cart.id);
     const cartId = cart.id;
+    const heldOthers = (await this.getActiveHoldQuantities(cartId)).get(productId) ?? 0;
+    const available = Math.max(0, product.stock - heldOthers);
 
     const existingItem = await prisma.cartItem.findUnique({
       where: { cartId_productId: { cartId, productId } },
@@ -90,12 +106,27 @@ export class CartService {
 
     if (existingItem) {
       const newQty = existingItem.quantity + quantity;
-      if (newQty > product.stock) throw new AppError(400, 'موجودی کافی نیست');
+      if (newQty > available) {
+        throw new AppError(
+          400,
+          heldOthers > 0 && available < product.stock
+            ? 'این لباس انتخاب شده؛ در حال خرید است'
+            : 'موجودی کافی نیست'
+        );
+      }
       await prisma.cartItem.update({
         where: { id: existingItem.id },
         data: { quantity: newQty },
       });
     } else {
+      if (quantity > available) {
+        throw new AppError(
+          400,
+          heldOthers > 0
+            ? 'این لباس انتخاب شده؛ در حال خرید است'
+            : 'موجودی کافی نیست'
+        );
+      }
       await prisma.cartItem.create({
         data: { cartId, productId, quantity },
       });
@@ -122,7 +153,16 @@ export class CartService {
     } else {
       const product = await prisma.product.findUnique({ where: { id: productId } });
       if (!product) throw new AppError(404, 'محصول یافت نشد');
-      if (quantity > product.stock) throw new AppError(400, 'موجودی کافی نیست');
+      const heldOthers = (await this.getActiveHoldQuantities(cart.id)).get(productId) ?? 0;
+      const available = Math.max(0, product.stock - heldOthers);
+      if (quantity > available) {
+        throw new AppError(
+          400,
+          heldOthers > 0
+            ? 'این لباس انتخاب شده؛ در حال خرید است'
+            : 'موجودی کافی نیست'
+        );
+      }
 
       await prisma.cartItem.updateMany({
         where: { cartId: cart.id, productId },

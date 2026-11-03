@@ -56,6 +56,7 @@ const categorySchema = z.object({
   image: z.string().optional().nullable(),
   sortOrder: z.number().optional(),
   isActive: z.boolean().optional(),
+  showOnHome: z.boolean().optional(),
 });
 
 router.get(

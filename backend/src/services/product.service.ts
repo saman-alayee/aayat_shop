@@ -4,6 +4,9 @@ import { cacheGet, cacheSet, cacheDel } from '../config/redis';
 import { AppError } from '../utils/errors';
 import { slugify } from '../utils/helpers';
 import { searchTermsFromQuery, searchTermVariants } from '../utils/normalize';
+import { cartService } from './cart.service';
+
+export const PRODUCT_HOLD_MESSAGE = 'این لباس انتخاب شده؛ در حال خرید است';
 
 interface ProductFilters {
   categoryId?: string;
@@ -182,8 +185,16 @@ export class ProductService {
 
     const sortMode = this.normalizeSort(sort);
     const listingBucket = listing === 'new' || listing === 'other';
+    const applyHolds = !includeInactive;
+    // Holds change every few minutes — don't serve stale availability from cache.
     const skipCache = Boolean(
-      search || includeInactive || barcode || inStock || sortMode !== 'newest' || listingBucket
+      applyHolds ||
+        search ||
+        includeInactive ||
+        barcode ||
+        inStock ||
+        sortMode !== 'newest' ||
+        listingBucket
     );
     const cacheKey = `products:${JSON.stringify(filters)}`;
     if (!skipCache) {
@@ -193,7 +204,11 @@ export class ProductService {
 
     const demoteOutOfStock = !includeInactive && !inStock;
     const needsCustomSort =
-      sortMode === 'discount' || sortMode === 'bestsellers' || listingBucket || demoteOutOfStock;
+      sortMode === 'discount' ||
+      sortMode === 'bestsellers' ||
+      listingBucket ||
+      demoteOutOfStock ||
+      applyHolds;
 
     const orderBy = homeDeal
       ? [{ homeDealSort: 'asc' as const }, { createdAt: 'desc' as const }]
@@ -203,21 +218,38 @@ export class ProductService {
           ? [{ homeFeaturedSort: 'asc' as const }, { createdAt: 'desc' as const }]
           : { createdAt: 'desc' as const };
 
+    const holds = applyHolds ? await cartService.getActiveHoldQuantities() : undefined;
+
     if (needsCustomSort) {
+      // When filtering "in stock", DB stock>0 still includes held items — resolve after holds.
+      const whereForLoad =
+        applyHolds && inStock
+          ? (() => {
+              const { stock: _stock, ...rest } = where as Record<string, unknown>;
+              return rest;
+            })()
+          : where;
+
       const allProducts = await prisma.product.findMany({
-        where,
+        where: whereForLoad,
         include: productListInclude,
         orderBy,
       });
       const bucketed = listingBucket ? this.applyListingBucket(allProducts, listing) : allProducts;
       let ordered =
         sortMode === 'newest' ? bucketed : await this.applyCustomSort(bucketed, sortMode);
-      // Sold-out items stay visible but sink to the end until restocked.
-      if (demoteOutOfStock) ordered = this.pushOutOfStockLast(ordered);
-      const total = ordered.length;
-      const pageItems = ordered.slice((page - 1) * limit, page * limit);
+
+      let formatted = ordered.map((product) => this.formatProduct(product, holds));
+      if (applyHolds && inStock) {
+        formatted = formatted.filter((product) => product.inStock);
+      }
+      // Sold-out / held items stay visible but sink to the end until free again.
+      if (demoteOutOfStock) formatted = this.pushOutOfStockLast(formatted);
+
+      const total = formatted.length;
+      const pageItems = formatted.slice((page - 1) * limit, page * limit);
       const result = {
-        products: pageItems.map((product) => this.formatProduct(product)),
+        products: pageItems,
         pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
       };
       if (!skipCache) {
@@ -237,7 +269,7 @@ export class ProductService {
       prisma.product.count({ where }),
     ]);
 
-    const formatted = products.map((product) => this.formatProduct(product));
+    const formatted = products.map((product) => this.formatProduct(product, holds));
     const result = {
       products: formatted,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
@@ -321,7 +353,8 @@ export class ProductService {
       },
     });
     if (!product) throw new AppError(404, 'محصول یافت نشد');
-    return this.formatProduct(product);
+    const holds = await cartService.getActiveHoldQuantities();
+    return this.formatProduct(product, holds);
   }
 
   async getById(id: string) {
@@ -629,10 +662,7 @@ export class ProductService {
   }
 
   async getHomeSections() {
-    const cacheKey = 'home:sections';
-    const cached = await cacheGet<unknown>(cacheKey);
-    if (cached) return cached;
-
+    const holds = await cartService.getActiveHoldQuantities();
     const [featured, discounted, newProducts, homeDeals, homeFeatured] = await Promise.all([
       prisma.product.findMany({
         where: { isActive: true, isFeatured: true },
@@ -666,23 +696,16 @@ export class ProductService {
       }),
     ]);
 
-    const result = {
-      featured: this.pushOutOfStockLast(featured.map((product) => this.formatProduct(product))).slice(0, 8),
-      discounted: this.pushOutOfStockLast(discounted.map((product) => this.formatProduct(product))).slice(0, 8),
-      newProducts: this.pushOutOfStockLast(newProducts.map((product) => this.formatProduct(product))).slice(0, 8),
-      homeDeals: this.pushOutOfStockLast(homeDeals.map((product) => this.formatProduct(product))).slice(0, 10),
-      homeFeatured: this.pushOutOfStockLast(homeFeatured.map((product) => this.formatProduct(product))).slice(0, 10),
+    return {
+      featured: this.pushOutOfStockLast(featured.map((product) => this.formatProduct(product, holds))).slice(0, 8),
+      discounted: this.pushOutOfStockLast(discounted.map((product) => this.formatProduct(product, holds))).slice(0, 8),
+      newProducts: this.pushOutOfStockLast(newProducts.map((product) => this.formatProduct(product, holds))).slice(0, 8),
+      homeDeals: this.pushOutOfStockLast(homeDeals.map((product) => this.formatProduct(product, holds))).slice(0, 10),
+      homeFeatured: this.pushOutOfStockLast(homeFeatured.map((product) => this.formatProduct(product, holds))).slice(0, 10),
     };
-
-    await cacheSet(cacheKey, result, 300);
-    return result;
   }
 
   async getHomeFeed() {
-    const cacheKey = 'home:feed';
-    const cached = await cacheGet<unknown>(cacheKey);
-    if (cached) return cached;
-
     const categories = await prisma.category.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: 'asc' },
@@ -690,9 +713,10 @@ export class ProductService {
 
     const categoryIds = categories.map((category) => category.id);
     if (categoryIds.length === 0) {
-      await cacheSet(cacheKey, [], 300);
       return [];
     }
+
+    const holds = await cartService.getActiveHoldQuantities();
 
     const feedPickRows = await prisma.categoryFeedProduct.findMany({
       where: { categoryId: { in: categoryIds } },
@@ -722,7 +746,6 @@ export class ProductService {
       ...new Set([...rankedRows.map((row) => row.id), ...feedPickRows.map((row) => row.productId)]),
     ];
     if (productIds.length === 0) {
-      await cacheSet(cacheKey, [], 300);
       return [];
     }
 
@@ -745,18 +768,19 @@ export class ProductService {
       const product = productById.get(row.id);
       if (!product) continue;
       const list = productsByCategory.get(row.categoryId) ?? [];
-      list.push(this.formatProduct(product));
+      list.push(this.formatProduct(product, holds));
       productsByCategory.set(row.categoryId, list);
     }
 
-    const feed = categories
+    return categories
       .map((category) => {
         const pool = productsByCategory.get(category.id) ?? [];
-        const products = this.orderCategoryFeedProducts(
+        const sectionProducts = this.orderCategoryFeedProducts(
           category.feedSortMode,
           pool,
           pickIdsByCategory.get(category.id) ?? [],
-          productById
+          productById,
+          holds
         );
         return {
           category: {
@@ -765,13 +789,10 @@ export class ProductService {
             slug: category.slug,
             image: category.image,
           },
-          products,
+          products: sectionProducts,
         };
       })
       .filter((section) => section.products.length > 0);
-
-    await cacheSet(cacheKey, feed, 300);
-    return feed;
   }
 
   async getRelatedByTag(productSlug: string, limit = 8) {
@@ -801,15 +822,17 @@ export class ProductService {
       take: Math.max(limit * 3, 24),
       orderBy: { createdAt: 'desc' },
     });
+    const holds = await cartService.getActiveHoldQuantities();
 
-    return this.pushOutOfStockLast(related.map((p) => this.formatProduct(p))).slice(0, limit);
+    return this.pushOutOfStockLast(related.map((p) => this.formatProduct(p, holds))).slice(0, limit);
   }
 
   private orderCategoryFeedProducts(
     mode: CategoryFeedSortMode,
     pool: ReturnType<typeof this.formatProduct>[],
     pickIds: string[],
-    productById: Map<string, Parameters<ProductService['formatProduct']>[0]>
+    productById: Map<string, Parameters<ProductService['formatProduct']>[0]>,
+    holds?: Map<string, number>
   ) {
     const limit = 10;
 
@@ -817,7 +840,7 @@ export class ProductService {
       const picked = pickIds
         .map((id) => productById.get(id))
         .filter(Boolean)
-        .map((product) => this.formatProduct(product!));
+        .map((product) => this.formatProduct(product!, holds));
       const pickedSet = new Set(picked.map((product) => product.id));
       const fill = pool.filter((product) => !pickedSet.has(product.id));
       return this.pushOutOfStockLast([...picked, ...fill]).slice(0, limit);
@@ -908,41 +931,44 @@ export class ProductService {
     ]);
   }
 
-  private formatProduct(product: {
-    id: string;
-    name: string;
-    slug: string;
-    description: string | null;
-    barcode?: string | null;
-    productionDate?: Date | null;
-    expiryDate?: Date | null;
-    price: unknown;
-    discountPrice: unknown | null;
-    stock: number;
-    image: string | null;
-    unit: string | null;
-    isActive: boolean;
-    isFeatured: boolean;
-    isNew: boolean;
-    isOldPrice: boolean;
-    isHomeDeal?: boolean;
-    homeDealSort?: number;
-    isHomeFeatured?: boolean;
-    homeFeaturedSort?: number;
-    categoryId: string;
-    tagId?: string | null;
-    category?: { id: string; name: string; slug: string };
-    tag?: { id: string; name: string; slug: string; icon: string | null } | null;
-    productCategories?: Array<{ category: { id: string; name: string; slug: string } }>;
-    productTags?: Array<{
-      tag: { id: string; name: string; slug: string; icon: string | null; categoryId: string };
-    }>;
-    images?: { url: string; sortOrder: number }[];
-    createdAt: Date;
-    updatedAt: Date;
-    ratingAvg?: number | null;
-    ratingCount?: number | null;
-  }) {
+  private formatProduct(
+    product: {
+      id: string;
+      name: string;
+      slug: string;
+      description: string | null;
+      barcode?: string | null;
+      productionDate?: Date | null;
+      expiryDate?: Date | null;
+      price: unknown;
+      discountPrice: unknown | null;
+      stock: number;
+      image: string | null;
+      unit: string | null;
+      isActive: boolean;
+      isFeatured: boolean;
+      isNew: boolean;
+      isOldPrice: boolean;
+      isHomeDeal?: boolean;
+      homeDealSort?: number;
+      isHomeFeatured?: boolean;
+      homeFeaturedSort?: number;
+      categoryId: string;
+      tagId?: string | null;
+      category?: { id: string; name: string; slug: string };
+      tag?: { id: string; name: string; slug: string; icon: string | null } | null;
+      productCategories?: Array<{ category: { id: string; name: string; slug: string } }>;
+      productTags?: Array<{
+        tag: { id: string; name: string; slug: string; icon: string | null; categoryId: string };
+      }>;
+      images?: { url: string; sortOrder: number }[];
+      createdAt: Date;
+      updatedAt: Date;
+      ratingAvg?: number | null;
+      ratingCount?: number | null;
+    },
+    holds?: Map<string, number>
+  ) {
     const price = Number(product.price);
     const discountPrice = product.discountPrice ? Number(product.discountPrice) : null;
     const effectivePrice = discountPrice ?? price;
@@ -962,6 +988,10 @@ export class ProductService {
     const primaryCategory = categories[0] ?? product.category ?? null;
     const primaryTag = tags[0] ?? product.tag ?? null;
 
+    const heldQty = holds?.get(product.id) ?? 0;
+    const availableStock = Math.max(0, product.stock - heldQty);
+    const isHeld = product.stock > 0 && availableStock <= 0 && heldQty > 0;
+
     const { productCategories, productTags, category, tag, ...restProduct } = product;
 
     return {
@@ -972,7 +1002,13 @@ export class ProductService {
       discountPrice,
       effectivePrice,
       discountPercent,
-      inStock: product.stock > 0,
+      // Storefront sees remaining sellable qty after active cart holds.
+      stock: holds ? availableStock : product.stock,
+      warehouseStock: product.stock,
+      heldQuantity: heldQty,
+      inStock: availableStock > 0,
+      isHeld,
+      holdMessage: isHeld ? PRODUCT_HOLD_MESSAGE : null,
       ratingAvg: Math.round(Number(product.ratingAvg ?? 0) * 10) / 10,
       ratingCount: Number(product.ratingCount ?? 0),
       categories,

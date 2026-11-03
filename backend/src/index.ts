@@ -128,8 +128,11 @@ async function start() {
     return;
   }
 
-  app.listen(config.port, '0.0.0.0', () => {
-    console.log(`Aayat Shop API running on port ${config.port}`);
+  // Production: bind localhost only — nginx proxies /api and /uploads.
+  const listenHost =
+    process.env.HOST || (config.nodeEnv === 'production' ? '127.0.0.1' : '0.0.0.0');
+  app.listen(config.port, listenHost, () => {
+    console.log(`Aayat Shop API running on ${listenHost}:${config.port}`);
     console.log(`Environment: ${config.nodeEnv}`);
   });
 }

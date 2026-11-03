@@ -8,6 +8,11 @@ const router = Router();
 router.get(
   '/',
   asyncHandler(async (req, res) => {
+    if (req.query.home === '1' || req.query.home === 'true') {
+      const categories = await categoryService.getHomeTiles();
+      successResponse(res, categories);
+      return;
+    }
     const lite = req.query.lite === '1' || req.query.lite === 'true';
     const categories = await categoryService.getAll(false, lite);
     successResponse(res, categories);

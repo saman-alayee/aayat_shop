@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { Category } from '~/types';
-import { isHomeCategorySlug } from '~/constants/homeCategoryTiles';
 
 definePageMeta({ layout: 'admin', middleware: 'admin' });
 
@@ -14,7 +13,13 @@ const showForm = ref(false);
 const editingId = ref<string | null>(null);
 const saving = ref(false);
 
-const form = reactive({ name: '', sortOrder: 0, isActive: true, image: null as string | null });
+const form = reactive({
+  name: '',
+  sortOrder: 0,
+  isActive: true,
+  showOnHome: false,
+  image: null as string | null,
+});
 
 onMounted(loadData);
 
@@ -34,20 +39,18 @@ function openForm(category?: Category) {
     form.name = category.name;
     form.sortOrder = category.sortOrder;
     form.isActive = category.isActive;
+    form.showOnHome = Boolean(category.showOnHome);
     form.image = category.image;
   } else {
     editingId.value = null;
     form.name = '';
     form.sortOrder = categories.value.length;
     form.isActive = true;
+    form.showOnHome = false;
     form.image = null;
   }
   showForm.value = true;
 }
-
-const editingCategory = computed(() =>
-  editingId.value ? categories.value.find((item) => item.id === editingId.value) || null : null
-);
 
 async function save() {
   saving.value = true;
@@ -94,8 +97,9 @@ useHead({ title: 'دسته‌بندی‌ها - پنل مدیریت' });
   <div>
     <h1 class="mb-2 text-xl font-bold text-gray-800">مدیریت دسته‌بندی‌ها</h1>
     <p class="mb-6 max-w-3xl text-sm leading-6 text-gray-500">
-      دسته‌ای که نشان «صفحه اول» دارد، همان کارت‌های بالای فروشگاه است. برای عوض کردن عکس، ویرایش را بزنید و «تصویر کارت صفحه اول» را عوض کنید.
-      دستهٔ غیرفعال در فروشگاه نشان داده نمی‌شود. دسته‌ای که لباس دارد را نمی‌شود حذف کرد.
+      با روشن کردن «نمایش در صفحه اصلی»، کارت دسته در گرید بالای فروشگاه دیده می‌شود.
+      ترتیب نمایش همان «ترتیب» است. دستهٔ غیرفعال در فروشگاه نشان داده نمی‌شود.
+      دسته‌ای که لباس دارد را نمی‌شود حذف کرد.
     </p>
     <div class="mb-6 flex justify-end">
       <button class="btn-primary py-2 text-sm" @click="openForm()">+ افزودن</button>
@@ -132,7 +136,7 @@ useHead({ title: 'دسته‌بندی‌ها - پنل مدیریت' });
             <td class="data-num">{{ cat.sortOrder }}</td>
             <td class="data-num">{{ cat._count?.products || 0 }}</td>
             <td>
-              <span v-if="isHomeCategorySlug(cat.slug)" class="admin-badge-info">صفحه اول</span>
+              <span v-if="cat.showOnHome" class="admin-badge-info">صفحه اول</span>
               <span v-else class="text-slate-300">—</span>
             </td>
             <td class="data-actions">
@@ -162,18 +166,23 @@ useHead({ title: 'دسته‌بندی‌ها - پنل مدیریت' });
             v-model="form.image"
             upload-endpoint="/admin/categories/upload"
             label="تصویر کارت صفحه اول"
-            hint="JPEG, PNG یا WebP — این تصویر در گرید دسته‌های صفحه اصلی فروشگاه دیده می‌شود"
+            hint="JPEG, PNG یا WebP — در صورت فعال بودن نمایش صفحه اصلی، این تصویر در گرید خانه دیده می‌شود"
             preview-class="w-full aspect-[2/1] max-h-40 object-cover rounded-xl bg-[#f7f1e8]"
           />
-          <p
-            v-if="editingCategory && isHomeCategorySlug(editingCategory.slug)"
-            class="rounded-xl bg-primary-50 px-3 py-2 text-xs text-primary-800"
-          >
-            این دسته روی صفحه اول نمایش داده می‌شود. بعد از ذخیره، عکس جدید همان‌جا دیده می‌شود.
-          </p>
           <input v-model="form.name" required placeholder="نام دسته‌بندی" class="input-field" />
           <input v-model.number="form.sortOrder" type="number" placeholder="ترتیب" class="input-field" />
           <AppSwitch v-model="form.isActive" label="دسته‌بندی فعال" description="در فروشگاه نمایش داده شود" />
+          <AppSwitch
+            v-model="form.showOnHome"
+            label="نمایش در صفحه اصلی"
+            description="کارت این دسته در گرید بالای فروشگاه نشان داده شود"
+          />
+          <p
+            v-if="form.showOnHome && !form.image"
+            class="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800"
+          >
+            برای صفحه اصلی بهتر است یک تصویر هم آپلود کنید.
+          </p>
           <button type="submit" class="btn-primary w-full" :disabled="saving">
             {{ saving ? 'در حال ذخیره…' : 'ذخیره' }}
           </button>
