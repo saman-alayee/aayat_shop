@@ -199,6 +199,8 @@ export interface Product {
   warehouseStock?: number;
   ratingAvg?: number;
   ratingCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ProductReview {

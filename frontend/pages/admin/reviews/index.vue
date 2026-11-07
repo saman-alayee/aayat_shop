@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { Pagination } from '~/types';
+
 definePageMeta({ layout: 'admin', middleware: 'admin' });
 
 const api = useApi();
@@ -17,8 +19,8 @@ type AdminReview = {
 };
 
 const reviews = ref<AdminReview[]>([]);
+const pagination = ref<Pagination | null>(null);
 const page = ref(1);
-const pages = ref(1);
 const loading = ref(true);
 const removingId = ref('');
 
@@ -27,14 +29,25 @@ async function load(next = page.value) {
   try {
     const { data } = await api.get<{
       reviews: AdminReview[];
-      pagination: { page: number; pages: number };
+      pagination: Pagination & { pages?: number };
     }>(`/admin/reviews?page=${next}`);
     reviews.value = data.reviews;
+    const totalPages = data.pagination.totalPages || data.pagination.pages || 1;
+    pagination.value = {
+      page: data.pagination.page,
+      limit: data.pagination.limit || 20,
+      total: data.pagination.total ?? data.reviews.length,
+      totalPages,
+    };
     page.value = data.pagination.page;
-    pages.value = data.pagination.pages;
   } finally {
     loading.value = false;
   }
+}
+
+function goToPage(next: number) {
+  page.value = next;
+  void load(next);
 }
 
 async function remove(review: AdminReview) {
@@ -58,7 +71,7 @@ useHead({ title: 'نظرات محصولات - پنل مدیریت' });
   <div>
     <h1 class="text-lg font-bold text-gray-900">نظرات محصولات</h1>
     <p class="mb-4 mt-1 max-w-2xl text-sm leading-6 text-gray-500">
-      نظرهایی که مشتری زیر لباس ثبت کرده این‌جا دیده می‌شود. حذف، نظر را از صفحهٔ محصول برمی‌دارد.
+      نظرهایی که مشتری روی لباس ثبت کرده این‌جا دیده می‌شود. حذف، نظر را از صفحهٔ محصول برمی‌دارد.
     </p>
     <p v-if="loading" class="text-sm text-gray-500">در حال بارگذاری</p>
     <p v-else-if="!reviews.length" class="text-sm text-gray-500">هنوز نظری ثبت نشده است.</p>
@@ -104,9 +117,11 @@ useHead({ title: 'نظرات محصولات - پنل مدیریت' });
         </tbody>
       </table>
     </div>
-    <div v-if="pages > 1" class="mt-4 flex gap-2">
-      <button type="button" class="rounded border px-3 py-1 text-sm disabled:opacity-40" :disabled="page <= 1" @click="load(page - 1)">قبلی</button>
-      <button type="button" class="rounded border px-3 py-1 text-sm disabled:opacity-40" :disabled="page >= pages" @click="load(page + 1)">بعدی</button>
-    </div>
+    <AppPagination
+      v-if="!loading && pagination && pagination.totalPages > 1"
+      :pagination="pagination"
+      compact
+      @update:page="goToPage"
+    />
   </div>
 </template>

@@ -157,6 +157,8 @@ export class ReviewService {
         page: current,
         limit: ADMIN_PAGE,
         total,
+        totalPages: Math.max(1, Math.ceil(total / ADMIN_PAGE)),
+        /** @deprecated use totalPages */
         pages: Math.max(1, Math.ceil(total / ADMIN_PAGE)),
       },
     };

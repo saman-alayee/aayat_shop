@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AdminCustomer, CustomerGroup } from '~/types';
+import type { AdminCustomer, CustomerGroup, Pagination } from '~/types';
 
 definePageMeta({ layout: 'admin', middleware: 'admin' });
 
@@ -7,8 +7,11 @@ const api = useApi();
 const toast = useToast();
 const { formatPrice, formatNumber } = useFormat();
 
+const PAGE_SIZE = 20;
 const customers = ref<AdminCustomer[]>([]);
 const groups = ref<CustomerGroup[]>([]);
+const pagination = ref<Pagination | null>(null);
+const page = ref(1);
 const loading = ref(true);
 const search = ref('');
 const groupFilter = ref('');
@@ -32,11 +35,14 @@ const groupOptions = computed(() => [
 
 onMounted(loadData);
 
-function queryParams() {
+function queryParams(forExport = false) {
   const params = new URLSearchParams();
   if (search.value.trim()) params.set('search', search.value.trim());
   if (groupFilter.value) params.set('customerGroupId', groupFilter.value);
-  params.set('limit', '100');
+  if (!forExport) {
+    params.set('page', String(page.value));
+    params.set('limit', String(PAGE_SIZE));
+  }
   return params;
 }
 
@@ -44,16 +50,39 @@ async function loadData() {
   loading.value = true;
   try {
     const [customersRes, groupsRes] = await Promise.all([
-      api.get<{ customers: AdminCustomer[] }>(`/admin/customers?${queryParams()}`),
+      api.get<{ customers: AdminCustomer[]; pagination: Pagination }>(
+        `/admin/customers?${queryParams()}`
+      ),
       api.get<CustomerGroup[]>('/admin/customer-groups').catch(() => ({ data: [] as CustomerGroup[] })),
     ]);
     customers.value = customersRes.data.customers;
+    pagination.value = customersRes.data.pagination ?? null;
+    if (
+      pagination.value &&
+      pagination.value.totalPages > 0 &&
+      page.value > pagination.value.totalPages
+    ) {
+      page.value = pagination.value.totalPages;
+      await loadData();
+      return;
+    }
     groups.value = groupsRes.data;
   } catch {
     customers.value = [];
+    pagination.value = null;
   } finally {
     loading.value = false;
   }
+}
+
+function applyFilters() {
+  page.value = 1;
+  void loadData();
+}
+
+function goToPage(next: number) {
+  page.value = next;
+  void loadData();
 }
 
 async function openCustomer(customer: AdminCustomer) {
@@ -110,7 +139,7 @@ async function assignGroup(customerId: string, customerGroupId: string) {
 }
 
 function exportCsv() {
-  const url = `/admin/customers/export-phones?${queryParams()}`;
+  const url = `/admin/customers/export-phones?${queryParams(true)}`;
   const config = useRuntimeConfig();
   const authStore = useAuthStore();
   fetch(`${config.public.apiBase}${url}`, {
@@ -160,11 +189,11 @@ useHead({ title: 'مشتریان - پنل مدیریت' });
         type="search"
         placeholder="جستجو نام یا موبایل..."
         class="input-field md:max-w-sm"
-        @keyup.enter="loadData"
+        @keyup.enter="applyFilters"
       />
     </div>
 
-    <button class="btn-primary text-sm mb-4" @click="loadData">اعمال فیلتر</button>
+    <button class="btn-primary text-sm mb-4" @click="applyFilters">اعمال فیلتر</button>
 
     <LoadingSpinner :show="loading" />
 
@@ -200,6 +229,13 @@ useHead({ title: 'مشتریان - پنل مدیریت' });
         </tbody>
       </table>
     </div>
+
+    <AppPagination
+      v-if="!loading && pagination && pagination.totalPages > 1"
+      :pagination="pagination"
+      compact
+      @update:page="goToPage"
+    />
 
     <EmptyState v-if="!loading && !customers.length" message="مشتری یافت نشد" />
 

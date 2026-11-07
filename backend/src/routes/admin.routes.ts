@@ -207,6 +207,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const statusRaw = String(req.query.status ?? 'all').trim().toLowerCase();
     const status = statusRaw === 'active' || statusRaw === 'inactive' ? statusRaw : 'all';
+    const stockRaw = String(req.query.stock ?? 'all').trim().toLowerCase();
     const result = await productService.getAll({
       // پنل ادمین: برای «همه» هیچ فیلتر isActive نگذار؛ holdهای سبد را هم اعمال نکن
       includeInactive: status !== 'active',
@@ -219,6 +220,8 @@ router.get(
       expiringAfter: req.query.expiringAfter as string,
       discounted: req.query.discounted === 'true',
       sort: req.query.sort as string,
+      outOfStock: stockRaw === 'sold' || stockRaw === 'soldout' || stockRaw === 'out',
+      inStock: stockRaw === 'in' || stockRaw === 'instock',
       page: req.query.page ? parseInt(req.query.page as string) : 1,
       limit: Math.min(req.query.limit ? parseInt(req.query.limit as string) : 20, 100),
     });
@@ -263,6 +266,21 @@ router.put(
   asyncHandler(async (req, res) => {
     const product = await productService.update(paramId(req.params.id), req.body);
     successResponse(res, product, 'محصول به‌روزرسانی شد');
+  })
+);
+
+router.post(
+  '/products/bulk-delete',
+  asyncHandler(async (req, res) => {
+    const ids = Array.isArray(req.body?.ids) ? (req.body.ids as unknown[]) : [];
+    const result = await productService.deleteMany(ids.map((id) => String(id)));
+    successResponse(
+      res,
+      result,
+      result.deleted
+        ? `${result.deleted} محصول حذف (غیرفعال) شد`
+        : 'محصول فعالی برای حذف پیدا نشد'
+    );
   })
 );
 
@@ -345,7 +363,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const result = await customerService.getAll(
       req.query.page ? parseInt(req.query.page as string) : 1,
-      req.query.limit ? parseInt(req.query.limit as string) : 100,
+      Math.min(req.query.limit ? parseInt(req.query.limit as string) : 20, 100),
       req.query.search as string,
       'CUSTOMER',
       req.query.paymentMethod as string,
@@ -864,17 +882,25 @@ router.get(
   '/sales/transactions',
   permSales,
   asyncHandler(async (req, res) => {
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 300;
-    const transactions = await salesService.getTransactions(
+    const page = req.query.page ? parseInt(req.query.page as string) : 1;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+    const bucketRaw = String(req.query.paymentBucket || 'paid').toLowerCase();
+    const paymentBucket =
+      bucketRaw === 'pending' || bucketRaw === 'failed' || bucketRaw === 'all' || bucketRaw === 'paid'
+        ? bucketRaw
+        : 'paid';
+    const payload = await salesService.getTransactions(
       {
         days: req.query.days ? parseInt(req.query.days as string) : 30,
         dateFrom: req.query.dateFrom as string | undefined,
         dateTo: req.query.dateTo as string | undefined,
         productSearch: (req.query.productSearch || req.query.search) as string | undefined,
+        paymentBucket,
       },
-      Number.isFinite(limit) ? limit : 300
+      Number.isFinite(page) ? page : 1,
+      Number.isFinite(limit) ? limit : 20
     );
-    successResponse(res, transactions);
+    successResponse(res, payload);
   })
 );
 

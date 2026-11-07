@@ -5,7 +5,7 @@ definePageMeta({ layout: 'admin', middleware: 'admin' });
 
 const api = useApi();
 const toast = useToast();
-const { formatPrice, resolveMediaUrl, formatNumber } = useFormat();
+const { formatPrice, resolveMediaUrl, formatNumber, formatShortDate } = useFormat();
 
 const PAGE_SIZE = 50;
 
@@ -21,6 +21,13 @@ const search = ref(typeof route.query.search === 'string' ? route.query.search :
 const categoryFilter = ref('');
 const sortFilter = ref<'newest' | 'discount' | 'bestsellers'>('newest');
 const statusFilter = ref<'active' | 'inactive' | 'all'>('all');
+const stockFilter = ref<'all' | 'sold' | 'in'>('all');
+
+const selectedIds = ref<string[]>([]);
+const showBulkConfirm = ref(false);
+const bulkConfirmChecked = ref(false);
+const bulkDeleting = ref(false);
+const pendingSingleDelete = ref<Product | null>(null);
 
 const form = reactive({
   name: '',
@@ -50,14 +57,54 @@ const categoryOptions = computed(() =>
   }))
 );
 
+const showingSold = computed(() => stockFilter.value === 'sold');
+
+const selectableProducts = computed(() =>
+  products.value.filter((p) => p.isActive)
+);
+
+const allPageSelected = computed(
+  () =>
+    selectableProducts.value.length > 0 &&
+    selectableProducts.value.every((p) => selectedIds.value.includes(p.id))
+);
+
+const selectedCount = computed(() => selectedIds.value.length);
+
+type ProductGroup = { key: string; label: string; products: Product[] };
+
+const groupedProducts = computed((): ProductGroup[] => {
+  if (!showingSold.value) {
+    return [{ key: 'all', label: '', products: products.value }];
+  }
+
+  const map = new Map<string, Product[]>();
+  for (const product of products.value) {
+    const raw = product.updatedAt || product.createdAt || '';
+    const key = raw ? String(raw).slice(0, 10) : 'unknown';
+    const list = map.get(key) || [];
+    list.push(product);
+    map.set(key, list);
+  }
+
+  return [...map.entries()]
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([key, rows]) => ({
+      key,
+      label: key === 'unknown' ? 'بدون تاریخ' : formatShortDate(key),
+      products: rows,
+    }));
+});
+
 onMounted(loadData);
 
 function resetToFirstPageAndLoad() {
   page.value = 1;
+  selectedIds.value = [];
   void loadData();
 }
 
-watch([statusFilter, sortFilter], () => {
+watch([statusFilter, sortFilter, stockFilter], () => {
   resetToFirstPageAndLoad();
 });
 
@@ -67,8 +114,8 @@ async function loadData() {
     const params = new URLSearchParams({
       limit: String(PAGE_SIZE),
       page: String(page.value),
-      // همیشه بفرست تا «همه» با «فعال» قاطی / کش نشود
       status: statusFilter.value || 'all',
+      stock: stockFilter.value || 'all',
     });
     if (search.value.trim()) params.set('search', search.value.trim());
     if (categoryFilter.value) params.set('categoryId', categoryFilter.value);
@@ -83,6 +130,9 @@ async function loadData() {
     products.value = prodRes.data?.products ?? [];
     pagination.value = prodRes.data?.pagination ?? null;
     categories.value = catRes.data ?? categories.value;
+    selectedIds.value = selectedIds.value.filter((id) =>
+      products.value.some((p) => p.id === id)
+    );
 
     if (
       pagination.value &&
@@ -103,8 +153,81 @@ async function loadData() {
 
 function goToPage(next: number) {
   page.value = next;
+  selectedIds.value = [];
   void loadData();
   if (import.meta.client) window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function toggleSelect(id: string, checked: boolean) {
+  if (checked) {
+    if (!selectedIds.value.includes(id)) selectedIds.value = [...selectedIds.value, id];
+  } else {
+    selectedIds.value = selectedIds.value.filter((x) => x !== id);
+  }
+}
+
+function toggleSelectAll(checked: boolean) {
+  if (!checked) {
+    selectedIds.value = [];
+    return;
+  }
+  selectedIds.value = selectableProducts.value.map((p) => p.id);
+}
+
+function openBulkConfirm() {
+  if (!selectedIds.value.length) {
+    toast.info('ابتدا چند محصول را انتخاب کنید');
+    return;
+  }
+  pendingSingleDelete.value = null;
+  bulkConfirmChecked.value = false;
+  showBulkConfirm.value = true;
+}
+
+function openSingleDeleteConfirm(product: Product) {
+  if (!product.isActive) {
+    toast.info('این محصول از قبل حذف/غیرفعال است');
+    return;
+  }
+  pendingSingleDelete.value = product;
+  selectedIds.value = [product.id];
+  bulkConfirmChecked.value = false;
+  showBulkConfirm.value = true;
+}
+
+function closeBulkConfirm() {
+  showBulkConfirm.value = false;
+  bulkConfirmChecked.value = false;
+  pendingSingleDelete.value = null;
+}
+
+async function confirmBulkDelete() {
+  if (!bulkConfirmChecked.value) {
+    toast.error('برای حذف باید تأیید را تیک بزنید');
+    return;
+  }
+  if (!selectedIds.value.length) return;
+
+  bulkDeleting.value = true;
+  try {
+    const { data } = await api.post<{ deleted: number; requested: number }>(
+      '/admin/products/bulk-delete',
+      { ids: selectedIds.value }
+    );
+    const deleted = data?.deleted ?? 0;
+    toast.success(
+      deleted
+        ? `${formatNumber(deleted)} محصول حذف شد و از فروشگاه پنهان گردید`
+        : 'محصول فعالی برای حذف نبود'
+    );
+    closeBulkConfirm();
+    selectedIds.value = [];
+    await loadData();
+  } catch (e: unknown) {
+    toast.error(e instanceof Error ? e.message : 'حذف گروهی انجام نشد');
+  } finally {
+    bulkDeleting.value = false;
+  }
 }
 
 function openForm(product?: Product) {
@@ -232,28 +355,6 @@ async function save() {
   }
 }
 
-async function deactivate(product: Product) {
-  if (!product.isActive) {
-    toast.info('این محصول از قبل غیرفعال است');
-    return;
-  }
-  if (
-    !confirm(
-      `محصول «${product.name}» از فروشگاه پنهان می‌شود (غیرفعال).\n\nرکورد در پنل باقی می‌ماند و می‌توانید بعداً دوباره فعالش کنید.`
-    )
-  ) {
-    return;
-  }
-
-  try {
-    await api.put(`/admin/products/${product.id}`, { isActive: false });
-    toast.success('محصول غیرفعال شد');
-    await loadData();
-  } catch (e: unknown) {
-    toast.error(e instanceof Error ? e.message : 'خطا در غیرفعال‌سازی محصول');
-  }
-}
-
 async function activate(product: Product) {
   if (product.isActive) {
     toast.info('این محصول از قبل فعال است');
@@ -281,8 +382,7 @@ useHead({ title: 'محصولات - پنل مدیریت' });
       <div>
         <h1 class="text-xl font-bold text-gray-800">مدیریت محصولات</h1>
         <p class="mt-1 max-w-3xl text-sm leading-6 text-gray-500">
-          نام، قیمت، موجودی و دسته را اینجا عوض کنید. «قیمت با تخفیف» اگر پر باشد روی کارت محصول خط‌خورده نشان داده می‌شود.
-          غیرفعال کردن، لباس را از فروشگاه پنهان می‌کند ولی حذف نمی‌کند.
+          برای پاک‌سازی لباس‌های تمام‌شده، فیلتر «فروخته‌شده» را بزنید؛ بر اساس تاریخ مرتب می‌شوند و می‌توانید گروهی حذف کنید.
         </p>
       </div>
       <div class="flex flex-wrap gap-3 text-sm">
@@ -294,6 +394,7 @@ useHead({ title: 'محصولات - پنل مدیریت' });
         </NuxtLink>
       </div>
     </div>
+
     <div class="flex flex-col md:flex-row gap-3 mb-4 flex-wrap">
       <input
         v-model="search"
@@ -313,6 +414,11 @@ useHead({ title: 'محصولات - پنل مدیریت' });
         <option value="discount">بیشترین تخفیف</option>
         <option value="bestsellers">پرفروش‌ترین</option>
       </select>
+      <select v-model="stockFilter" class="input-field md:w-48">
+        <option value="all">همه موجودی‌ها</option>
+        <option value="sold">فروخته‌شده (موجودی ۰)</option>
+        <option value="in">فقط موجود</option>
+      </select>
       <select v-model="statusFilter" class="input-field md:w-44">
         <option value="all">همه وضعیت‌ها</option>
         <option value="active">فقط فعال</option>
@@ -321,11 +427,33 @@ useHead({ title: 'محصولات - پنل مدیریت' });
       <button class="btn-secondary text-sm" @click="resetToFirstPageAndLoad">اعمال فیلتر</button>
     </div>
 
-    <div class="flex justify-between items-center mb-6">
+    <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
       <p class="text-sm text-gray-500">
         {{ formatNumber(pagination?.total ?? products.length) }} محصول
+        <span v-if="showingSold" class="text-orange-600"> · مرتب بر اساس تاریخ</span>
       </p>
-      <button class="btn-primary text-sm py-2" @click="openForm()">+ افزودن محصول</button>
+      <div class="flex flex-wrap gap-2">
+        <button
+          v-if="selectedCount"
+          type="button"
+          class="btn-secondary text-sm py-2 text-red-700 border-red-200 hover:bg-red-50"
+          @click="openBulkConfirm"
+        >
+          حذف گروهی ({{ formatNumber(selectedCount) }})
+        </button>
+        <button class="btn-primary text-sm py-2" @click="openForm()">+ افزودن محصول</button>
+      </div>
+    </div>
+
+    <div
+      v-if="selectedCount"
+      class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800"
+    >
+      <span>{{ formatNumber(selectedCount) }} محصول انتخاب شده</span>
+      <div class="flex gap-2">
+        <button type="button" class="text-xs underline" @click="selectedIds = []">لغو انتخاب</button>
+        <button type="button" class="font-semibold underline" @click="openBulkConfirm">حذف با تأیید</button>
+      </div>
     </div>
 
     <LoadingSpinner :show="loading" />
@@ -337,95 +465,168 @@ useHead({ title: 'محصولات - پنل مدیریت' });
     />
 
     <div v-else-if="!loading" class="data-table-wrap">
-      <table class="data-table min-w-[860px]">
+      <table class="data-table min-w-[920px]">
         <thead>
           <tr>
+            <th class="w-10">
+              <input
+                type="checkbox"
+                class="rounded border-slate-300"
+                :checked="allPageSelected"
+                @change="toggleSelectAll(($event.target as HTMLInputElement).checked)"
+              />
+            </th>
             <th class="w-16">تصویر</th>
             <th>نام</th>
             <th>کد</th>
             <th class="hidden md:table-cell">دسته</th>
             <th class="data-num">قیمت</th>
             <th class="data-num hidden md:table-cell">موجودی</th>
+            <th v-if="showingSold" class="hidden sm:table-cell">تاریخ</th>
             <th>وضعیت</th>
             <th class="data-actions">عملیات</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="product in products" :key="product.id">
-            <td>
-              <div class="w-11 h-11 rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center ring-1 ring-slate-200/80">
-                <img
-                  v-if="product.image"
-                  :src="resolveMediaUrl(product.image)"
-                  :alt="product.name"
-                  class="w-full h-full object-cover"
+          <template v-for="group in groupedProducts" :key="group.key">
+            <tr v-if="showingSold && group.label">
+              <td colspan="10" class="!py-2 !bg-slate-50">
+                <span class="text-xs font-semibold text-slate-600">{{ group.label }}</span>
+                <span class="text-[11px] text-slate-400 ms-2">
+                  {{ formatNumber(group.products.length) }} مورد
+                </span>
+              </td>
+            </tr>
+            <tr v-for="product in group.products" :key="product.id">
+              <td>
+                <input
+                  type="checkbox"
+                  class="rounded border-slate-300"
+                  :disabled="!product.isActive"
+                  :checked="selectedIds.includes(product.id)"
+                  @change="toggleSelect(product.id, ($event.target as HTMLInputElement).checked)"
                 />
-                <AppIcon v-else name="lucide:image-off" size="sm" class="text-slate-300" />
-              </div>
-            </td>
-            <td>
-              <p class="font-semibold text-slate-800">{{ product.name }}</p>
-            </td>
-            <td>
-              <span
-                v-if="product.barcode"
-                class="font-semibold tabular-nums text-primary-700"
-                dir="ltr"
-              >
-                {{ product.barcode }}
-              </span>
-              <span v-else class="text-xs text-slate-400">—</span>
-            </td>
-            <td class="hidden md:table-cell text-slate-500">{{ product.category?.name || '—' }}</td>
-            <td class="data-num">
-              <div class="inline-flex flex-col items-end gap-0.5">
+              </td>
+              <td>
+                <div class="w-11 h-11 rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center ring-1 ring-slate-200/80">
+                  <img
+                    v-if="product.image"
+                    :src="resolveMediaUrl(product.image)"
+                    :alt="product.name"
+                    class="w-full h-full object-cover"
+                  />
+                  <AppIcon v-else name="lucide:image-off" size="sm" class="text-slate-300" />
+                </div>
+              </td>
+              <td>
+                <p class="font-semibold text-slate-800">{{ product.name }}</p>
+              </td>
+              <td>
                 <span
-                  v-if="product.discountPrice"
-                  class="text-xs text-slate-400 line-through"
+                  v-if="product.barcode"
+                  class="font-semibold tabular-nums text-primary-700"
+                  dir="ltr"
                 >
-                  {{ formatPrice(product.price) }}
+                  {{ product.barcode }}
                 </span>
-                <span :class="product.discountPrice ? 'text-red-600 font-semibold' : 'font-medium text-slate-800'">
-                  {{ formatPrice(product.effectivePrice) }}
+                <span v-else class="text-xs text-slate-400">—</span>
+              </td>
+              <td class="hidden md:table-cell text-slate-500">{{ product.category?.name || '—' }}</td>
+              <td class="data-num">
+                <div class="inline-flex flex-col items-end gap-0.5">
+                  <span
+                    v-if="product.discountPrice"
+                    class="text-xs text-slate-400 line-through"
+                  >
+                    {{ formatPrice(product.price) }}
+                  </span>
+                  <span :class="product.discountPrice ? 'text-red-600 font-semibold' : 'font-medium text-slate-800'">
+                    {{ formatPrice(product.effectivePrice) }}
+                  </span>
+                </div>
+              </td>
+              <td class="data-num hidden md:table-cell">
+                <span :class="product.stock <= 0 ? 'text-orange-600 font-semibold' : ''">
+                  {{ product.stock }}
                 </span>
-                <span v-if="product.discountPercent" class="text-[11px] text-red-500">
-                  {{ product.discountPercent }}٪ تخفیف
+              </td>
+              <td v-if="showingSold" class="hidden sm:table-cell text-xs text-slate-500 whitespace-nowrap">
+                {{ formatShortDate(product.updatedAt || product.createdAt || '') }}
+              </td>
+              <td>
+                <span :class="product.isActive ? 'admin-badge-success' : 'admin-badge-danger'">
+                  {{ product.isActive ? 'فعال' : 'غیرفعال' }}
                 </span>
-              </div>
-            </td>
-            <td class="data-num hidden md:table-cell">{{ product.stock }}</td>
-            <td>
-              <span :class="product.isActive ? 'admin-badge-success' : 'admin-badge-danger'">
-                {{ product.isActive ? 'فعال' : 'غیرفعال' }}
-              </span>
-            </td>
-            <td class="data-actions">
-              <div class="admin-actions">
-                <button type="button" class="admin-btn-secondary" @click="openForm(product)">ویرایش</button>
-                <button
-                  v-if="product.isActive"
-                  type="button"
-                  class="admin-btn-warn"
-                  @click="deactivate(product)"
-                >
-                  غیرفعال
-                </button>
-                <button
-                  v-else
-                  type="button"
-                  class="admin-btn-success"
-                  @click="activate(product)"
-                >
-                  فعال‌سازی
-                </button>
-              </div>
-            </td>
-          </tr>
+              </td>
+              <td class="data-actions">
+                <div class="admin-actions">
+                  <button type="button" class="admin-btn-secondary" @click="openForm(product)">ویرایش</button>
+                  <button
+                    v-if="product.isActive"
+                    type="button"
+                    class="admin-btn-danger"
+                    @click="openSingleDeleteConfirm(product)"
+                  >
+                    حذف
+                  </button>
+                  <button
+                    v-else
+                    type="button"
+                    class="admin-btn-success"
+                    @click="activate(product)"
+                  >
+                    فعال‌سازی
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </template>
         </tbody>
       </table>
     </div>
 
     <AppPagination :pagination="pagination" compact @update:page="goToPage" />
+
+    <!-- Bulk / single delete confirmation -->
+    <div
+      v-if="showBulkConfirm"
+      class="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4"
+      @click.self="closeBulkConfirm"
+    >
+      <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl">
+        <h2 class="text-lg font-bold text-slate-900 mb-2">تأیید حذف</h2>
+        <p class="text-sm leading-7 text-slate-600 mb-4">
+          <template v-if="pendingSingleDelete">
+            محصول «{{ pendingSingleDelete.name }}» از فروشگاه حذف (پنهان) می‌شود.
+          </template>
+          <template v-else>
+            {{ formatNumber(selectedCount) }} محصول انتخاب‌شده از فروشگاه حذف (پنهان) می‌شوند.
+          </template>
+          این کار برگشت‌پذیر است فقط با فعال‌سازی دوباره از پنل.
+        </p>
+
+        <label class="flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 px-3 py-3 cursor-pointer mb-5">
+          <input v-model="bulkConfirmChecked" type="checkbox" class="mt-1 rounded border-red-300" />
+          <span class="text-sm text-red-800 leading-6">
+            تأیید می‌کنم این {{ pendingSingleDelete ? 'محصول' : 'محصولات' }} حذف شوند.
+          </span>
+        </label>
+
+        <div class="flex gap-2">
+          <button type="button" class="btn-secondary flex-1" :disabled="bulkDeleting" @click="closeBulkConfirm">
+            انصراف
+          </button>
+          <button
+            type="button"
+            class="flex-1 rounded-xl bg-red-600 text-white text-sm font-semibold py-2.5 disabled:opacity-40 hover:bg-red-700"
+            :disabled="!bulkConfirmChecked || bulkDeleting"
+            @click="confirmBulkDelete"
+          >
+            {{ bulkDeleting ? 'در حال حذف...' : 'حذف قطعی' }}
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- Product form modal -->
     <div v-if="showForm" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" @click.self="showForm = false">
@@ -530,9 +731,6 @@ useHead({ title: 'محصولات - پنل مدیریت' });
               <AppToggleChip v-model="form.isHomeFeatured" label="ویژه صفحه اول" icon="lucide:house" />
               <AppToggleChip v-model="form.isActive" label="فعال در فروشگاه" icon="lucide:eye" />
             </div>
-            <p class="mt-2 text-xs leading-5 text-gray-400">
-              «تخفیف‌دار» و «ویژه صفحه اول» همان فهرست‌هایی هستند که در منوی صفحه اول چیده می‌شوند. «جدید» در فیلتر تازه‌ها می‌آید.
-            </p>
           </div>
 
           <button type="submit" class="btn-primary w-full">ذخیره</button>

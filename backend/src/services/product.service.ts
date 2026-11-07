@@ -24,6 +24,8 @@ interface ProductFilters {
   isNew?: boolean;
   /** When true, only products with stock > 0. */
   inStock?: boolean;
+  /** When true, only products with stock <= 0 (sold out). */
+  outOfStock?: boolean;
   /** Storefront listing bucket: discounted, newest slice, or the rest. */
   listing?: 'discount' | 'new' | 'other';
   /** newest | discount | bestsellers */
@@ -135,6 +137,7 @@ export class ProductService {
       homeFeatured,
       isNew,
       inStock,
+      outOfStock,
       listing,
       sort,
       page = 1,
@@ -161,7 +164,8 @@ export class ProductService {
     }
     if (featured) where.isFeatured = true;
     if (isNew) where.isNew = true;
-    if (inStock) where.stock = { gt: 0 };
+    if (outOfStock) where.stock = { lte: 0 };
+    else if (inStock) where.stock = { gt: 0 };
     if (discounted || listing === 'discount') where.discountPrice = { not: null };
     if (homeDeal) where.isHomeDeal = true;
     if (homeFeatured) where.isHomeFeatured = true;
@@ -193,6 +197,7 @@ export class ProductService {
         includeInactive ||
         barcode ||
         inStock ||
+        outOfStock ||
         sortMode !== 'newest' ||
         listingBucket
     );
@@ -202,7 +207,7 @@ export class ProductService {
       if (cached) return cached;
     }
 
-    const demoteOutOfStock = !includeInactive && !inStock;
+    const demoteOutOfStock = !includeInactive && !inStock && !outOfStock;
     const needsCustomSort =
       sortMode === 'discount' ||
       sortMode === 'bestsellers' ||
@@ -216,7 +221,9 @@ export class ProductService {
         ? [{ homeFeaturedSort: 'asc' as const }, { createdAt: 'desc' as const }]
         : featured
           ? [{ homeFeaturedSort: 'asc' as const }, { createdAt: 'desc' as const }]
-          : { createdAt: 'desc' as const };
+          : outOfStock
+            ? [{ updatedAt: 'desc' as const }, { createdAt: 'desc' as const }]
+            : { createdAt: 'desc' as const };
 
     const holds = applyHolds ? await cartService.getActiveHoldQuantities() : undefined;
 
@@ -491,6 +498,25 @@ export class ProductService {
     await prisma.product.update({ where: { id }, data: { isActive: false } });
     await cacheDel('products:*');
     await cacheDel('home:*');
+  }
+
+  /** Soft-delete many products (hide from storefront). Returns how many were updated. */
+  async deleteMany(ids: string[]) {
+    const uniqueIds = [...new Set(ids.map((id) => String(id || '').trim()).filter(Boolean))];
+    if (!uniqueIds.length) {
+      throw new AppError(400, 'هیچ محصولی برای حذف انتخاب نشده است');
+    }
+    if (uniqueIds.length > 200) {
+      throw new AppError(400, 'حداکثر ۲۰۰ محصول در هر بار قابل حذف است');
+    }
+
+    const result = await prisma.product.updateMany({
+      where: { id: { in: uniqueIds }, isActive: true },
+      data: { isActive: false },
+    });
+    await cacheDel('products:*');
+    await cacheDel('home:*');
+    return { requested: uniqueIds.length, deleted: result.count };
   }
 
   async getHomePicks() {
