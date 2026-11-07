@@ -17,6 +17,7 @@ onMounted(() => {
       <slot />
     </main>
     <AppFooter />
+    <HeldShipReminder />
     <BottomNav />
   </div>
 </template>

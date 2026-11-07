@@ -9,6 +9,7 @@ const step = ref<'phone' | 'otp'>('phone');
 const phone = ref('');
 const otp = ref('');
 const password = ref('');
+const showPassword = ref(false);
 const error = ref('');
 
 const redirect = computed(() => (route.query.redirect as string) || '/admin');
@@ -66,6 +67,7 @@ function switchMode(next: 'password' | 'otp') {
   error.value = '';
   otp.value = '';
   password.value = '';
+  showPassword.value = false;
 }
 
 useHead({
@@ -121,15 +123,26 @@ definePageMeta({ layout: false });
             dir="ltr"
           />
           <label class="block text-sm font-medium text-gray-700 mb-1">رمز عبور</label>
-          <input
-            v-model="password"
-            type="password"
-            required
-            minlength="4"
-            class="input-field mb-4"
-            placeholder="رمز عبور ادمین"
-            dir="ltr"
-          />
+          <div class="relative mb-4">
+            <input
+              v-model="password"
+              :type="showPassword ? 'text' : 'password'"
+              required
+              minlength="4"
+              class="input-field w-full !pl-10 !pr-1"
+              placeholder="رمز عبور ادمین"
+              dir="ltr"
+              autocomplete="current-password"
+            />
+            <button
+              type="button"
+              class="absolute left-0 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center text-gray-400 hover:text-gray-700"
+              :aria-label="showPassword ? 'مخفی کردن رمز' : 'نمایش رمز'"
+              @click="showPassword = !showPassword"
+            >
+              <Icon :name="showPassword ? 'lucide:eye-off' : 'lucide:eye'" class="pointer-events-none h-5 w-5 shrink-0" />
+            </button>
+          </div>
           <div v-if="error" class="bg-red-50 text-red-600 text-sm p-3 rounded-xl mb-4">{{ error }}</div>
           <button type="submit" class="btn-primary w-full" :disabled="authStore.loading">
             {{ authStore.loading ? 'در حال ورود...' : 'ورود به پنل' }}

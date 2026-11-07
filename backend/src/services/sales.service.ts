@@ -214,14 +214,99 @@ export class SalesService {
     };
   }
 
+  /**
+   * Each paid/non-cancelled order as a sales transaction with clothing lines,
+   * product codes, buyer name, datetime and money.
+   */
+  async getTransactions(filters: SalesFilters = {}, limit = 300) {
+    const productSearch = filters.productSearch?.trim();
+    const itemSearchWhere = productSearch
+      ? {
+          OR: [
+            { name: { contains: productSearch } },
+            { product: { barcode: { contains: productSearch } } },
+            { product: { name: { contains: productSearch } } },
+          ],
+        }
+      : undefined;
+
+    const orders = await prisma.order.findMany({
+      where: {
+        ...orderDateWhere(filters),
+        ...(itemSearchWhere ? { items: { some: itemSearchWhere } } : {}),
+      },
+      select: {
+        id: true,
+        orderNumber: true,
+        createdAt: true,
+        totalPrice: true,
+        customerName: true,
+        customerPhone: true,
+        status: true,
+        paymentMethod: true,
+        items: {
+          where: itemSearchWhere,
+          select: {
+            name: true,
+            quantity: true,
+            price: true,
+            product: { select: { barcode: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(Math.max(limit, 1), 500),
+    });
+
+    return orders.map((order) => {
+      const items = order.items.map((item) => {
+        const code = item.product?.barcode?.trim() || null;
+        const lineTotal = Number(item.price) * item.quantity;
+        return {
+          name: item.name,
+          code,
+          quantity: item.quantity,
+          unitPrice: Number(item.price),
+          lineTotal,
+        };
+      });
+
+      const itemsTotal = items.reduce((sum, item) => sum + item.lineTotal, 0);
+      const codes = items
+        .map((item) => item.code)
+        .filter((code): code is string => Boolean(code));
+
+      return {
+        id: order.id,
+        orderNumber: order.orderNumber,
+        createdAt: order.createdAt.toISOString(),
+        customerName: order.customerName,
+        customerPhone: order.customerPhone,
+        status: order.status,
+        paymentMethod: order.paymentMethod,
+        /** Full order total, or sum of matched lines when product filter is on. */
+        totalPrice: productSearch ? itemsTotal : Number(order.totalPrice),
+        clothingCodes: codes.length ? codes.join('، ') : '—',
+        itemsSummary: items
+          .map((item) => {
+            const label = item.code ? `${item.code}` : item.name;
+            return `${label} × ${item.quantity}`;
+          })
+          .join(' | '),
+        items,
+      };
+    });
+  }
+
   async getOverview(filters: SalesFilters = {}) {
     const days = filters.days ?? 30;
-    const [daily, topProducts, byPayment, chart, monthly] = await Promise.all([
+    const [daily, topProducts, byPayment, chart, monthly, transactions] = await Promise.all([
       this.getDailySales(),
       this.getTopProducts(10, filters),
       this.getByPaymentMethod(filters),
       this.getChartData(filters),
       this.getMonthlyComparison(6),
+      this.getTransactions(filters),
     ]);
 
     const totalRevenue = chart.daily.reduce((sum, d) => sum + d.revenue, 0);
@@ -238,6 +323,7 @@ export class SalesService {
       workingDays: chart.workingDays,
       byPayment,
       topProducts,
+      transactions,
       monthly,
       chart,
       today: daily,

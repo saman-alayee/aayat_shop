@@ -7,6 +7,7 @@ export const PANEL_ROLES: UserRole[] = ['ADMIN', 'SUPERVISOR', 'STAFF'];
 export { ROLE_LABELS, BUILTIN_ROLE_GUIDE };
 
 const PATH_PERMISSIONS: Array<{ prefix: string; permission: PanelPermission }> = [
+  { prefix: '/admin/admins', permission: 'users' },
   { prefix: '/admin/users', permission: 'users' },
   { prefix: '/admin/settings', permission: 'settings' },
   { prefix: '/admin/backup', permission: 'settings' },

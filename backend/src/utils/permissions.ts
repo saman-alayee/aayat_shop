@@ -16,6 +16,7 @@ export const PANEL_PERMISSIONS = [
 export type PanelPermission = (typeof PANEL_PERMISSIONS)[number];
 
 const PERMISSION_PATH_ENTRIES: Array<{ prefix: string; permission: PanelPermission }> = [
+  { prefix: '/admin/admins', permission: 'users' },
   { prefix: '/admin/users', permission: 'users' },
   { prefix: '/admin/settings', permission: 'settings' },
   { prefix: '/admin/sales', permission: 'sales' },

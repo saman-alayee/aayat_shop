@@ -22,6 +22,7 @@ onMounted(() => {
       </div>
     </main>
     <FloatingCart />
+    <HeldShipReminder />
     <AppFooter />
     <BottomNav />
   </div>

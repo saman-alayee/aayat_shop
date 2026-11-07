@@ -7,7 +7,7 @@ const api = useApi();
 const toast = useToast();
 const { formatPrice, resolveMediaUrl, formatNumber } = useFormat();
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 50;
 
 const products = ref<Product[]>([]);
 const pagination = ref<Pagination | null>(null);
@@ -16,14 +16,16 @@ const categories = ref<Category[]>([]);
 const loading = ref(true);
 const showForm = ref(false);
 const editingId = ref<string | null>(null);
-const search = ref('');
+const route = useRoute();
+const search = ref(typeof route.query.search === 'string' ? route.query.search : '');
 const categoryFilter = ref('');
 const sortFilter = ref<'newest' | 'discount' | 'bestsellers'>('newest');
-const statusFilter = ref<'active' | 'inactive' | 'all'>('active');
+const statusFilter = ref<'active' | 'inactive' | 'all'>('all');
 
 const form = reactive({
   name: '',
   description: '',
+  barcode: '',
   price: 0,
   discountPrice: null as number | null,
   stock: 0,
@@ -55,17 +57,22 @@ function resetToFirstPageAndLoad() {
   void loadData();
 }
 
+watch([statusFilter, sortFilter], () => {
+  resetToFirstPageAndLoad();
+});
+
 async function loadData() {
   loading.value = true;
   try {
     const params = new URLSearchParams({
       limit: String(PAGE_SIZE),
       page: String(page.value),
+      // همیشه بفرست تا «همه» با «فعال» قاطی / کش نشود
+      status: statusFilter.value || 'all',
     });
     if (search.value.trim()) params.set('search', search.value.trim());
     if (categoryFilter.value) params.set('categoryId', categoryFilter.value);
     if (sortFilter.value && sortFilter.value !== 'newest') params.set('sort', sortFilter.value);
-    if (statusFilter.value !== 'all') params.set('status', statusFilter.value);
 
     const [prodRes, catRes] = await Promise.all([
       api.get<{ products: Product[]; pagination: Pagination }>(`/admin/products?${params}`),
@@ -73,9 +80,9 @@ async function loadData() {
         ? Promise.resolve({ data: categories.value })
         : api.get<Category[]>('/admin/categories'),
     ]);
-    products.value = prodRes.data.products;
-    pagination.value = prodRes.data.pagination;
-    categories.value = catRes.data;
+    products.value = prodRes.data?.products ?? [];
+    pagination.value = prodRes.data?.pagination ?? null;
+    categories.value = catRes.data ?? categories.value;
 
     if (
       pagination.value &&
@@ -85,6 +92,10 @@ async function loadData() {
       page.value = pagination.value.totalPages;
       await loadData();
     }
+  } catch (e: unknown) {
+    products.value = [];
+    pagination.value = null;
+    toast.error(e instanceof Error ? e.message : 'بارگذاری محصولات انجام نشد');
   } finally {
     loading.value = false;
   }
@@ -102,6 +113,7 @@ function openForm(product?: Product) {
     Object.assign(form, {
       name: product.name,
       description: product.description || '',
+      barcode: product.barcode || '',
       price: product.price,
       discountPrice: product.discountPrice,
       stock: product.stock,
@@ -126,6 +138,7 @@ function openForm(product?: Product) {
     Object.assign(form, {
       name: '',
       description: '',
+      barcode: '',
       price: 0,
       discountPrice: null,
       stock: 0,
@@ -193,6 +206,7 @@ async function save() {
   const { clothingMetaJson: _omit, ...formFields } = form;
   const payload = {
     ...formFields,
+    barcode: form.barcode.trim() || null,
     price,
     discountPrice,
     stock,
@@ -285,7 +299,7 @@ useHead({ title: 'محصولات - پنل مدیریت' });
         v-model="search"
         type="search"
         class="input-field md:max-w-sm"
-        placeholder="جستجو نام محصول..."
+        placeholder="نام یا کد لباس (مثلاً ۵۶۰)..."
         @keyup.enter="resetToFirstPageAndLoad"
       />
       <AppSelect
@@ -294,15 +308,15 @@ useHead({ title: 'محصولات - پنل مدیریت' });
         class="md:max-w-xs"
         @update:model-value="resetToFirstPageAndLoad"
       />
-      <select v-model="sortFilter" class="input-field md:w-48" @change="resetToFirstPageAndLoad">
+      <select v-model="sortFilter" class="input-field md:w-48">
         <option value="newest">جدیدترین</option>
         <option value="discount">بیشترین تخفیف</option>
         <option value="bestsellers">پرفروش‌ترین</option>
       </select>
-      <select v-model="statusFilter" class="input-field md:w-44" @change="resetToFirstPageAndLoad">
+      <select v-model="statusFilter" class="input-field md:w-44">
+        <option value="all">همه وضعیت‌ها</option>
         <option value="active">فقط فعال</option>
         <option value="inactive">فقط غیرفعال</option>
-        <option value="all">همه وضعیت‌ها</option>
       </select>
       <button class="btn-secondary text-sm" @click="resetToFirstPageAndLoad">اعمال فیلتر</button>
     </div>
@@ -316,12 +330,19 @@ useHead({ title: 'محصولات - پنل مدیریت' });
 
     <LoadingSpinner :show="loading" />
 
-    <div v-if="!loading" class="data-table-wrap">
-      <table class="data-table min-w-[760px]">
+    <EmptyState
+      v-if="!loading && !products.length"
+      message="محصولی با این فیلتر پیدا نشد"
+      class="py-10"
+    />
+
+    <div v-else-if="!loading" class="data-table-wrap">
+      <table class="data-table min-w-[860px]">
         <thead>
           <tr>
             <th class="w-16">تصویر</th>
             <th>نام</th>
+            <th>کد</th>
             <th class="hidden md:table-cell">دسته</th>
             <th class="data-num">قیمت</th>
             <th class="data-num hidden md:table-cell">موجودی</th>
@@ -344,6 +365,16 @@ useHead({ title: 'محصولات - پنل مدیریت' });
             </td>
             <td>
               <p class="font-semibold text-slate-800">{{ product.name }}</p>
+            </td>
+            <td>
+              <span
+                v-if="product.barcode"
+                class="font-semibold tabular-nums text-primary-700"
+                dir="ltr"
+              >
+                {{ product.barcode }}
+              </span>
+              <span v-else class="text-xs text-slate-400">—</span>
             </td>
             <td class="hidden md:table-cell text-slate-500">{{ product.category?.name || '—' }}</td>
             <td class="data-num">
@@ -411,6 +442,18 @@ useHead({ title: 'محصولات - پنل مدیریت' });
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">نام محصول</label>
             <input v-model="form.name" required placeholder="مثلاً بلوز بافت زنانه" class="input-field" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">کد لباس</label>
+            <input
+              v-model="form.barcode"
+              type="text"
+              dir="ltr"
+              placeholder="مثلاً ۵۶۰"
+              class="input-field"
+            />
+            <p class="mt-1 text-xs text-gray-400">با همین کد در سفارش‌ها و داشبورد جستجو می‌شود.</p>
           </div>
 
           <div>

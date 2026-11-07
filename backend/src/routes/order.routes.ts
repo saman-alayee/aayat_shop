@@ -5,6 +5,7 @@ import { asyncHandler, successResponse, validate } from '../utils/errors';
 import { authenticate, sessionMiddleware } from '../middleware/auth';
 import { paramId } from '../utils/params';
 import { normalizeDigits } from '../utils/normalize';
+import { validateCustomerName } from '../utils/customerName';
 
 const router = Router();
 
@@ -32,6 +33,12 @@ const createOrderSchema = z
     couponCode: z.string().optional(),
     deliveryMethod: z.enum(['PICKUP', 'NATIONWIDE']),
     paymentMethod: z.literal('ZIBAL').optional(),
+  })
+  .superRefine((data, ctx) => {
+    const nameError = validateCustomerName(data.customerName, data.customerPhone);
+    if (nameError) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: nameError, path: ['customerName'] });
+    }
   })
   .refine(
     (data) =>

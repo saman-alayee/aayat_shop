@@ -10,6 +10,8 @@ import { smsService } from './sms.service';
 import { zibalService } from './zibal.service';
 import { isShippingMethod, SHIPPING_METHODS, type ShippingMethod } from '../config/shipping';
 import { settingsService } from './settings.service';
+import { splitCustomerName, validateCustomerName } from '../utils/customerName';
+import { normalizeDigits, searchTermVariants } from '../utils/normalize';
 
 export type OrderStatus =
   | 'NEW'
@@ -69,6 +71,11 @@ function buildDeliveryAddress(input: CreateOrderInput & { address?: string }): s
 
 export class OrderService {
   async createOrder(input: CreateOrderInput, userId: string, sessionId?: string) {
+    const customerName = input.customerName.replace(/\s+/g, ' ').trim();
+    const nameError = validateCustomerName(customerName, input.customerPhone);
+    if (nameError) throw new AppError(400, nameError);
+    input = { ...input, customerName };
+
     const cart = await cartService.getCart(userId, sessionId);
 
     if (cart.items.length === 0) {
@@ -147,8 +154,19 @@ export class OrderService {
     const initialStatus: OrderStatus = payWithZibal ? 'REVIEWING' : 'NEW';
 
     const orderNumber = generateOrderNumber();
+    const { firstName, lastName } = splitCustomerName(customerName);
 
     const order = await prisma.$transaction(async (tx) => {
+      if (userId && firstName) {
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            firstName,
+            ...(lastName ? { lastName } : {}),
+          },
+        });
+      }
+
       const newOrder = await tx.order.create({
         data: {
           orderNumber,
@@ -161,7 +179,7 @@ export class OrderService {
           status: initialStatus,
           paymentMethod,
           paymentDetails: paymentDetailsToStore as Prisma.InputJsonValue,
-          customerName: input.customerName,
+          customerName,
           customerPhone: input.customerPhone,
           deliveryAddress,
           addressId,
@@ -387,11 +405,26 @@ export class OrderService {
         ...(dateTo ? { lte: new Date(`${dateTo}T23:59:59.999Z`) } : {}),
       };
     }
-    if (search) {
+    const q = search?.trim();
+    if (q) {
+      const variants = new Set<string>();
+      for (const part of q.split(/\s+/).filter(Boolean)) {
+        for (const v of searchTermVariants(part)) variants.add(v);
+      }
+      const latinDigits = normalizeDigits(q).trim();
+      if (latinDigits) variants.add(latinDigits);
+      variants.add(q);
+      const terms = [...variants].filter(Boolean);
+
       where.OR = [
-        { orderNumber: { contains: search } },
-        { customerName: { contains: search } },
-        { customerPhone: { contains: search } },
+        ...terms.flatMap((term) => [
+          { orderNumber: { contains: term } },
+          { customerName: { contains: term } },
+          { customerPhone: { contains: term } },
+          { items: { some: { name: { contains: term } } } },
+          { items: { some: { product: { barcode: { contains: term } } } } },
+          { items: { some: { product: { name: { contains: term } } } } },
+        ]),
       ];
     }
 
@@ -416,6 +449,92 @@ export class OrderService {
     };
   }
 
+  /** جستجوی سریع کد لباس / سفارش / مشتری برای پنل ادمین */
+  async lookupCode(rawQuery: string) {
+    const q = rawQuery.trim();
+    if (!q) return { products: [], orders: [] };
+
+    const variants = new Set<string>();
+    for (const part of q.split(/\s+/).filter(Boolean)) {
+      for (const v of searchTermVariants(part)) variants.add(v);
+    }
+    const latinDigits = normalizeDigits(q).trim();
+    if (latinDigits) variants.add(latinDigits);
+    variants.add(q);
+    const terms = [...variants].filter(Boolean);
+
+    const productOr = terms.flatMap((term) => [
+      { barcode: { contains: term } },
+      { name: { contains: term } },
+    ]);
+
+    const orderOr = terms.flatMap((term) => [
+      { orderNumber: { contains: term } },
+      { customerName: { contains: term } },
+      { customerPhone: { contains: term } },
+      { items: { some: { name: { contains: term } } } },
+      { items: { some: { product: { barcode: { contains: term } } } } },
+      { items: { some: { product: { name: { contains: term } } } } },
+    ]);
+
+    const [products, orders] = await Promise.all([
+      prisma.product.findMany({
+        where: { OR: productOr },
+        select: {
+          id: true,
+          name: true,
+          barcode: true,
+          stock: true,
+          image: true,
+          isActive: true,
+          price: true,
+        },
+        take: 12,
+        orderBy: { updatedAt: 'desc' },
+      }),
+      prisma.order.findMany({
+        where: { OR: orderOr },
+        select: {
+          id: true,
+          orderNumber: true,
+          customerName: true,
+          customerPhone: true,
+          status: true,
+          totalPrice: true,
+          createdAt: true,
+          items: {
+            select: {
+              name: true,
+              quantity: true,
+              product: { select: { barcode: true } },
+            },
+          },
+        },
+        take: 20,
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    return {
+      products: products.map((p) => ({
+        ...p,
+        price: Number(p.price),
+      })),
+      orders: orders.map((o) => ({
+        ...o,
+        totalPrice: Number(o.totalPrice),
+        codes: [
+          ...new Set(
+            o.items
+              .map((item) => item.product?.barcode)
+              .filter((code): code is string => Boolean(code))
+          ),
+        ],
+        itemNames: o.items.map((item) => item.name),
+      })),
+    };
+  }
+
   async updateStatus(orderId: string, status: OrderStatus, note?: string) {
     const current = await prisma.order.findUnique({
       where: { id: orderId },
@@ -429,6 +548,18 @@ export class OrderService {
     }
 
     const restoringStock = status === 'CANCELLED' && current.status !== 'CANCELLED';
+    const details =
+      current.paymentDetails && typeof current.paymentDetails === 'object' && !Array.isArray(current.paymentDetails)
+        ? ({ ...(current.paymentDetails as Record<string, unknown>) } as Record<string, unknown>)
+        : ({} as Record<string, unknown>);
+
+    // تأیید دستی پرداخت: وقتی از «منتظر پرداخت» به «خریداری شده» می‌رود، وضعیت پول هم paid شود
+    if (current.status === 'REVIEWING' && (status === 'NEW' || status === 'PREPARING')) {
+      details.paymentStatus = 'paid';
+    }
+    if (restoringStock && details.paymentStatus === 'pending') {
+      details.paymentStatus = 'failed';
+    }
 
     const order = await prisma.$transaction(async (tx) => {
       if (restoringStock) {
@@ -448,14 +579,23 @@ export class OrderService {
 
       await tx.order.update({
         where: { id: orderId },
-        data: { status },
+        data: {
+          status,
+          paymentDetails: details as Prisma.InputJsonValue,
+        },
       });
 
       await tx.orderStatusLog.create({
         data: {
           orderId,
           status,
-          note: note || (restoringStock ? 'لغو سفارش و بازگشت موجودی' : undefined),
+          note:
+            note ||
+            (current.status === 'REVIEWING' && status === 'NEW'
+              ? 'تأیید دستی پرداخت توسط ادمین'
+              : restoringStock
+                ? 'لغو سفارش و بازگشت موجودی'
+                : undefined),
         },
       });
 

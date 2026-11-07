@@ -706,6 +706,15 @@ export class ProductService {
   }
 
   async getHomeFeed() {
+    const cacheKey = 'home:feed';
+    const cached = await cacheGet<unknown>(cacheKey);
+    if (cached) return cached;
+    const feed = await this.getHomeFeedUncached();
+    await cacheSet(cacheKey, feed, 30);
+    return feed;
+  }
+
+  private async getHomeFeedUncached() {
     const categories = await prisma.category.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: 'asc' },

@@ -51,9 +51,18 @@ app.use(
 app.use(compression());
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
-app.use((_req, res, next) => {
-  res.setHeader('Cache-Control', 'no-store');
+app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  const path = req.path || '';
+  const publicGet =
+    req.method === 'GET' &&
+    (/^\/api\/(health|products|categories|sliders|tags|content)(\/|$)/.test(path) ||
+      /^\/api\/settings\/(announcement|maintenance|shipping)$/.test(path));
+  // Catalog reads can be briefly cached; auth/cart/orders stay private.
+  res.setHeader(
+    'Cache-Control',
+    publicGet ? 'public, max-age=20, s-maxage=60, stale-while-revalidate=120' : 'no-store'
+  );
   next();
 });
 app.use(generalLimiter);

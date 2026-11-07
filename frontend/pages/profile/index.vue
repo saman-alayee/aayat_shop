@@ -108,7 +108,7 @@ useHead({ title: `حساب کاربری - ${SITE_NAME}` });
           {{ initials }}
         </div>
         <div class="min-w-0">
-          <h1 class="text-lg font-bold truncate">{{ authStore.fullName }}</h1>
+          <h1 class="text-lg font-bold truncate">{{ authStore.fullName || 'حساب کاربری' }}</h1>
           <p class="text-sm text-primary-100 mt-0.5" dir="ltr">{{ authStore.user?.phone }}</p>
           <p v-if="authStore.isAdmin" class="text-xs bg-white/20 inline-block px-2 py-0.5 rounded-full mt-2">
             مدیر سیستم

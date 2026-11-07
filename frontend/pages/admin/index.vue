@@ -36,7 +36,7 @@ const quickLinks = [
   { to: '/admin/category-feed', label: 'محصولات دسته', desc: 'ترتیب نمایش هر دسته در صفحه اول', icon: 'lucide:list-ordered' },
   { to: '/admin/sales', label: 'گزارش فروش', desc: 'درآمد و پرفروش‌ها در بازه تاریخ', icon: 'lucide:bar-chart-3' },
   { to: '/admin/coupons', label: 'کدهای تخفیف', desc: 'کدی که مشتری در سبد وارد می‌کند', icon: 'lucide:ticket-percent' },
-  { to: '/admin/users', label: 'کاربران و دسترسی', desc: 'مدیر، مسئول، پرسنل', icon: 'lucide:users' },
+  { to: '/admin/admins', label: 'مدیران پنل', desc: 'افزودن، ویرایش و حذف ادمین و پرسنل', icon: 'lucide:shield-check' },
   { to: '/admin/backup', label: 'بکاپ دیتابیس', desc: 'دانلود نسخه فشرده دیتابیس', icon: 'lucide:database' },
   { to: '/admin/content', label: 'قوانین و مقررات', desc: 'متن صفحه قوانین سایت', icon: 'lucide:file-text' },
 ];
@@ -44,7 +44,7 @@ const quickLinks = [
 const visibleLinks = computed(() =>
   quickLinks.filter((link) => {
     const path = link.to.split('?')[0];
-    if (path === '/admin/backup') return isFullAdmin.value;
+    if (path === '/admin/backup' || path === '/admin/admins') return isFullAdmin.value;
     return navVisible(path);
   })
 );
@@ -59,6 +59,12 @@ useHead({ title: 'داشبورد - پنل مدیریت' });
       از اینجا سفارش‌های پرداخت‌شده، لباس‌ها، بنر صفحه اول و متن‌های فروشگاه را مدیریت کنید.
       سفارش تا وقتی مشتری دکمهٔ «ارسال» را نزند نباید پست شود. بعد از آن در «درخواست ارسال» می‌آید.
     </p>
+
+    <AdminCodeLookup
+      class="mb-8"
+      autofocus
+      @open-order="(id) => navigateTo(`/admin/orders?open=${id}`)"
+    />
 
     <div v-if="stats" class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mb-8">
       <div class="card p-4">

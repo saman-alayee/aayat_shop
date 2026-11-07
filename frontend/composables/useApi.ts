@@ -24,11 +24,16 @@ export function useApi() {
     }
 
     const url = `${apiBase}${endpoint}`;
+    const method = String(options.method || 'GET').toUpperCase();
+    // پنل ادمین و درخواست‌های لاگین‌شده نباید از کش مرورگر/PWA جواب کهنه بگیرند
+    const isAdminApi = endpoint.startsWith('/admin');
+    const cacheMode: RequestCache =
+      method !== 'GET' || isAdminApi || Boolean(authStore.token) ? 'no-store' : 'default';
 
     let response: Response;
     try {
       response = await fetch(url, {
-        cache: 'no-store',
+        cache: cacheMode,
         ...options,
         headers,
       });

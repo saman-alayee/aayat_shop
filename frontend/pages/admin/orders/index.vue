@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Order, OrderStatus, Pagination } from '~/types';
-import { ORDER_STATUS_LABELS } from '~/types';
+import { ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS, getOrderPaymentUi } from '~/types';
 import { shippingLabel } from '~/constants/shipping';
 
 definePageMeta({ layout: 'admin', middleware: 'admin' });
@@ -14,7 +14,7 @@ const orders = ref<Order[]>([]);
 const pagination = ref<Pagination | null>(null);
 const page = ref(1);
 const loading = ref(true);
-const search = ref('');
+const search = ref(typeof route.query.search === 'string' ? route.query.search : '');
 const statusFilter = ref((route.query.status as OrderStatus) || '');
 const dateFrom = ref<string | null>(null);
 const dateTo = ref<string | null>(null);
@@ -32,19 +32,55 @@ const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus[]>> = {
 };
 
 const STATUS_HINTS: Partial<Record<OrderStatus, string>> = {
-  REVIEWING: 'سفارش در حال بررسی است',
-  NEW: 'پرداخت شده است. تا وقتی مشتری ارسال را نزند پست نشود',
+  REVIEWING: 'هنوز پول نیامده — منتظر درگاه / تأیید پرداخت',
+  NEW: 'پول آمده. تا وقتی مشتری ارسال را نزند پست نشود',
   SHIPPED: 'پیام «تحویل به پیک» به مشتری ارسال می‌شود',
   PREPARING: 'مشتری ارسال را زده. بسته‌بندی کنید و پست کنید',
   DELIVERED: 'سفارش تکمیل شد',
   CANCELLED: 'سفارش لغو می‌شود',
 };
 
+const STATUS_ACTION_LABELS: Partial<Record<OrderStatus, string>> = {
+  NEW: 'تأیید پرداخت / خریداری شده',
+  PREPARING: 'درخواست ارسال',
+  SHIPPED: 'ارسال شده',
+  DELIVERED: 'تحویل داده شده',
+  CANCELLED: 'لغو سفارش',
+};
+
 function deliveryLabel(order: Order) {
   return shippingLabel(order.paymentDetails?.deliveryMethod);
 }
 
-onMounted(loadOrders);
+function paymentMethodLabel(order: Order) {
+  if (!order.paymentMethod) return '—';
+  return PAYMENT_METHOD_LABELS[order.paymentMethod] || order.paymentMethod;
+}
+
+function paymentDetailLine(order: Order) {
+  const details = order.paymentDetails;
+  const parts: string[] = [];
+  if (details?.refNumber) parts.push(`پیگیری: ${details.refNumber}`);
+  if (details?.trackId) parts.push(`زیبال: ${details.trackId}`);
+  return parts.join(' · ');
+}
+
+function orderCodes(order: Order): string[] {
+  const codes = (order.items || [])
+    .map((item) => item.product?.barcode)
+    .filter((code): code is string => Boolean(code));
+  return [...new Set(codes)];
+}
+
+function orderItemSummary(order: Order): string {
+  return (order.items || []).map((item) => item.name).filter(Boolean).join('، ');
+}
+
+onMounted(async () => {
+  await loadOrders();
+  const openId = typeof route.query.open === 'string' ? route.query.open : '';
+  if (openId) await openOrder(openId);
+});
 
 async function loadOrders() {
   loading.value = true;
@@ -147,9 +183,10 @@ useHead({ title: 'سفارش‌ها - پنل مدیریت' });
     <div class="mb-6">
       <h1 class="text-xl font-bold text-gray-800">مدیریت سفارش‌ها</h1>
       <p class="text-sm leading-6 text-gray-500 mt-1 max-w-3xl">
-        «جدید» یعنی پول پرداخت شده و مشتری هنوز ارسال را نزده؛ پست نکنید.
+        ستون <b>پرداخت</b> می‌گوید پول آمده یا نه.
+        «پرداخت نشده / منتظر پرداخت» یعنی هنوز از درگاه پول نیامده.
+        «پرداخت شده / خریداری شده» یعنی پول آمده؛ تا وقتی مشتری ارسال را نزده پست نکنید.
         «درخواست ارسال» یعنی مشتری دکمهٔ ارسال را زده و باید بسته‌بندی شود.
-        با عوض کردن وضعیت به «ارسال شده» یا «تحویل»، به مشتری خبر داده می‌شود.
       </p>
     </div>
 
@@ -157,14 +194,17 @@ useHead({ title: 'سفارش‌ها - پنل مدیریت' });
       <input
         v-model="search"
         type="search"
-        class="input-field md:max-w-xs"
-        placeholder="شماره سفارش، نام، موبایل..."
+        class="input-field md:max-w-sm"
+        placeholder="کد لباس ۵۶۰، شماره سفارش، نام، موبایل..."
         @keyup.enter="searchOrders"
       />
       <button class="btn-secondary text-sm" @click="searchOrders">جستجو</button>
       <AppDatePicker v-model="dateFrom" placeholder="از تاریخ" class="md:max-w-[180px]" />
       <AppDatePicker v-model="dateTo" placeholder="تا تاریخ" class="md:max-w-[180px]" :min="dateFrom" />
     </div>
+    <p class="mb-4 text-xs text-slate-400">
+      با کد لباس (مثلاً ۵۶۰) هم می‌توانید بفهمید مال کدام مشتری و کدام سفارش است. برای ارسال‌ها فیلتر «درخواست ارسال» یا «ارسال شده» را بزنید.
+    </p>
 
     <div class="flex gap-2 overflow-x-auto mb-6">
       <button
@@ -186,15 +226,17 @@ useHead({ title: 'سفارش‌ها - پنل مدیریت' });
     <LoadingSpinner :show="loading" />
 
     <div v-if="!loading" class="data-table-wrap">
-      <table class="data-table min-w-[900px]">
+      <table class="data-table min-w-[1100px]">
         <thead>
           <tr>
             <th>شماره سفارش</th>
             <th>مشتری</th>
+            <th>کد لباس</th>
             <th>تاریخ</th>
             <th class="data-num">مبلغ</th>
+            <th>پرداخت</th>
             <th>ارسال</th>
-            <th>وضعیت</th>
+            <th>وضعیت سفارش</th>
             <th class="data-actions">عملیات</th>
           </tr>
         </thead>
@@ -212,8 +254,21 @@ useHead({ title: 'سفارش‌ها - پنل مدیریت' });
               <p class="font-medium text-slate-800">{{ order.customerName }}</p>
               <p class="text-xs text-slate-400 mt-0.5" dir="ltr">{{ order.customerPhone }}</p>
             </td>
+            <td>
+              <p v-if="orderCodes(order).length" class="font-semibold tabular-nums text-primary-700" dir="ltr">
+                {{ orderCodes(order).join(' · ') }}
+              </p>
+              <p v-else class="text-xs text-slate-400">—</p>
+              <p class="mt-0.5 max-w-[160px] truncate text-[11px] text-slate-400">{{ orderItemSummary(order) }}</p>
+            </td>
             <td class="whitespace-nowrap text-slate-500">{{ formatDate(order.createdAt) }}</td>
             <td class="data-num font-semibold text-slate-800">{{ formatPrice(order.totalPrice) }}</td>
+            <td>
+              <div class="flex flex-col items-start gap-1">
+                <OrderPaymentBadge :order="order" />
+                <span class="text-[11px] text-slate-400">{{ paymentMethodLabel(order) }}</span>
+              </div>
+            </td>
             <td>
               <span class="admin-badge-info">{{ deliveryLabel(order) }}</span>
             </td>
@@ -258,7 +313,8 @@ useHead({ title: 'سفارش‌ها - پنل مدیریت' });
         <div class="sticky top-0 z-10 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between gap-3">
           <div class="min-w-0">
             <h2 class="font-bold text-lg truncate" dir="ltr">{{ selectedOrder.orderNumber }}</h2>
-            <div class="mt-1">
+            <div class="mt-1 flex flex-wrap items-center gap-2">
+              <OrderPaymentBadge :order="selectedOrder" />
               <OrderStatusBadge :status="selectedOrder.status" />
             </div>
           </div>
@@ -281,6 +337,29 @@ useHead({ title: 'سفارش‌ها - پنل مدیریت' });
         </div>
 
         <div class="p-4 space-y-2 text-sm">
+          <div
+            class="rounded-xl border p-3"
+            :class="{
+              'border-emerald-200 bg-emerald-50/70': getOrderPaymentUi(selectedOrder) === 'paid',
+              'border-orange-200 bg-orange-50/70': getOrderPaymentUi(selectedOrder) === 'pending',
+              'border-red-200 bg-red-50/70': getOrderPaymentUi(selectedOrder) === 'failed',
+              'border-slate-200 bg-slate-50': getOrderPaymentUi(selectedOrder) === 'cod',
+            }"
+          >
+            <p class="text-xs text-gray-500 mb-1">وضعیت پول</p>
+            <div class="flex flex-wrap items-center gap-2">
+              <OrderPaymentBadge :order="selectedOrder" />
+              <span class="text-sm text-gray-700">{{ paymentMethodLabel(selectedOrder) }}</span>
+            </div>
+            <p v-if="paymentDetailLine(selectedOrder)" class="mt-1 text-xs text-gray-500" dir="ltr">
+              {{ paymentDetailLine(selectedOrder) }}
+            </p>
+            <p v-if="getOrderPaymentUi(selectedOrder) === 'pending'" class="mt-2 text-xs text-orange-800 leading-5">
+              مشتری هنوز پرداخت را کامل نکرده (یا از درگاه برگشته). تا وقتی «پرداخت شده» نشود بسته‌بندی/پست نکنید.
+              اگر مطمئنید پول آمده، وضعیت را به «خریداری شده» بزنید.
+            </p>
+          </div>
+
           <p><span class="text-gray-500">مشتری:</span> {{ selectedOrder.customerName }}</p>
           <p dir="ltr"><span class="text-gray-500">موبایل:</span> {{ selectedOrder.customerPhone }}</p>
           <div>
@@ -326,7 +405,13 @@ useHead({ title: 'سفارش‌ها - پنل مدیریت' });
               />
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-gray-800 leading-snug">{{ item.name }}</p>
-                <p class="text-xs text-gray-500 mt-0.5">تعداد: {{ item.quantity }}</p>
+                <p class="text-xs text-gray-500 mt-0.5">
+                  تعداد: {{ item.quantity }}
+                  <template v-if="item.product?.barcode">
+                    · کد
+                    <span class="font-semibold text-primary-700" dir="ltr">{{ item.product.barcode }}</span>
+                  </template>
+                </p>
               </div>
               <span class="shrink-0 text-sm font-bold text-gray-800">
                 {{ formatPrice(item.subtotal || item.price * item.quantity) }}
@@ -349,7 +434,7 @@ useHead({ title: 'سفارش‌ها - پنل مدیریت' });
               class="btn-primary text-sm"
               @click="updateStatus(selectedOrder!.id, status)"
             >
-              {{ ORDER_STATUS_LABELS[status] }}
+              {{ STATUS_ACTION_LABELS[status] || ORDER_STATUS_LABELS[status] }}
             </button>
           </div>
           <p v-for="status in nextStatuses(selectedOrder.status)" :key="`hint-${status}`" class="text-xs text-gray-400 mt-2">

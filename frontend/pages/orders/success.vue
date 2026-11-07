@@ -1,15 +1,21 @@
 <script setup lang="ts">
 import type { Order } from '~/types';
 import { SITE_NAME } from '~/constants/site';
+import { useOrdersStore } from '~/stores/orders';
 
 const route = useRoute();
 const api = useApi();
+const authStore = useAuthStore();
+const ordersStore = useOrdersStore();
 const orderNumber = route.query.number as string;
 const paid = ref<boolean | null>(null);
+const checking = ref(true);
 
 onMounted(async () => {
+  authStore.init();
   if (!orderNumber) {
     paid.value = false;
+    checking.value = false;
     return;
   }
   try {
@@ -18,6 +24,16 @@ onMounted(async () => {
   } catch {
     paid.value = route.query.paid === '1';
   }
+
+  if (paid.value && authStore.isLoggedIn) {
+    // کمی صبر تا callback زیبال وضعیت را NEW کند، بعد دوباره بگیر
+    await ordersStore.fetchHeld();
+    if (!ordersStore.hasHeld) {
+      await new Promise((r) => setTimeout(r, 1200));
+      await ordersStore.fetchHeld();
+    }
+  }
+  checking.value = false;
 });
 
 useHead({
@@ -27,7 +43,7 @@ useHead({
 </script>
 
 <template>
-  <div class="px-4 py-8 max-w-lg mx-auto text-center pb-24">
+  <div class="px-4 py-8 max-w-lg mx-auto text-center pb-28">
     <div class="relative mx-auto w-48 h-48 mb-6">
       <div class="absolute inset-0 bg-primary-50 rounded-full animate-pulse" />
       <div class="relative flex flex-col items-center justify-center h-full">
@@ -47,10 +63,13 @@ useHead({
     </div>
 
     <h1 class="text-2xl font-bold text-gray-800 mb-2">{{ paid === false ? 'پرداخت انجام نشد' : 'پرداخت ثبت شد' }}</h1>
-    <p v-if="paid === false" class="text-gray-600 mb-6 leading-relaxed">پرداخت در زیبال ناموفق بود و سفارش لغو شد. لباس‌ها به سبد برگشته‌اند و می‌توانید دوباره پرداخت کنید.</p>
+    <p v-if="paid === false" class="text-gray-600 mb-6 leading-relaxed">
+      پرداخت در زیبال ناموفق بود و سفارش لغو شد. لباس‌ها به سبد برگشته‌اند و می‌توانید دوباره پرداخت کنید.
+    </p>
     <template v-else>
-      <p class="text-gray-600 mb-2 leading-relaxed">لباس‌ها در سبد خرید ذخیره شدند و هنوز ارسال نشده‌اند.</p>
-      <p class="text-sm text-primary-700 font-medium mb-6">هر وقت دکمه ارسال بزنید، درخواست ارسال برای شما ثبت می‌شود.</p>
+      <p class="text-gray-600 mb-6 leading-relaxed">
+        پول آمده است. برای اینکه لباس‌ها پست شوند، همین صفحه دکمهٔ «درخواست ارسال» را بزنید.
+      </p>
     </template>
 
     <div v-if="orderNumber" class="card p-4 mb-6">
@@ -58,13 +77,32 @@ useHead({
       <p class="text-xl font-bold text-primary-600" dir="ltr">{{ orderNumber }}</p>
     </div>
 
-    <div v-if="paid !== false" class="bg-green-50 text-green-900 text-sm p-4 rounded-xl mb-6 leading-relaxed text-start">
-      پول پرداخت شده است. از سبد خرید دکمهٔ «ارسال» را بزنید تا درخواست ارسال ثبت شود.
-    </div>
+    <HeldShipPanel
+      v-if="paid !== false && !checking"
+      variant="success"
+      class="mb-6 text-start"
+      @shipped="navigateTo('/profile/orders')"
+    />
+
+    <p
+      v-else-if="paid !== false && checking"
+      class="mb-6 text-sm text-gray-500"
+    >
+      در حال آماده‌سازی دکمه ارسال...
+    </p>
 
     <div class="mx-auto max-w-lg space-y-3 md:max-w-md">
       <NuxtLink v-if="paid === false" to="/checkout" class="btn-primary btn-action w-full">تلاش دوباره</NuxtLink>
-      <NuxtLink v-else to="/cart" class="btn-primary btn-action w-full">رفتن به سبد خرید</NuxtLink>
+      <template v-else>
+        <NuxtLink
+          v-if="!ordersStore.hasHeld && !ordersStore.shipMessage"
+          to="/cart"
+          class="btn-primary btn-action w-full"
+        >
+          رفتن به سبد خرید
+        </NuxtLink>
+        <NuxtLink to="/profile/orders" class="btn-secondary btn-action w-full">سفارش‌های من</NuxtLink>
+      </template>
       <NuxtLink to="/" class="btn-secondary btn-action w-full">ادامه خرید</NuxtLink>
     </div>
   </div>

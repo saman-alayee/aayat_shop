@@ -83,7 +83,7 @@ export const PERMISSION_LABELS: Record<PanelPermission, string> = {
   coupons: 'کدهای تخفیف',
   content: 'قوانین و محتوا',
   settings: 'تنظیمات',
-  users: 'کاربران و نقش‌ها',
+  users: 'مدیران پنل',
 };
 
 export const BUILTIN_ROLE_GUIDE: Array<{
@@ -420,7 +420,7 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   NEW: 'خریداری شده',
-  REVIEWING: 'در حال بررسی',
+  REVIEWING: 'منتظر پرداخت',
   PREPARING: 'درخواست ارسال',
   SHIPPED: 'ارسال شده',
   DELIVERED: 'تحویل داده شده',
@@ -429,9 +429,40 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
 
 export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   NEW: 'bg-blue-100 text-blue-700',
-  REVIEWING: 'bg-indigo-100 text-indigo-700',
+  REVIEWING: 'bg-amber-100 text-amber-800',
   PREPARING: 'bg-yellow-100 text-yellow-700',
   SHIPPED: 'bg-purple-100 text-purple-700',
   DELIVERED: 'bg-green-100 text-green-700',
   CANCELLED: 'bg-red-100 text-red-700',
 };
+
+export type OrderPaymentUi = 'paid' | 'pending' | 'failed' | 'cod';
+
+export const ORDER_PAYMENT_UI_LABELS: Record<OrderPaymentUi, string> = {
+  paid: 'پرداخت شده',
+  pending: 'پرداخت نشده',
+  failed: 'پرداخت ناموفق',
+  cod: 'پرداخت در محل',
+};
+
+export const ORDER_PAYMENT_UI_COLORS: Record<OrderPaymentUi, string> = {
+  paid: 'bg-emerald-100 text-emerald-800',
+  pending: 'bg-orange-100 text-orange-800',
+  failed: 'bg-red-100 text-red-700',
+  cod: 'bg-slate-100 text-slate-700',
+};
+
+/** وضعیت پول سفارش — جدا از وضعیت آماده‌سازی/ارسال */
+export function getOrderPaymentUi(order: {
+  status: OrderStatus;
+  paymentMethod?: PaymentMethod | null;
+  paymentDetails?: { paymentStatus?: string | null } | null;
+}): OrderPaymentUi {
+  const ps = String(order.paymentDetails?.paymentStatus || '').toLowerCase();
+  if (ps === 'paid') return 'paid';
+  if (ps === 'failed') return 'failed';
+  if (order.paymentMethod === 'CASH_AT_DOOR') return 'cod';
+  if (ps === 'pending' || order.status === 'REVIEWING') return 'pending';
+  if (order.status === 'CANCELLED') return 'failed';
+  return 'paid';
+}

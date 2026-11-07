@@ -1,7 +1,8 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   devtools: { enabled: process.env.NODE_ENV !== 'production' },
-  ssr: true,
+  // SPA on the 1-CPU / 2GB VPS — SSR was OOM-crashing Node and causing 502s.
+  ssr: false,
 
   routeRules: {
     '/admin/**': { ssr: false },
@@ -151,14 +152,26 @@ export default defineNuxtConfig({
     },
     workbox: {
       navigateFallback: '/',
-      navigateFallbackDenylist: [/^\/api\//, /^\/uploads\//, /^\/\.well-known\//],
+      // Never serve the storefront shell for panel/auth/app routes (was sending /admin → home).
+      navigateFallbackDenylist: [
+        /^\/api\//,
+        /^\/uploads\//,
+        /^\/\.well-known\//,
+        /^\/admin(\/|$)/,
+        /^\/auth(\/|$)/,
+        /^\/profile(\/|$)/,
+        /^\/cart(\/|$)/,
+        /^\/checkout(\/|$)/,
+        /^\/maintenance(\/|$)/,
+      ],
       globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2}'],
       maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       cleanupOutdatedCaches: true,
       clientsClaim: true,
       runtimeCaching: [
         {
-          urlPattern: /\/api\/(categories|products)/,
+          // فقط کاتالوگ عمومی — /api/admin/products را کش نکن
+          urlPattern: /\/api\/(categories|products)(\?|\/|$)/,
           handler: 'NetworkFirst',
           options: { cacheName: 'api-cache', expiration: { maxEntries: 50, maxAgeSeconds: 60 * 5 } },
         },

@@ -2,14 +2,15 @@
 import type { Order, OrderStatus, Pagination } from '~/types';
 import { ORDER_STATUS_LABELS } from '~/types';
 import { SITE_NAME } from '~/constants/site';
+import { useOrdersStore } from '~/stores/orders';
 
 definePageMeta({ layout: 'profile', middleware: 'auth' });
 
 const api = useApi();
+const ordersStore = useOrdersStore();
 const { formatPrice, formatShortDate } = useFormat();
 
 const orders = ref<Order[]>([]);
-const heldOrders = ref<Order[]>([]);
 const loading = ref(true);
 const statusFilter = ref<OrderStatus | ''>('');
 
@@ -27,47 +28,38 @@ const filteredOrders = computed(() => {
   return orders.value.filter((o) => o.status === statusFilter.value);
 });
 
-const requestingShip = ref(false);
-const shipError = ref('');
-
-const heldCount = computed(() => heldOrders.value.length);
-
-async function requestShipment() {
-  if (requestingShip.value) return;
-  requestingShip.value = true;
-  shipError.value = '';
-  try {
-    await api.post('/orders/request-shipment', {});
-    await loadOrders();
-  } catch (e: unknown) {
-    shipError.value = e instanceof Error ? e.message : 'ثبت درخواست ارسال انجام نشد';
-  } finally {
-    requestingShip.value = false;
-  }
-}
-
 onMounted(loadOrders);
 
 async function loadOrders() {
   loading.value = true;
   try {
-    const [ordersResult, heldResult] = await Promise.all([
+    const [ordersResult] = await Promise.all([
       api.get<{ orders: Order[]; pagination: Pagination }>('/orders?limit=50'),
-      api.get<Order[]>('/orders/held'),
+      ordersStore.fetchHeld(),
     ]);
     orders.value = ordersResult.data.orders;
-    heldOrders.value = heldResult.data;
   } finally {
     loading.value = false;
   }
+}
+
+async function onShipped() {
+  await loadOrders();
 }
 
 useHead({ title: `سفارش‌های من - ${SITE_NAME}` });
 </script>
 
 <template>
-  <div>
+  <div class="pb-24">
     <ProfilePageHeader title="سفارش‌های من" subtitle="تاریخچه و پیگیری سفارشات" back-to="/profile" />
+
+    <HeldShipPanel
+      v-if="ordersStore.hasHeld || ordersStore.shipMessage"
+      class="mb-5"
+      :show-items="false"
+      @shipped="onShipped"
+    />
 
     <div class="flex gap-2 overflow-x-auto scrollbar-hide mb-5 pb-1">
       <button
@@ -80,16 +72,6 @@ useHead({ title: `سفارش‌های من - ${SITE_NAME}` });
         @click="statusFilter = filter.value"
       >
         {{ filter.label }}
-      </button>
-    </div>
-
-    <div v-if="heldCount" class="mb-5 rounded-2xl bg-white p-4 shadow-card">
-      <p class="text-sm leading-6 text-gray-600">
-        هر وقت دکمه ارسال بزنید، درخواست ارسال برای شما ثبت می‌شود.
-      </p>
-      <p v-if="shipError" class="mt-2 text-sm text-red-600">{{ shipError }}</p>
-      <button type="button" class="btn-primary mt-3 h-11 px-5 text-sm" :disabled="requestingShip" @click="requestShipment">
-        {{ requestingShip ? 'در حال ثبت...' : 'ارسال' }}
       </button>
     </div>
 
@@ -118,19 +100,12 @@ useHead({ title: `سفارش‌های من - ${SITE_NAME}` });
           </span>
           <span class="font-bold text-gray-800">{{ formatPrice(order.totalPrice) }}</span>
         </div>
-        <div v-if="order.items?.length" class="text-xs text-gray-400 mt-2 truncate">
-          {{ order.items.length }} کالا
-          <span v-if="order.discountAmount"> · تخفیف {{ formatPrice(order.discountAmount) }}</span>
-        </div>
+        <p v-if="order.status === 'NEW'" class="mt-2 text-xs font-medium text-amber-700">
+          برای پست شدن، دکمهٔ «درخواست ارسال» بالای صفحه را بزنید
+        </p>
       </NuxtLink>
     </div>
 
-    <EmptyState
-      v-if="!loading && !filteredOrders.length"
-      :message="statusFilter ? 'سفارشی با این وضعیت یافت نشد' : 'هنوز سفارشی ثبت نکرده‌اید'"
-      :icon="statusFilter ? 'lucide:search-x' : 'lucide:shopping-bag'"
-    >
-      <NuxtLink to="/" class="btn-primary mt-4 inline-block text-sm">شروع خرید</NuxtLink>
-    </EmptyState>
+    <EmptyState v-else-if="!loading" message="سفارشی یافت نشد" />
   </div>
 </template>

@@ -311,6 +311,144 @@ export class CustomerService {
 }
 
 export class AdminUserService {
+  private panelSelect = {
+    id: true,
+    phone: true,
+    firstName: true,
+    lastName: true,
+    role: true,
+    accessRoleId: true,
+    accessRole: { select: { id: true, name: true, permissions: true } },
+    isActive: true,
+    createdAt: true,
+    updatedAt: true,
+  } as const;
+
+  /** فقط مدیران و پرسنل پنل (نه مشتری‌ها) */
+  async listPanelUsers(search?: string) {
+    const q = search?.trim();
+    const users = await prisma.user.findMany({
+      where: {
+        role: { in: ['ADMIN', 'SUPERVISOR', 'STAFF'] },
+        ...(q
+          ? {
+              OR: [
+                { phone: { contains: q } },
+                { firstName: { contains: q } },
+                { lastName: { contains: q } },
+              ],
+            }
+          : {}),
+      },
+      select: this.panelSelect,
+      orderBy: [{ role: 'asc' }, { createdAt: 'desc' }],
+    });
+    return users;
+  }
+
+  async updatePanelUser(
+    userId: string,
+    data: {
+      phone?: string;
+      firstName?: string;
+      lastName?: string;
+      password?: string;
+      role?: 'ADMIN' | 'SUPERVISOR' | 'STAFF';
+      accessRoleId?: string | null;
+      isActive?: boolean;
+    },
+    actorId: string
+  ) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new AppError(404, 'کاربر یافت نشد');
+    if (!['ADMIN', 'SUPERVISOR', 'STAFF'].includes(user.role)) {
+      throw new AppError(400, 'این کاربر عضو پنل نیست');
+    }
+
+    const nextRole = data.role ?? (user.role as 'ADMIN' | 'SUPERVISOR' | 'STAFF');
+    if (userId === actorId && nextRole !== 'ADMIN') {
+      throw new AppError(400, 'نمی‌توانید نقش خودتان را از مدیر بودن خارج کنید');
+    }
+    if (user.role === 'ADMIN' && nextRole !== 'ADMIN') {
+      const adminCount = await prisma.user.count({ where: { role: 'ADMIN', isActive: true } });
+      if (adminCount <= 1) {
+        throw new AppError(400, 'حداقل یک مدیر باید در سیستم باقی بماند');
+      }
+    }
+    if (userId === actorId && data.isActive === false) {
+      throw new AppError(400, 'نمی‌توانید حساب خودتان را غیرفعال کنید');
+    }
+
+    let accessRoleId: string | null =
+      data.accessRoleId === undefined ? user.accessRoleId : data.accessRoleId;
+    let finalRole: 'ADMIN' | 'SUPERVISOR' | 'STAFF' = nextRole;
+    if (data.accessRoleId) {
+      const custom = await prisma.accessRole.findUnique({ where: { id: data.accessRoleId } });
+      if (!custom) throw new AppError(400, 'نقش سفارشی یافت نشد');
+      accessRoleId = custom.id;
+      finalRole = 'STAFF';
+    } else if (data.accessRoleId === null) {
+      accessRoleId = null;
+    }
+
+    let phone = user.phone;
+    if (data.phone?.trim()) {
+      phone = normalizePhone(data.phone);
+      if (phone !== user.phone) {
+        const taken = await prisma.user.findUnique({ where: { phone } });
+        if (taken && taken.id !== userId) {
+          throw new AppError(400, 'این شماره موبایل قبلاً ثبت شده است');
+        }
+      }
+    }
+
+    const passwordHash = data.password
+      ? await (await import('bcryptjs')).default.hash(data.password, 10)
+      : undefined;
+
+    return prisma.user.update({
+      where: { id: userId },
+      data: {
+        phone,
+        role: finalRole,
+        accessRoleId,
+        ...(data.firstName !== undefined ? { firstName: data.firstName.trim() || null } : {}),
+        ...(data.lastName !== undefined ? { lastName: data.lastName.trim() || null } : {}),
+        ...(typeof data.isActive === 'boolean' ? { isActive: data.isActive } : {}),
+        ...(passwordHash ? { passwordHash } : {}),
+      },
+      select: this.panelSelect,
+    });
+  }
+
+  /** حذف دسترسی پنل (تبدیل به مشتری) — حذف فیزیکی نمی‌کند تا سفارش‌ها بمانند */
+  async removePanelUser(userId: string, actorId: string) {
+    if (userId === actorId) {
+      throw new AppError(400, 'نمی‌توانید خودتان را از پنل حذف کنید');
+    }
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new AppError(404, 'کاربر یافت نشد');
+    if (!['ADMIN', 'SUPERVISOR', 'STAFF'].includes(user.role)) {
+      throw new AppError(400, 'این کاربر عضو پنل نیست');
+    }
+    if (user.role === 'ADMIN') {
+      const adminCount = await prisma.user.count({ where: { role: 'ADMIN', isActive: true } });
+      if (adminCount <= 1) {
+        throw new AppError(400, 'حداقل یک مدیر باید در سیستم باقی بماند');
+      }
+    }
+
+    return prisma.user.update({
+      where: { id: userId },
+      data: {
+        role: 'CUSTOMER',
+        accessRoleId: null,
+        isActive: true,
+      },
+      select: this.panelSelect,
+    });
+  }
+
   async updateRole(
     userId: string,
     payload: { role: 'CUSTOMER' | 'ADMIN' | 'SUPERVISOR' | 'STAFF'; accessRoleId?: string | null },

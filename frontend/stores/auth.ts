@@ -32,8 +32,7 @@ export const useAuthStore = defineStore('auth', () => {
   const fullName = computed(() => {
     if (!user.value) return '';
     const { firstName, lastName } = user.value;
-    if (firstName && lastName) return `${firstName} ${lastName}`;
-    return user.value.phone;
+    return [firstName, lastName].filter(Boolean).join(' ').trim();
   });
 
   function syncUserFromToken() {
@@ -92,6 +91,16 @@ export const useAuthStore = defineStore('auth', () => {
     syncUserFromToken();
   }
 
+  /** After login, pull cart so guest lines merge onto the user cart. */
+  async function syncCartAfterAuth() {
+    try {
+      const cartStore = useCartStore();
+      await cartStore.fetchCart();
+    } catch {
+      // Cart sync must not block login.
+    }
+  }
+
   function logout() {
     token.value = null;
     user.value = null;
@@ -141,6 +150,7 @@ export const useAuthStore = defineStore('auth', () => {
         password,
       });
       setAuth(data.token, data.user);
+      await syncCartAfterAuth();
       return data;
     } finally {
       loading.value = false;
@@ -169,6 +179,7 @@ export const useAuthStore = defineStore('auth', () => {
         code: normalizeDigits(code),
       });
       setAuth(data.token, data.user);
+      await syncCartAfterAuth();
       return data;
     } finally {
       loading.value = false;
@@ -184,6 +195,7 @@ export const useAuthStore = defineStore('auth', () => {
         password,
       });
       setAuth(data.token, data.user);
+      await syncCartAfterAuth();
       return data;
     } finally {
       loading.value = false;

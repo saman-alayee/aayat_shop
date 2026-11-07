@@ -4,6 +4,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { settingsService } from './settings.service';
 
 export class CartService {
+  private lastExpireAt = 0;
+  private holdsCache: { at: number; map: Map<string, number> } | null = null;
+
   private async resolveUserId(userId?: string): Promise<string | undefined> {
     if (!userId) return undefined;
     const user = await prisma.user.findUnique({
@@ -52,13 +55,20 @@ export class CartService {
     return { ...cart, newSessionId };
   }
 
-  /** Drop cart lines older than the hold window (store-wide). */
+  /** Drop cart lines older than the hold window (store-wide). Throttled to cut SQLite write storms. */
   async expireAllStaleCartItems() {
     const { cartHoldMinutes } = await settingsService.getShipping();
-    const cutoff = new Date(Date.now() - cartHoldMinutes * 60 * 1000);
+    const now = Date.now();
+    // Full sweep at most once per minute — product list traffic was expiring on every request.
+    if (now - this.lastExpireAt < 60_000) {
+      return cartHoldMinutes;
+    }
+    this.lastExpireAt = now;
+    const cutoff = new Date(now - cartHoldMinutes * 60 * 1000);
     await prisma.cartItem.deleteMany({
       where: { updatedAt: { lt: cutoff } },
     });
+    this.holdsCache = null;
     return cartHoldMinutes;
   }
 
@@ -68,15 +78,36 @@ export class CartService {
    */
   async getActiveHoldQuantities(excludeCartId?: string) {
     await this.expireAllStaleCartItems();
+    if (!excludeCartId && this.holdsCache && Date.now() - this.holdsCache.at < 5_000) {
+      return new Map(this.holdsCache.map);
+    }
     const rows = await prisma.cartItem.groupBy({
       by: ['productId'],
       where: excludeCartId ? { cartId: { not: excludeCartId } } : undefined,
       _sum: { quantity: true },
     });
-    return new Map(rows.map((row) => [row.productId, row._sum.quantity ?? 0]));
+    const map = new Map(rows.map((row) => [row.productId, row._sum.quantity ?? 0]));
+    if (!excludeCartId) {
+      this.holdsCache = { at: Date.now(), map: new Map(map) };
+    } else {
+      this.holdsCache = null;
+    }
+    return map;
+  }
+
+  /** Call after cart mutations so product pages see fresh holds quickly. */
+  invalidateHoldCache() {
+    this.holdsCache = null;
+  }
+
+  /** When a guest logs in, move session cart lines onto the user cart. */
+  private async mergeGuestCartIfNeeded(userId?: string, sessionId?: string) {
+    if (!userId || !sessionId) return;
+    await this.mergeCarts(userId, sessionId);
   }
 
   async getCart(userId?: string, sessionId?: string) {
+    await this.mergeGuestCartIfNeeded(userId, sessionId);
     const cart = await this.getOrCreateCart(userId, sessionId);
     const holdMinutes = await this.expireAllStaleCartItems();
     const fresh = await prisma.cart.findUnique({
@@ -95,8 +126,10 @@ export class CartService {
     if (!product) throw new AppError(404, 'محصول یافت نشد');
     if (product.stock < 1) throw new AppError(400, 'موجودی کافی نیست');
 
+    await this.mergeGuestCartIfNeeded(userId, sessionId);
     const cart = await this.getOrCreateCart(userId, sessionId);
     const cartId = cart.id;
+    this.invalidateHoldCache();
     const heldOthers = (await this.getActiveHoldQuantities(cartId)).get(productId) ?? 0;
     const available = Math.max(0, product.stock - heldOthers);
 
@@ -146,7 +179,9 @@ export class CartService {
   }
 
   async updateItem(userId: string | undefined, sessionId: string | undefined, productId: string, quantity: number) {
+    await this.mergeGuestCartIfNeeded(userId, sessionId);
     const cart = await this.getOrCreateCart(userId, sessionId);
+    this.invalidateHoldCache();
 
     if (quantity <= 0) {
       await prisma.cartItem.deleteMany({ where: { cartId: cart.id, productId } });
@@ -180,7 +215,9 @@ export class CartService {
   }
 
   async removeItem(userId: string | undefined, sessionId: string | undefined, productId: string) {
+    await this.mergeGuestCartIfNeeded(userId, sessionId);
     const cart = await this.getOrCreateCart(userId, sessionId);
+    this.invalidateHoldCache();
     await prisma.cartItem.deleteMany({ where: { cartId: cart.id, productId } });
 
     const updatedCart = await prisma.cart.findUnique({
@@ -192,6 +229,7 @@ export class CartService {
   }
 
   async clearCart(userId?: string, sessionId?: string) {
+    await this.mergeGuestCartIfNeeded(userId, sessionId);
     const cart = await this.getOrCreateCart(userId, sessionId);
     await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
     return this.formatCart({ ...cart, items: [] });
@@ -204,8 +242,11 @@ export class CartService {
     });
 
     if (!sessionCart || sessionCart.items.length === 0) return;
+    // Already the same cart (linked to both) — nothing to merge.
+    if (sessionCart.userId === userId) return;
 
     const userCart = await this.getOrCreateCart(userId);
+    if (userCart.id === sessionCart.id) return;
 
     for (const item of sessionCart.items) {
       const existing = await prisma.cartItem.findUnique({
@@ -215,16 +256,24 @@ export class CartService {
       if (existing) {
         await prisma.cartItem.update({
           where: { id: existing.id },
-          data: { quantity: existing.quantity + item.quantity },
+          data: {
+            quantity: existing.quantity + item.quantity,
+            updatedAt: new Date(),
+          },
         });
       } else {
         await prisma.cartItem.create({
-          data: { cartId: userCart.id, productId: item.productId, quantity: item.quantity },
+          data: {
+            cartId: userCart.id,
+            productId: item.productId,
+            quantity: item.quantity,
+          },
         });
       }
     }
 
-    await prisma.cart.delete({ where: { id: sessionCart.id } });
+    await prisma.cartItem.deleteMany({ where: { cartId: sessionCart.id } });
+    await prisma.cart.delete({ where: { id: sessionCart.id } }).catch(() => undefined);
   }
 
   private formatCart(cart: {

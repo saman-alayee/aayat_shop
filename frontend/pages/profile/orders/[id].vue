@@ -2,12 +2,14 @@
 import type { Order } from '~/types';
 import { SITE_NAME } from '~/constants/site';
 import { shippingLabel } from '~/constants/shipping';
+import { useOrdersStore } from '~/stores/orders';
 
 definePageMeta({ layout: 'profile', middleware: 'auth' });
 
 const api = useApi();
 const route = useRoute();
 const toast = useToast();
+const ordersStore = useOrdersStore();
 const { formatPrice, formatDate, getProductImage } = useFormat();
 
 const order = ref<Order | null>(null);
@@ -15,12 +17,24 @@ const loading = ref(true);
 
 onMounted(async () => {
   try {
-    const { data } = await api.get<Order>(`/orders/${route.params.id}`);
+    const [{ data }] = await Promise.all([
+      api.get<Order>(`/orders/${route.params.id}`),
+      ordersStore.fetchHeld(),
+    ]);
     order.value = data;
   } finally {
     loading.value = false;
   }
 });
+
+async function onShipped() {
+  try {
+    const { data } = await api.get<Order>(`/orders/${route.params.id}`);
+    order.value = data;
+  } catch {
+    /* ignore */
+  }
+}
 
 async function copyOrderNumber() {
   if (!order.value) return;
@@ -57,6 +71,13 @@ useHead({ title: `جزئیات سفارش - ${SITE_NAME}` });
       </ProfilePageHeader>
 
       <OrderStatusStepper :status="order.status" />
+
+      <HeldShipPanel
+        v-if="order.status === 'NEW' || ordersStore.hasHeld"
+        class="mb-4"
+        :show-items="false"
+        @shipped="onShipped"
+      />
 
       <div class="grid gap-3 mb-4">
         <div class="card p-4">

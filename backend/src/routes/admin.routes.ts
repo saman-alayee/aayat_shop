@@ -205,8 +205,10 @@ const productSchema = productBaseSchema.refine(
 router.get(
   '/products',
   asyncHandler(async (req, res) => {
-    const status = String(req.query.status || 'all');
+    const statusRaw = String(req.query.status ?? 'all').trim().toLowerCase();
+    const status = statusRaw === 'active' || statusRaw === 'inactive' ? statusRaw : 'all';
     const result = await productService.getAll({
+      // پنل ادمین: برای «همه» هیچ فیلتر isActive نگذار؛ holdهای سبد را هم اعمال نکن
       includeInactive: status !== 'active',
       isActive: status === 'active' ? true : status === 'inactive' ? false : undefined,
       search: req.query.search as string,
@@ -218,7 +220,7 @@ router.get(
       discounted: req.query.discounted === 'true',
       sort: req.query.sort as string,
       page: req.query.page ? parseInt(req.query.page as string) : 1,
-      limit: Math.min(req.query.limit ? parseInt(req.query.limit as string) : 20, 50),
+      limit: Math.min(req.query.limit ? parseInt(req.query.limit as string) : 20, 100),
     });
     successResponse(res, result);
   })
@@ -282,6 +284,16 @@ router.post(
     }
     const imageUrl = `/uploads/${req.file.filename}`;
     successResponse(res, { url: imageUrl });
+  })
+);
+
+// Quick lookup: clothing code / order / customer → what & whose
+router.get(
+  '/lookup',
+  asyncHandler(async (req, res) => {
+    const q = String(req.query.q || req.query.search || '').trim();
+    const result = await orderService.lookupCode(q);
+    successResponse(res, result);
   })
 );
 
@@ -402,6 +414,16 @@ router.get(
   })
 );
 
+/** لیست فقط مدیران / مسئولان / پرسنل پنل */
+router.get(
+  '/admins',
+  adminOnly,
+  asyncHandler(async (req, res) => {
+    const users = await adminUserService.listPanelUsers(req.query.search as string | undefined);
+    successResponse(res, { users });
+  })
+);
+
 router.post(
   '/users/admin',
   adminOnly,
@@ -418,6 +440,58 @@ router.post(
   asyncHandler(async (req, res) => {
     const user = await adminUserService.createAdmin(req.body);
     successResponse(res, user, 'کاربر پنل اضافه شد', 201);
+  })
+);
+
+router.post(
+  '/admins',
+  adminOnly,
+  validate(
+    z.object({
+      phone: z.string().min(10),
+      firstName: z.string().optional(),
+      lastName: z.string().optional(),
+      password: z.string().min(6).optional(),
+      role: z.enum(['ADMIN', 'SUPERVISOR', 'STAFF']).optional(),
+      accessRoleId: z.string().nullable().optional(),
+    })
+  ),
+  asyncHandler(async (req, res) => {
+    const user = await adminUserService.createAdmin(req.body);
+    successResponse(res, user, 'مدیر / پرسنل اضافه شد', 201);
+  })
+);
+
+router.put(
+  '/admins/:id',
+  adminOnly,
+  validate(
+    z.object({
+      phone: z.string().min(10).optional(),
+      firstName: z.string().optional().nullable(),
+      lastName: z.string().optional().nullable(),
+      password: z.string().min(6).optional(),
+      role: z.enum(['ADMIN', 'SUPERVISOR', 'STAFF']).optional(),
+      accessRoleId: z.string().nullable().optional(),
+      isActive: z.boolean().optional(),
+    })
+  ),
+  asyncHandler(async (req, res) => {
+    const user = await adminUserService.updatePanelUser(
+      paramId(req.params.id),
+      req.body,
+      req.user!.userId
+    );
+    successResponse(res, user, 'اطلاعات به‌روزرسانی شد');
+  })
+);
+
+router.delete(
+  '/admins/:id',
+  adminOnly,
+  asyncHandler(async (req, res) => {
+    const user = await adminUserService.removePanelUser(paramId(req.params.id), req.user!.userId);
+    successResponse(res, user, 'دسترسی پنل حذف شد');
   })
 );
 
@@ -783,6 +857,24 @@ router.get(
       productSearch: req.query.productSearch as string | undefined,
     });
     successResponse(res, chart);
+  })
+);
+
+router.get(
+  '/sales/transactions',
+  permSales,
+  asyncHandler(async (req, res) => {
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 300;
+    const transactions = await salesService.getTransactions(
+      {
+        days: req.query.days ? parseInt(req.query.days as string) : 30,
+        dateFrom: req.query.dateFrom as string | undefined,
+        dateTo: req.query.dateTo as string | undefined,
+        productSearch: (req.query.productSearch || req.query.search) as string | undefined,
+      },
+      Number.isFinite(limit) ? limit : 300
+    );
+    successResponse(res, transactions);
   })
 );
 

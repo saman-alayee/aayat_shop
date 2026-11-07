@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Address } from '~/types';
 import { normalizePhoneInput } from '~/utils/normalize';
+import { splitCustomerName, validateCustomerName } from '~/utils/customerName';
 import { SITE_NAME } from '~/constants/site';
 import { type ShippingMethod } from '~/constants/shipping';
 import { useOrdersStore } from '~/stores/orders';
@@ -60,7 +61,8 @@ onMounted(async () => {
 
   await authStore.fetchProfile().catch(() => undefined);
   if (authStore.user) {
-    form.customerName = authStore.fullName;
+    // فقط اگر قبلاً اسم واقعی ثبت شده؛ شماره را جای نام نگذار
+    form.customerName = authStore.fullName || '';
     form.customerPhone = authStore.user.phone;
   }
   await loadAddresses();
@@ -93,12 +95,13 @@ async function submitOrder() {
   phoneError.value = '';
 
   const problems: string[] = [];
-  if (form.customerName.trim().length < 3) {
-    nameError.value = 'نام و نام خانوادگی حداقل ۳ حرف باشد';
-    problems.push(nameError.value);
-  }
   const phone = normalizePhoneInput(form.customerPhone);
   form.customerPhone = phone;
+  const nameProblem = validateCustomerName(form.customerName, phone);
+  if (nameProblem) {
+    nameError.value = nameProblem;
+    problems.push(nameProblem);
+  }
   if (!/^09\d{9}$/.test(phone)) {
     phoneError.value = phone
       ? `موبایل باید با ۰۹ شروع شود و ۱۱ رقم باشد؛ الان ${phone.length.toLocaleString('fa-IR')} رقم است`
@@ -123,8 +126,15 @@ async function submitOrder() {
 
   loading.value = true;
   try {
+    const customerName = form.customerName.replace(/\s+/g, ' ').trim();
+    form.customerName = customerName;
+    const { firstName, lastName } = splitCustomerName(customerName);
+    if (firstName) {
+      await authStore.updateProfile({ firstName, lastName: lastName || undefined }).catch(() => undefined);
+    }
+
     const payload = {
-      customerName: form.customerName.trim(),
+      customerName,
       customerPhone: form.customerPhone.trim(),
       notes: form.notes.trim() || undefined,
       couponCode: applied.value?.code || undefined,
@@ -180,9 +190,21 @@ useHead({
     </div>
 
     <form class="space-y-4" @submit.prevent="submitOrder">
-      <div>
-        <label class="field-label">نام و نام خانوادگی</label>
-        <input v-model="form.customerName" type="text" required minlength="3" class="input-field" :class="{ 'input-invalid': nameError }" />
+      <div :data-field-error="nameError ? 'true' : undefined">
+        <label class="field-label">
+          نام و نام خانوادگی
+          <span class="text-red-500">*</span>
+        </label>
+        <input
+          v-model="form.customerName"
+          type="text"
+          required
+          autocomplete="name"
+          class="input-field"
+          :class="{ 'input-invalid': nameError }"
+          placeholder="مثلاً: زهرا محمدی"
+        />
+        <p class="mt-1 text-xs text-gray-500">برای پیگیری سفارش، اسم کامل لازم است — شماره موبایل کافی نیست.</p>
         <AppFormError :message="nameError" />
       </div>
       <div>
@@ -208,7 +230,7 @@ useHead({
       <div class="space-y-1">
         <p class="field-label">هزینه ارسال</p>
         <p class="text-xs leading-6 text-gray-500">
-          بعد از پرداخت، لباس در سبد می‌ماند. هر وقت دکمه ارسال بزنید، درخواست ارسال برای شما ثبت می‌شود.
+          بعد از پرداخت، روی صفحهٔ موفقیت دکمهٔ «درخواست ارسال» را می‌بینید؛ همان را بزنید تا لباس پست شود.
         </p>
         <label
           v-for="option in shippingOptions"

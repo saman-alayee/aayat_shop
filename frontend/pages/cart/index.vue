@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import type { Order, Product } from '~/types';
+import type { Product } from '~/types';
 import { SITE_NAME } from '~/constants/site';
+import { useOrdersStore } from '~/stores/orders';
 
 const cartStore = useCartStore();
 const authStore = useAuthStore();
+const ordersStore = useOrdersStore();
 const api = useApi();
 const { formatPrice, getProductImage, toPersianDigits } = useFormat();
 const { nationwideHint, cartHoldMinutes, loadShippingSettings } = useShippingSettings();
@@ -14,19 +16,6 @@ const suggestionsLoading = ref(false);
 const busyId = ref<string | null>(null);
 const clearing = ref(false);
 const actionError = ref('');
-const heldOrders = ref<Order[]>([]);
-const heldLoading = ref(false);
-const requestingShip = ref(false);
-const shipMessage = ref('');
-
-const heldItems = computed(() =>
-  heldOrders.value.flatMap((order) =>
-    (order.items || []).map((item) => ({
-      ...item,
-      orderNumber: order.orderNumber,
-    }))
-  )
-);
 
 const pieceLabel = computed(() => {
   const count = cartStore.totalItems;
@@ -35,42 +24,6 @@ const pieceLabel = computed(() => {
 
 function hasDiscount(price: number, effectivePrice: number) {
   return price > effectivePrice;
-}
-
-async function loadHeldOrders() {
-  authStore.init();
-  if (!authStore.isLoggedIn) {
-    heldOrders.value = [];
-    return;
-  }
-  heldLoading.value = true;
-  try {
-    const { data } = await api.get<Order[]>('/orders/held');
-    heldOrders.value = data;
-  } catch {
-    heldOrders.value = [];
-  } finally {
-    heldLoading.value = false;
-  }
-}
-
-async function requestShipment() {
-  if (requestingShip.value || !heldOrders.value.length) return;
-  requestingShip.value = true;
-  actionError.value = '';
-  shipMessage.value = '';
-  try {
-    const { data } = await api.post<{ count: number }>('/orders/request-shipment', {});
-    heldOrders.value = [];
-    shipMessage.value =
-      data.count > 1
-        ? `درخواست ارسال برای ${toPersianDigits(data.count)} سفارش ثبت شد.`
-        : 'درخواست ارسال برای شما ثبت شد.';
-  } catch (e: unknown) {
-    actionError.value = e instanceof Error ? e.message : 'ثبت درخواست ارسال انجام نشد';
-  } finally {
-    requestingShip.value = false;
-  }
 }
 
 async function loadSuggestions() {
@@ -140,7 +93,7 @@ async function clearCart() {
 }
 
 onMounted(async () => {
-  await Promise.all([cartStore.fetchCart(), loadHeldOrders(), loadShippingSettings()]);
+  await Promise.all([cartStore.fetchCart(), ordersStore.fetchHeld(), loadShippingSettings()]);
   await refresh(cartStore.totalPrice);
   await loadSuggestions();
 });
@@ -185,37 +138,9 @@ useHead({
         </button>
       </div>
 
-      <p v-if="shipMessage" class="mb-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800">{{ shipMessage }}</p>
+      <HeldShipPanel v-if="ordersStore.hasHeld || ordersStore.shipMessage" class="mb-6" />
 
-      <section v-if="heldItems.length" class="mb-6 rounded-3xl bg-white p-4 shadow-card sm:p-5">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 class="text-base font-bold text-[#3c322b]">لباس‌های خریداری‌شده</h2>
-            <p class="mt-1 text-sm leading-6 text-gray-500">
-              هر وقت دکمه ارسال بزنید، درخواست ارسال برای شما ثبت می‌شود.
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          class="btn-primary mt-4 h-11 px-5 text-sm"
-          :disabled="requestingShip"
-          @click="requestShipment"
-        >
-          {{ requestingShip ? 'در حال ثبت...' : 'ارسال' }}
-        </button>
-        <ul class="mt-4 divide-y divide-[#f0ebe8]">
-          <li v-for="item in heldItems" :key="item.id" class="flex items-center justify-between gap-3 py-3 text-sm">
-            <span class="min-w-0">
-              <span class="block truncate font-medium text-[#3c322b]">{{ item.name }}</span>
-              <span class="text-xs text-gray-400">{{ toPersianDigits(item.quantity) }} عدد · {{ item.orderNumber }}</span>
-            </span>
-            <span class="shrink-0 font-bold text-[#3c322b]">{{ formatPrice(item.price * item.quantity) }}</span>
-          </li>
-        </ul>
-      </section>
-
-      <LoadingSpinner :show="cartStore.loading && cartStore.isEmpty" />
+      <LoadingSpinner :show="cartStore.loading && cartStore.isEmpty && !ordersStore.hasHeld" />
       <p v-if="actionError" class="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{{ actionError }}</p>
 
       <div v-if="!cartStore.isEmpty" class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -327,7 +252,7 @@ useHead({
       </div>
 
       <EmptyCatalogScene
-        v-else-if="!cartStore.loading"
+        v-else-if="!cartStore.loading && !ordersStore.hasHeld && !ordersStore.shipMessage"
         variant="cart"
         class="shadow-card"
       >
@@ -342,8 +267,29 @@ useHead({
       <ProductCardList :products="suggestedProducts" layout="grid" density="sarak" />
     </section>
 
+    <!-- موبایل: اولویت با درخواست ارسال؛ وگرنه ادامه پرداخت -->
     <div
-      v-if="!cartStore.isEmpty"
+      v-if="ordersStore.hasHeld"
+      class="fixed inset-x-0 bottom-16 z-40 border-t border-amber-200 bg-amber-50/95 px-4 py-3 backdrop-blur lg:hidden"
+    >
+      <div class="mx-auto flex max-w-lg items-center gap-3">
+        <div class="min-w-0">
+          <p class="text-xs text-amber-900/70">پرداخت شده</p>
+          <p class="truncate text-sm font-bold text-amber-950">آماده درخواست ارسال</p>
+        </div>
+        <button
+          type="button"
+          class="btn-primary inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl text-sm font-bold"
+          :disabled="ordersStore.requestingShip"
+          @click="ordersStore.requestShipment()"
+        >
+          <AppIcon name="lucide:send" size="sm" />
+          {{ ordersStore.requestingShip ? '...' : 'درخواست ارسال' }}
+        </button>
+      </div>
+    </div>
+    <div
+      v-else-if="!cartStore.isEmpty"
       class="fixed inset-x-0 bottom-16 z-40 border-t border-[#f0ebe8] bg-white/95 px-4 py-3 backdrop-blur lg:hidden"
     >
       <div class="mx-auto flex max-w-lg items-center gap-3">

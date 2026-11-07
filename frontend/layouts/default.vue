@@ -15,6 +15,7 @@ onMounted(() => {
       <slot />
     </main>
     <FloatingCart />
+    <HeldShipReminder />
     <AppFooter />
     <BottomNav />
   </div>
