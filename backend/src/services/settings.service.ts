@@ -15,6 +15,8 @@ export const DEFAULT_NATIONWIDE_SHIPPING_FEE = 0;
 export const DEFAULT_NATIONWIDE_SHIPPING_HINT =
   'پرداخت هزینه پست در محل (هنگام تحویل) انجام می‌شود';
 export const DEFAULT_CART_HOLD_MINUTES = 30;
+/** Days a paid order stays in NEW waiting for customer «درخواست ارسال». */
+export const DEFAULT_SHIP_REQUEST_DEADLINE_DAYS = 14;
 
 export interface ThemeSettings {
   primary: string;
@@ -77,6 +79,11 @@ export interface ShippingSettings {
   nationwideHint: string;
   /** Unpaid cart items are removed after this many minutes. */
   cartHoldMinutes: number;
+  /**
+   * After payment (status NEW), customer has this many days to press «درخواست ارسال».
+   * When the deadline ends, the order is auto-moved to PREPARING as if they pressed it.
+   */
+  shipRequestDeadlineDays: number;
 }
 
 export const DEFAULT_NEW_ORDER_SMS_TEMPLATE =
@@ -315,6 +322,8 @@ export class SettingsService {
       nationwideFee: input.nationwideFee ?? current.nationwideFee,
       nationwideHint: input.nationwideHint ?? current.nationwideHint,
       cartHoldMinutes: input.cartHoldMinutes ?? current.cartHoldMinutes,
+      shipRequestDeadlineDays:
+        input.shipRequestDeadlineDays ?? current.shipRequestDeadlineDays,
     });
 
     await prisma.appSetting.upsert({
@@ -352,7 +361,17 @@ export class SettingsService {
     const cartHoldMinutes = Number.isFinite(minutes)
       ? Math.max(5, Math.min(24 * 60, Math.round(minutes)))
       : DEFAULT_CART_HOLD_MINUTES;
-    return { nationwideFee, nationwideHint: hint, cartHoldMinutes };
+    const daysRaw = data.shipRequestDeadlineDays;
+    const days =
+      typeof daysRaw === 'number'
+        ? daysRaw
+        : typeof daysRaw === 'string' && daysRaw.trim()
+          ? Number(daysRaw)
+          : DEFAULT_SHIP_REQUEST_DEADLINE_DAYS;
+    const shipRequestDeadlineDays = Number.isFinite(days)
+      ? Math.max(1, Math.min(90, Math.round(days)))
+      : DEFAULT_SHIP_REQUEST_DEADLINE_DAYS;
+    return { nationwideFee, nationwideHint: hint, cartHoldMinutes, shipRequestDeadlineDays };
   }
 
   async getTheme(): Promise<ThemeSettings> {

@@ -60,6 +60,7 @@ const shippingForm = reactive({
   nationwideFee: 0,
   nationwideHint: 'پرداخت هزینه پست در محل (هنگام تحویل) انجام می‌شود',
   cartHoldMinutes: 30,
+  shipRequestDeadlineDays: 14,
 });
 const shippingSaving = ref(false);
 const themeForm = reactive<ThemeColors>({ ...DEFAULT_THEME });
@@ -151,12 +152,16 @@ async function saveAnnouncement() {
 
 async function loadShipping() {
   try {
-    const { data } = await api.get<{ nationwideFee: number; nationwideHint: string; cartHoldMinutes: number }>(
-      '/admin/settings/shipping'
-    );
+    const { data } = await api.get<{
+      nationwideFee: number;
+      nationwideHint: string;
+      cartHoldMinutes: number;
+      shipRequestDeadlineDays: number;
+    }>('/admin/settings/shipping');
     shippingForm.nationwideFee = data.nationwideFee;
     shippingForm.nationwideHint = data.nationwideHint;
     shippingForm.cartHoldMinutes = data.cartHoldMinutes || 30;
+    shippingForm.shipRequestDeadlineDays = data.shipRequestDeadlineDays || 14;
   } catch (e: unknown) {
     toast.error(e instanceof Error ? e.message : 'خطا در بارگذاری تنظیمات ارسال');
   }
@@ -165,17 +170,21 @@ async function loadShipping() {
 async function saveShipping() {
   shippingSaving.value = true;
   try {
-    const { data } = await api.put<{ nationwideFee: number; nationwideHint: string; cartHoldMinutes: number }>(
-      '/admin/settings/shipping',
-      {
-        nationwideFee: Number(shippingForm.nationwideFee) || 0,
-        nationwideHint: shippingForm.nationwideHint.trim(),
-        cartHoldMinutes: Number(shippingForm.cartHoldMinutes) || 30,
-      }
-    );
+    const { data } = await api.put<{
+      nationwideFee: number;
+      nationwideHint: string;
+      cartHoldMinutes: number;
+      shipRequestDeadlineDays: number;
+    }>('/admin/settings/shipping', {
+      nationwideFee: Number(shippingForm.nationwideFee) || 0,
+      nationwideHint: shippingForm.nationwideHint.trim(),
+      cartHoldMinutes: Number(shippingForm.cartHoldMinutes) || 30,
+      shipRequestDeadlineDays: Number(shippingForm.shipRequestDeadlineDays) || 14,
+    });
     shippingForm.nationwideFee = data.nationwideFee;
     shippingForm.nationwideHint = data.nationwideHint;
     shippingForm.cartHoldMinutes = data.cartHoldMinutes;
+    shippingForm.shipRequestDeadlineDays = data.shipRequestDeadlineDays;
     toast.success('تنظیمات ارسال ذخیره شد');
   } catch (e: unknown) {
     toast.error(e instanceof Error ? e.message : 'خطا در ذخیره');
@@ -403,9 +412,26 @@ useHead({ title: 'تنظیمات - پنل مدیریت' });
 
     <div v-if="activeTab === 'shipping'" class="bg-white rounded-xl border border-gray-100 p-6 space-y-4 max-w-2xl">
       <div>
-        <h2 class="text-lg font-semibold text-gray-900">هزینه ارسال و زمان سبد</h2>
+        <h2 class="text-lg font-semibold text-gray-900">هزینه ارسال و زمان‌ها</h2>
         <p class="text-sm text-gray-500 mt-1">
-          متن «هزینه ارسال» در سبد و تسویه، و مدت نگهداری لباس‌های پرداخت‌نشده در سبد.
+          متن هزینه ارسال، زمان قفل سبد، و مهلت دکمه «درخواست ارسال» بعد از خرید.
+        </p>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">مهلت درخواست ارسال بعد از خرید (روز)</label>
+        <input
+          v-model.number="shippingForm.shipRequestDeadlineDays"
+          type="number"
+          min="1"
+          max="90"
+          step="1"
+          class="input-field"
+          dir="ltr"
+        />
+        <p class="mt-1 text-xs text-gray-500 leading-relaxed">
+          خریدار تا این تعداد روز فرصت دارد دکمه «درخواست ارسال» را بزند.
+          اگر مهلت تمام شود، سفارش خودکار مثل زدن دکمه به «درخواست ارسال» می‌رود تا شما بفرستید.
+          پیش‌فرض: ۱۴ روز (۲ هفته).
         </p>
       </div>
       <div>

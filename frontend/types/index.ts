@@ -337,6 +337,11 @@ export interface Order {
   updatedAt: string;
   items?: OrderItem[];
   statusLogs?: OrderStatusLog[];
+  /** Days customer has to press ship request (from settings). */
+  shipRequestDeadlineDays?: number;
+  shipRequestDeadlineAt?: string;
+  shipRequestDaysLeft?: number;
+  shipRequestHeldSince?: string;
 }
 
 export interface OrderStatusLog {

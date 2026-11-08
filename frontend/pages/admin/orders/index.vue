@@ -8,7 +8,7 @@ definePageMeta({ layout: 'admin', middleware: 'admin' });
 const route = useRoute();
 const api = useApi();
 const toast = useToast();
-const { formatPrice, formatDate, getProductImage } = useFormat();
+const { formatPrice, formatDate, getProductImage, toPersianDigits } = useFormat();
 
 const orders = ref<Order[]>([]);
 const pagination = ref<Pagination | null>(null);
@@ -33,7 +33,7 @@ const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus[]>> = {
 
 const STATUS_HINTS: Partial<Record<OrderStatus, string>> = {
   REVIEWING: 'هنوز پول نیامده — منتظر درگاه / تأیید پرداخت',
-  NEW: 'پول آمده. تا وقتی مشتری ارسال را نزند پست نشود',
+  NEW: 'پول آمده. مشتری تا مهلت تنظیم‌شده فرصت دارد ارسال را بزند؛ بعد از مهلت خودکار برای ارسال ثبت می‌شود',
   SHIPPED: 'پیام «تحویل به پیک» به مشتری ارسال می‌شود',
   PREPARING: 'مشتری ارسال را زده. بسته‌بندی کنید و پست کنید',
   DELIVERED: 'سفارش تکمیل شد',
@@ -185,7 +185,7 @@ useHead({ title: 'سفارش‌ها - پنل مدیریت' });
       <p class="text-sm leading-6 text-gray-500 mt-1 max-w-3xl">
         ستون <b>پرداخت</b> می‌گوید پول آمده یا نه.
         «پرداخت نشده / منتظر پرداخت» یعنی هنوز از درگاه پول نیامده.
-        «پرداخت شده / خریداری شده» یعنی پول آمده؛ تا وقتی مشتری ارسال را نزده پست نکنید.
+        «پرداخت شده / خریداری شده» یعنی پول آمده؛ مشتری تا مهلت (پیش‌فرض ۲ هفته) فرصت دارد ارسال را بزند — بعد از مهلت خودکار به درخواست ارسال می‌رود.
         «درخواست ارسال» یعنی مشتری دکمهٔ ارسال را زده و باید بسته‌بندی شود.
       </p>
     </div>
@@ -374,6 +374,19 @@ useHead({ title: 'سفارش‌ها - پنل مدیریت' });
             <p class="font-bold text-primary-800">{{ deliveryLabel(selectedOrder) }}</p>
             <p v-if="selectedOrder.paymentDetails?.requestedShipDate" class="mt-1 text-sm text-primary-900">
               روز مراجعه مشتری: {{ formatDate(String(selectedOrder.paymentDetails.requestedShipDate)) }}
+            </p>
+            <p
+              v-if="selectedOrder.status === 'NEW' && selectedOrder.shipRequestDaysLeft != null"
+              class="mt-1 text-sm text-amber-900"
+            >
+              مهلت درخواست ارسال:
+              <template v-if="selectedOrder.shipRequestDaysLeft > 0">
+                {{ toPersianDigits(selectedOrder.shipRequestDaysLeft) }} روز مانده
+              </template>
+              <template v-else>تمام شده (خودکار ثبت می‌شود)</template>
+              <span v-if="selectedOrder.shipRequestDeadlineDays" class="text-xs text-gray-500">
+                از {{ toPersianDigits(selectedOrder.shipRequestDeadlineDays) }} روز
+              </span>
             </p>
             <p
               v-if="selectedOrder.paymentDetails?.deliveryFee != null"

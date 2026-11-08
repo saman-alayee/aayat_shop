@@ -64,6 +64,23 @@ async function onShip() {
             لباس‌ها خریداری شده‌اند ولی هنوز برای پست ثبت نشده‌اند.
             وقتی آماده تحویل بودید، دکمهٔ زیر را بزنید.
           </p>
+          <p
+            v-if="ordersStore.shipRequestDaysLeft != null"
+            class="mt-2 text-sm font-medium text-amber-950"
+          >
+            <template v-if="ordersStore.shipRequestDaysLeft > 0">
+              {{ toPersianDigits(ordersStore.shipRequestDaysLeft) }} روز تا پایان مهلت درخواست ارسال
+            </template>
+            <template v-else>
+              مهلت تمام شده؛ سفارش به‌زودی برای ارسال ثبت می‌شود
+            </template>
+          </p>
+          <p
+            v-else-if="ordersStore.shipRequestDeadlineDays"
+            class="mt-2 text-xs text-amber-800/80"
+          >
+            مهلت درخواست ارسال: {{ toPersianDigits(ordersStore.shipRequestDeadlineDays) }} روز از خرید
+          </p>
           <p v-if="ordersStore.heldCount > 1" class="mt-1 text-xs text-amber-800/70">
             {{ toPersianDigits(ordersStore.heldCount) }} سفارش منتظر درخواست ارسال
           </p>

@@ -62,6 +62,9 @@ async function onShip() {
         <p class="text-sm font-bold text-amber-950">درخواست ارسال را بزنید</p>
         <p class="text-[11px] leading-4 text-amber-900/75">
           {{ toPersianDigits(ordersStore.heldCount) }} سفارش پرداخت‌شده منتظر ارسال است
+          <template v-if="ordersStore.shipRequestDaysLeft != null && ordersStore.shipRequestDaysLeft > 0">
+            · {{ toPersianDigits(ordersStore.shipRequestDaysLeft) }} روز مانده
+          </template>
         </p>
       </div>
       <button

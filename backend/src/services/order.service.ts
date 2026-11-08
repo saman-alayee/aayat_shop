@@ -70,6 +70,8 @@ function buildDeliveryAddress(input: CreateOrderInput & { address?: string }): s
 }
 
 export class OrderService {
+  private lastExpireHeldAt = 0;
+
   async createOrder(input: CreateOrderInput, userId: string, sessionId?: string) {
     const customerName = input.customerName.replace(/\s+/g, ' ').trim();
     const nameError = validateCustomerName(customerName, input.customerPhone);
@@ -272,15 +274,106 @@ export class OrderService {
   }
 
   async listHeldOrders(userId: string) {
+    await this.expireStaleHeldOrders();
+    const settings = await settingsService.getShipping();
     const orders = await prisma.order.findMany({
       where: { userId, status: 'NEW' },
-      include: { items: true },
+      include: {
+        items: true,
+        statusLogs: {
+          where: { status: 'NEW' },
+          orderBy: { createdAt: 'asc' },
+          take: 1,
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
-    return orders.map((order) => this.formatOrder(order));
+    return orders.map((order) => this.formatHeldOrder(order, settings.shipRequestDeadlineDays));
+  }
+
+  /**
+   * Paid orders waiting in NEW past shipRequestDeadlineDays are auto-promoted to PREPARING
+   * (same as customer pressing «درخواست ارسال»), so the shop ships even without the button.
+   */
+  async expireStaleHeldOrders(force = false): Promise<number> {
+    const now = Date.now();
+    if (!force && now - this.lastExpireHeldAt < 60_000) return 0;
+    this.lastExpireHeldAt = now;
+
+    const { shipRequestDeadlineDays } = await settingsService.getShipping();
+    const deadlineMs = shipRequestDeadlineDays * 24 * 60 * 60 * 1000;
+    const cutoff = new Date(now - deadlineMs);
+
+    const candidates = await prisma.order.findMany({
+      where: { status: 'NEW' },
+      include: {
+        items: true,
+        statusLogs: {
+          where: { status: 'NEW' },
+          orderBy: { createdAt: 'asc' },
+          take: 1,
+        },
+      },
+    });
+
+    const expired = candidates.filter((order) => this.holdStartedAt(order) <= cutoff);
+    if (!expired.length) return 0;
+
+    const requestedShipDate = todayTehranIso();
+    const note = `مهلت ${shipRequestDeadlineDays} روزه درخواست ارسال تمام شد؛ به‌صورت خودکار برای ارسال ثبت شد`;
+
+    await prisma.$transaction(async (tx) => {
+      for (const order of expired) {
+        const details =
+          order.paymentDetails && typeof order.paymentDetails === 'object' && !Array.isArray(order.paymentDetails)
+            ? (order.paymentDetails as Record<string, unknown>)
+            : {};
+        await tx.order.update({
+          where: { id: order.id },
+          data: {
+            status: 'PREPARING',
+            paymentDetails: {
+              ...details,
+              requestedShipDate,
+              shipRequestAuto: true,
+            } as Prisma.InputJsonValue,
+          },
+        });
+        await tx.orderStatusLog.create({
+          data: {
+            orderId: order.id,
+            status: 'PREPARING',
+            note,
+          },
+        });
+      }
+    });
+
+    for (const order of expired) {
+      if (order.userId) {
+        await notificationService.notifyOrderStatusChange({
+          userId: order.userId,
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          status: 'PREPARING',
+        });
+      }
+      await smsService
+        .sendPaidOrderNotices({
+          phone: order.customerPhone,
+          customerName: order.customerName,
+          orderNumber: order.orderNumber,
+          itemNames: order.items.map((item) => item.name),
+        })
+        .catch((error) => console.error('Auto-shipment SMS failed:', error));
+    }
+
+    console.log(`Auto ship-request: promoted ${expired.length} order(s) past ${shipRequestDeadlineDays}d deadline`);
+    return expired.length;
   }
 
   async requestShipment(userId: string, shipDate?: string) {
+    await this.expireStaleHeldOrders();
     const requestedShipDate = shipDate ? assertShipDate(shipDate) : todayTehranIso();
     const orders = await prisma.order.findMany({
       where: { userId, status: 'NEW' },
@@ -301,7 +394,7 @@ export class OrderService {
           where: { id: order.id },
           data: {
             status: 'PREPARING',
-            paymentDetails: { ...details, requestedShipDate } as Prisma.InputJsonValue,
+            paymentDetails: { ...details, requestedShipDate, shipRequestAuto: false } as Prisma.InputJsonValue,
           },
         });
         await tx.orderStatusLog.create({
@@ -357,6 +450,7 @@ export class OrderService {
   }
 
   async getOrderById(orderId: string, userId?: string) {
+    await this.expireStaleHeldOrders();
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -368,6 +462,11 @@ export class OrderService {
     if (!order) throw new AppError(404, 'سفارش یافت نشد');
     if (userId && order.userId !== userId) {
       throw new AppError(403, 'دسترسی غیرمجاز');
+    }
+
+    if (order.status === 'NEW') {
+      const { shipRequestDeadlineDays } = await settingsService.getShipping();
+      return this.formatHeldOrder(order, shipRequestDeadlineDays);
     }
 
     return this.formatOrder(order);
@@ -394,6 +493,7 @@ export class OrderService {
     dateFrom?: string;
     dateTo?: string;
   }) {
+    await this.expireStaleHeldOrders();
     const { status, paymentMethod, page = 1, limit: rawLimit = 20, search, dateFrom, dateTo } = filters;
     const limit = Math.min(Math.max(rawLimit, 1), 100);
     const where: Record<string, unknown> = {};
@@ -647,6 +747,7 @@ export class OrderService {
   }
 
   async getOrderStats() {
+    await this.expireStaleHeldOrders();
     const [total, newOrders, reviewing, preparing, shipped, delivered, cancelled] =
       await Promise.all([
         prisma.order.count(),
@@ -659,6 +760,32 @@ export class OrderService {
       ]);
 
     return { total, newOrders, reviewing, preparing, shipped, delivered, cancelled };
+  }
+
+  private holdStartedAt(order: {
+    createdAt: Date;
+    updatedAt: Date;
+    statusLogs?: Array<{ status: OrderStatus; createdAt: Date }>;
+  }): Date {
+    const newLog = order.statusLogs?.find((log) => log.status === 'NEW');
+    return newLog?.createdAt ?? order.updatedAt ?? order.createdAt;
+  }
+
+  private formatHeldOrder(
+    order: Parameters<OrderService['formatOrder']>[0],
+    deadlineDays: number
+  ) {
+    const started = this.holdStartedAt(order);
+    const deadlineAt = new Date(started.getTime() + deadlineDays * 24 * 60 * 60 * 1000);
+    const msLeft = deadlineAt.getTime() - Date.now();
+    const daysLeft = Math.max(0, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
+    return {
+      ...this.formatOrder(order),
+      shipRequestDeadlineDays: deadlineDays,
+      shipRequestDeadlineAt: deadlineAt.toISOString(),
+      shipRequestDaysLeft: daysLeft,
+      shipRequestHeldSince: started.toISOString(),
+    };
   }
 
   private formatOrder(order: {

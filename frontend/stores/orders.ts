@@ -21,6 +21,18 @@ export const useOrdersStore = defineStore('orders', {
           orderNumber: order.orderNumber,
         }))
       ),
+    /** Soonest remaining days among held orders (for countdown UI). */
+    shipRequestDaysLeft: (state) => {
+      const values = state.heldOrders
+        .map((order) => order.shipRequestDaysLeft)
+        .filter((days): days is number => typeof days === 'number');
+      if (!values.length) return null;
+      return Math.min(...values);
+    },
+    shipRequestDeadlineDays: (state) => {
+      const first = state.heldOrders.find((order) => order.shipRequestDeadlineDays != null);
+      return first?.shipRequestDeadlineDays ?? null;
+    },
   },
 
   actions: {

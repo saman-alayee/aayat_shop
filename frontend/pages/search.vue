@@ -52,14 +52,8 @@ const sortOptions: { value: SortMode; label: string }[] = [
   { value: 'bestsellers', label: 'پرفروش' },
 ];
 
-const isBrowseMode = computed(
-  () =>
-    route.query.discounted === '1' ||
-    route.query.featured === '1' ||
-    route.query.sort === 'discount' ||
-    route.query.sort === 'bestsellers' ||
-    Boolean(route.query.q)
-);
+/** Browse catalog (newest / filters) vs typed search. */
+const isBrowseMode = computed(() => !normalizeSearchText(query.value));
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -95,7 +89,7 @@ function buildQuery(overrides: Record<string, string | undefined> = {}) {
     next.discounted = '1';
   }
   if (q) next.q = q;
-  if (nextSort && nextSort !== 'newest') next.sort = nextSort;
+  if (nextSort) next.sort = nextSort;
   if (nextInStock) next.inStock = '1';
   return next;
 }
@@ -106,7 +100,7 @@ async function fetchProducts(page: number, append: boolean) {
     page: String(page),
   });
 
-  if (sort.value !== 'newest') params.set('sort', sort.value);
+  params.set('sort', sort.value);
   if (onlyInStock.value) params.set('inStock', 'true');
 
   if (route.query.discounted === '1' || sort.value === 'discount') {
@@ -117,24 +111,13 @@ async function fetchProducts(page: number, append: boolean) {
     params.set('featured', 'true');
   } else if (sort.value === 'bestsellers') {
     pageTitle.value = 'پرفروش‌ترین‌ها';
+  } else if (sort.value === 'newest' && !normalizeSearchText(query.value)) {
+    pageTitle.value = 'جدیدترین محصولات';
   } else {
     pageTitle.value = query.value.trim() ? 'جستجو' : 'محصولات';
   }
 
   const term = normalizeSearchText(query.value);
-  if (
-    !catalogDemo.forceDemo.value &&
-    !route.query.discounted &&
-    !route.query.featured &&
-    sort.value === 'newest' &&
-    !term
-  ) {
-    products.value = [];
-    pagination.value = null;
-    return;
-  }
-
-  // Browse bestsellers/discount without requiring a search term
   if (term) params.set('search', term);
 
   if (catalogDemo.forceDemo.value) {

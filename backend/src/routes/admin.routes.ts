@@ -1075,6 +1075,7 @@ const shippingSettingsSchema = z.object({
   nationwideFee: z.coerce.number().int().min(0).max(10_000_000),
   nationwideHint: z.string().trim().min(2).max(200),
   cartHoldMinutes: z.coerce.number().int().min(5).max(24 * 60),
+  shipRequestDeadlineDays: z.coerce.number().int().min(1).max(90),
 });
 
 router.get(
