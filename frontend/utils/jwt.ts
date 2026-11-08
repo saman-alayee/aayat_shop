@@ -4,7 +4,11 @@ export interface JwtPayload {
   userId?: string;
   phone?: string;
   role?: UserRole;
+  exp?: number;
 }
+
+/** Cookie / JWT lifetime for storefront sessions (1 month). */
+export const AUTH_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
 export function parseJwtPayload(token: string): JwtPayload | null {
   try {
@@ -23,6 +27,14 @@ export function parseJwtPayload(token: string): JwtPayload | null {
   } catch {
     return null;
   }
+}
+
+export function isTokenExpired(token: string | null | undefined): boolean {
+  if (!token) return true;
+  const payload = parseJwtPayload(token);
+  if (!payload?.exp) return false;
+  // Small skew so we clear just before the API starts rejecting.
+  return payload.exp * 1000 <= Date.now() + 5_000;
 }
 
 export function getRoleFromToken(token: string | null | undefined): JwtPayload['role'] | null {

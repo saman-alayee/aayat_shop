@@ -1,16 +1,21 @@
 import { defineStore } from 'pinia';
 import type { User } from '~/types';
 import { normalizeDigits, normalizePhoneInput } from '~/utils/normalize';
-import { getRoleFromToken, parseJwtPayload } from '~/utils/jwt';
+import {
+  AUTH_SESSION_MAX_AGE_SECONDS,
+  getRoleFromToken,
+  isTokenExpired,
+  parseJwtPayload,
+} from '~/utils/jwt';
 
 export const useAuthStore = defineStore('auth', () => {
   const tokenCookie = useCookie<string | null>('auth-token', {
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: AUTH_SESSION_MAX_AGE_SECONDS,
     path: '/',
     sameSite: 'lax',
   });
   const userCookie = useCookie<string | null>('auth-user', {
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: AUTH_SESSION_MAX_AGE_SECONDS,
     path: '/',
     sameSite: 'lax',
   });
@@ -63,11 +68,20 @@ export const useAuthStore = defineStore('auth', () => {
 
   function init() {
     if (initialized.value && token.value) {
+      if (isTokenExpired(token.value)) {
+        logout();
+        return;
+      }
       syncUserFromToken();
       return;
     }
 
     if (tokenCookie.value) {
+      if (isTokenExpired(tokenCookie.value)) {
+        logout();
+        initialized.value = true;
+        return;
+      }
       token.value = tokenCookie.value;
     }
     if (userCookie.value) {

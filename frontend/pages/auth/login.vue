@@ -44,6 +44,13 @@ function startResendTimer() {
 
 onUnmounted(clearResendTimer);
 
+onMounted(async () => {
+  authStore.init();
+  if (authStore.isLoggedIn) {
+    await navigateTo(safeRedirectTarget(redirect.value || '/profile'), { replace: true });
+  }
+});
+
 function isValidMobile(value: string) {
   return /^09\d{9}$/.test(normalizePhoneInput(value));
 }

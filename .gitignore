@@ -48,6 +48,7 @@ deploy/**/.env
 # Deploy temp artifacts
 deploy/api-temp/dist/
 deploy/api-temp/node_modules/
+tmp_*.py
 
 # Imported / uploaded media (local only)
 backend/uploads/wc/

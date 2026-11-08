@@ -20,12 +20,23 @@ interface NewOrderSmsSettings {
   messageTemplate: string;
 }
 
+interface SmsCreditStatus {
+  provider: 'melipayamak' | 'farazsms';
+  configured: boolean;
+  credit: number | null;
+  creditRials: number | null;
+  creditLabel: string;
+  unit: 'rial' | null;
+  lowCredit: boolean;
+  warning: string | null;
+}
+
 const tabs: Array<{ id: SettingsTab; label: string; icon: string }> = [
   { id: 'announcement', label: 'متن بالای سایت', icon: 'lucide:megaphone' },
   { id: 'shipping', label: 'هزینه ارسال و سبد', icon: 'lucide:truck' },
   { id: 'theme', label: 'تم رنگی', icon: 'lucide:palette' },
   { id: 'maintenance', label: 'تعمیر فروشگاه', icon: 'lucide:scissors' },
-  { id: 'new-order-sms', label: 'پیامک نوتیف سفارش', icon: 'lucide:message-square-text' },
+  { id: 'new-order-sms', label: 'تنظیمات پیامک', icon: 'lucide:message-square-text' },
 ];
 
 const activeTab = ref<SettingsTab>('announcement');
@@ -35,6 +46,8 @@ const saving = ref(false);
 const testing = ref(false);
 const showGuide = ref(true);
 const testPhone = ref('');
+const smsCredit = ref<SmsCreditStatus | null>(null);
+const smsCreditLoading = ref(false);
 
 const maintenance = reactive({
   enabled: false,
@@ -243,10 +256,25 @@ async function saveMaintenance() {
   }
 }
 
+async function loadSmsCredit() {
+  smsCreditLoading.value = true;
+  try {
+    const { data } = await api.get<SmsCreditStatus>('/admin/settings/sms-credit');
+    smsCredit.value = data;
+  } catch {
+    smsCredit.value = null;
+  } finally {
+    smsCreditLoading.value = false;
+  }
+}
+
 async function loadSettings() {
   loading.value = true;
   try {
-    const { data } = await api.get<NewOrderSmsSettings>('/admin/settings/new-order-sms');
+    const [{ data }, _] = await Promise.all([
+      api.get<NewOrderSmsSettings>('/admin/settings/new-order-sms'),
+      loadSmsCredit(),
+    ]);
     form.enabled = data.enabled;
     form.phonesText = data.phones.join('\n');
     form.includePanelStaff = data.includePanelStaff;
@@ -592,46 +620,6 @@ useHead({ title: 'تنظیمات - پنل مدیریت' });
     </div>
 
     <div
-      v-if="showGuide && activeTab === 'new-order-sms'"
-      class="card p-4 mb-6 text-sm text-gray-700 leading-7 bg-primary-50/40 border border-primary-100 max-w-3xl"
-    >
-      <p class="font-bold text-gray-800 mb-2 flex items-center gap-2">
-        <AppIcon name="lucide:circle-help" size="sm" class="text-primary-600" />
-        راهنمای ادمین — پیامک نوتیف سفارش
-      </p>
-      <ul class="list-disc pr-5 space-y-1.5">
-        <li>
-          این پیامک جدا از <b>نوتیف صدا و بنر داخل پنل</b> است؛ آن‌ها از چک‌باکس «نوتیف سفارش» بالای صفحه کنترل می‌شوند.
-        </li>
-        <li>
-          به محض ثبت سفارش توسط مشتری، پیامک به شماره‌هایی که اینجا می‌گذارید فرستاده می‌شود تا سریع مطلع شوید.
-        </li>
-        <li>
-          شماره را با فرمت <span dir="ltr" class="font-mono">09xxxxxxxxx</span> وارد کنید (۱۱ رقم). هر خط یک شماره.
-        </li>
-        <li>
-          اگر فقط چند نفر باید خبر بگیرند، همان شماره‌ها را بنویسید و «ارسال به همه پرسنل پنل» را خاموش بگذارید تا هزینه پیامک کم بماند.
-        </li>
-        <li>
-          گزینه پرسنل پنل وقتی مفید است که همه کاربران فعال با نقش مدیر / مسئول / پرسنل هم باید پیامک بگیرند.
-        </li>
-        <li>
-          در متن پیامک می‌توانید از
-          <code class="bg-white/80 px-1 rounded text-xs">{orderNumber}</code>
-          (شماره سفارش) و
-          <code class="bg-white/80 px-1 rounded text-xs">{customerName}</code>
-          (نام مشتری) استفاده کنید؛ موقع ارسال خودکار جایگزین می‌شوند.
-        </li>
-        <li>
-          متن را کوتاه نگه دارید (حدود یک پیامک)؛ متن خیلی بلند ممکن است چند پیامک حساب شود.
-        </li>
-        <li>
-          بعد از هر تغییر حتماً <b>ذخیره تنظیمات</b> را بزنید؛ تا ذخیره نشود، ارسال با تنظیم قبلی انجام می‌شود.
-        </li>
-      </ul>
-    </div>
-
-    <div
       v-if="(activeTab === 'maintenance' && !maintenanceReady) || (activeTab === 'new-order-sms' && loading)"
       class="bg-white rounded-xl border border-gray-100 p-8 text-center text-gray-400"
     >
@@ -643,9 +631,54 @@ useHead({ title: 'تنظیمات - پنل مدیریت' });
       class="bg-white rounded-xl border border-gray-100 p-6 space-y-6 max-w-2xl"
     >
       <div>
-        <h2 class="text-lg font-semibold text-gray-900">پیامک نوتیف ثبت سفارش</h2>
+        <h2 class="text-lg font-semibold text-gray-900">تنظیمات پیامک</h2>
         <p class="text-sm text-gray-500 mt-1">
-          وقتی مشتری سفارش جدید ثبت می‌کند، این پیامک برای شماره‌های زیر ارسال می‌شود.
+          موجودی پنل ملی‌پیامک و نوتیف پیامکی سفارش جدید.
+        </p>
+      </div>
+
+      <div
+        class="rounded-xl border p-4"
+        :class="
+          smsCredit?.lowCredit || !smsCredit?.configured
+            ? 'border-amber-200 bg-amber-50'
+            : 'border-emerald-100 bg-emerald-50/70'
+        "
+      >
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p class="text-sm font-semibold text-gray-900">موجودی پنل پیامک</p>
+            <p class="text-xs text-gray-500 mt-1">بر حسب ریال (ملی‌پیامک)</p>
+          </div>
+          <button
+            type="button"
+            class="text-xs text-primary-700 hover:underline disabled:opacity-50"
+            :disabled="smsCreditLoading"
+            @click="loadSmsCredit"
+          >
+            {{ smsCreditLoading ? 'در حال بروزرسانی…' : 'بروزرسانی موجودی' }}
+          </button>
+        </div>
+        <p class="mt-3 text-2xl font-bold tabular-nums" :class="smsCredit?.lowCredit ? 'text-amber-800' : 'text-emerald-800'">
+          <template v-if="smsCreditLoading && !smsCredit">…</template>
+          <template v-else-if="smsCredit">{{ smsCredit.creditLabel }}</template>
+          <template v-else>—</template>
+        </p>
+        <p
+          v-if="smsCredit?.creditRials != null"
+          class="mt-1 text-sm text-gray-600 tabular-nums"
+        >
+          معادل {{ Math.floor(smsCredit.creditRials / 10).toLocaleString('fa-IR') }} تومان
+        </p>
+        <p v-if="smsCredit?.warning" class="mt-2 text-sm leading-6 text-amber-900">
+          {{ smsCredit.warning }}
+        </p>
+      </div>
+
+      <div class="border-t border-gray-100 pt-4">
+        <h3 class="text-base font-semibold text-gray-900">نوتیف پیامکی سفارش جدید</h3>
+        <p class="text-sm text-gray-500 mt-1">
+          وقتی مشتری سفارش ثبت می‌کند، پیامک به شماره‌های زیر می‌رود.
         </p>
       </div>
 

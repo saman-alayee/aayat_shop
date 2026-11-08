@@ -20,7 +20,7 @@ export const config = {
   redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
   jwt: {
     secret: process.env.JWT_SECRET || 'dev-secret',
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    expiresIn: process.env.JWT_EXPIRES_IN || '30d',
   },
   otp: {
     expiresMinutes: parseInt(process.env.OTP_EXPIRES_MINUTES || '5', 10),

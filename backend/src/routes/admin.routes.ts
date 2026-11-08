@@ -1011,6 +1011,16 @@ router.get(
   })
 );
 
+router.get(
+  '/settings/sms-credit',
+  permSettings,
+  asyncHandler(async (_req, res) => {
+    const { smsService } = await import('../services/sms.service');
+    const status = await smsService.getCreditStatus();
+    successResponse(res, status);
+  })
+);
+
 router.put(
   '/settings/new-order-sms',
   permSettings,

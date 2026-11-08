@@ -28,7 +28,17 @@ export class AuthService {
       // Local/dev only — never return the code to the client.
       console.log(`OTP for ${normalizedPhone}: ${code}`);
     } else {
-      await smsService.sendOtp(normalizedPhone, code);
+      try {
+        await smsService.sendOtp(normalizedPhone, code);
+      } catch (error) {
+        // Never leak provider/credit details to storefront users.
+        console.error('OTP SMS failed:', error instanceof Error ? error.message : error);
+        throw new AppError(
+          503,
+          'مشکلی پیش آمده است. لطفاً کمی بعد دوباره تلاش کنید.',
+          'SMS_TEMPORARILY_UNAVAILABLE'
+        );
+      }
     }
 
     await prisma.otpCode.create({

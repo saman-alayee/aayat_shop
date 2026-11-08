@@ -42,13 +42,148 @@ export class SmsService {
     return Boolean(apiKey && lineNumber);
   }
 
+  /**
+   * Panel credit for admin settings via Melipayamak GetUserCredit2 (balance in Rials).
+   * Docs: https://www.melipayamak.com/api/getusercredit2/
+   */
+  async getCreditStatus(): Promise<{
+    provider: 'melipayamak' | 'farazsms';
+    configured: boolean;
+    credit: number | null;
+    creditRials: number | null;
+    creditLabel: string;
+    unit: 'rial' | null;
+    lowCredit: boolean;
+    warning: string | null;
+  }> {
+    const provider = this.usesMeliPayamak() ? 'melipayamak' : 'farazsms';
+    const configured = this.isConfigured();
+
+    if (!configured) {
+      return {
+        provider,
+        configured: false,
+        credit: null,
+        creditRials: null,
+        creditLabel: 'پیکربندی نشده',
+        unit: null,
+        lowCredit: true,
+        warning: 'سرویس پیامک روی سرور پیکربندی نشده است.',
+      };
+    }
+
+    if (!this.usesMeliPayamak()) {
+      return {
+        provider,
+        configured: true,
+        credit: null,
+        creditRials: null,
+        creditLabel: 'نامشخص',
+        unit: null,
+        lowCredit: false,
+        warning: 'دریافت موجودی ریالی فقط برای ملی‌پیامک پشتیبانی می‌شود.',
+      };
+    }
+
+    try {
+      const creditRials = await this.fetchMeliCreditRials();
+      if (creditRials === -1) {
+        return {
+          provider,
+          configured: true,
+          credit: null,
+          creditRials: null,
+          creditLabel: 'خطا در احراز هویت',
+          unit: null,
+          lowCredit: true,
+          warning: 'نام کاربری یا API Key پنل پیامک صحیح نیست.',
+        };
+      }
+      if (!Number.isFinite(creditRials)) {
+        return {
+          provider,
+          configured: true,
+          credit: null,
+          creditRials: null,
+          creditLabel: 'نامشخص',
+          unit: null,
+          lowCredit: true,
+          warning: 'پاسخ موجودی از پنل پیامک قابل خواندن نبود.',
+        };
+      }
+
+      // Warn when balance is under ~50,000 toman (500,000 rials).
+      const lowCredit = creditRials < 500_000;
+      const creditLabel = `${creditRials.toLocaleString('fa-IR', {
+        maximumFractionDigits: 0,
+      })} ریال`;
+
+      return {
+        provider,
+        configured: true,
+        credit: creditRials,
+        creditRials,
+        creditLabel,
+        unit: 'rial',
+        lowCredit,
+        warning: lowCredit
+          ? 'موجودی پنل پیامک کم است؛ برای ارسال OTP و نوتیف سفارش شارژ کنید.'
+          : null,
+      };
+    } catch (error) {
+      console.error('Melipayamak GetUserCredit2 failed:', error instanceof Error ? error.message : error);
+      return {
+        provider,
+        configured: true,
+        credit: null,
+        creditRials: null,
+        creditLabel: 'خطا در دریافت',
+        unit: null,
+        lowCredit: true,
+        warning: error instanceof AppError ? error.message : 'دریافت موجودی پنل پیامک ناموفق بود.',
+      };
+    }
+  }
+
+  /** Melipayamak Users.asmx GetUserCredit2 — returns panel balance in Rials (-1 = bad credentials). */
+  private async fetchMeliCreditRials(): Promise<number> {
+    const { username } = config.sms.melipayamak;
+    const credential = this.meliCredential();
+    if (!username || !credential) {
+      throw new AppError(503, 'سرویس پیامک پیکربندی نشده است', 'SMS_NOT_CONFIGURED');
+    }
+
+    let response: Response;
+    try {
+      response = await fetch('https://api.payamak-panel.com/post/Users.asmx/GetUserCredit2', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ username, password: credential }),
+      });
+    } catch (error) {
+      console.error('Melipayamak GetUserCredit2 request failed:', error);
+      throw new AppError(502, 'دریافت موجودی پنل پیامک ناموفق بود', 'SMS_REQUEST_FAILED');
+    }
+
+    const bodyText = await response.text();
+    const match = bodyText.match(/>([-+]?(?:\d+\.?\d*|\.\d+))</);
+    if (!match) {
+      console.error('Melipayamak GetUserCredit2 unexpected body:', bodyText.slice(0, 300));
+      throw new AppError(502, 'پاسخ موجودی از پنل پیامک قابل خواندن نبود', 'SMS_CREDIT_PARSE_FAILED');
+    }
+    return Number(match[1]);
+  }
+
   /** Panel error -110 means the password field must carry the API key. */
   private meliCredential(): string {
     const { apiKey, password } = config.sms.melipayamak;
     return apiKey || password;
   }
 
-  private async postMeli(path: string, fields: Record<string, string>): Promise<{ RetStatus?: number; StrRetStatus?: string; Value?: string }> {
+  private async postMeliRaw(
+    path: string,
+    fields: Record<string, string> = {}
+  ): Promise<{ http: number; RetStatus?: number | string; StrRetStatus?: string; Value?: string }> {
     const { username } = config.sms.melipayamak;
     const credential = this.meliCredential();
     if (!username || !credential) {
@@ -68,17 +203,55 @@ export class SmsService {
     }
 
     const payload = (await response.json().catch(() => ({}))) as {
-      RetStatus?: number;
+      RetStatus?: number | string;
       StrRetStatus?: string;
       Value?: string;
     };
-    const value = String(payload.Value ?? '');
-    const sent = /^\d{15,}$/.test(value);
-    if (!response.ok || !sent) {
-      console.error('MeliPayamak error:', payload.StrRetStatus || value || response.status);
-      throw new AppError(502, 'ارسال پیامک ناموفق بود', 'SMS_SEND_FAILED');
+    return { http: response.status, ...payload };
+  }
+
+  private async postMeli(path: string, fields: Record<string, string>): Promise<{ RetStatus?: number | string; StrRetStatus?: string; Value?: string }> {
+    const payload = await this.postMeliRaw(path, fields);
+    const value = String(payload.Value ?? '').trim();
+    // Real success returns a long numeric recId. Short Value is an error code even when
+    // StrRetStatus is misleadingly "Ok" (e.g. Value=2 → insufficient credit).
+    const recIdOk = /^\d{10,}$/.test(value);
+    if (payload.http >= 400 || !recIdOk) {
+      const meaning = this.meliValueMeaning(value);
+      console.error('MeliPayamak error:', {
+        http: payload.http,
+        RetStatus: payload.RetStatus,
+        StrRetStatus: payload.StrRetStatus,
+        Value: value,
+        meaning,
+      });
+      throw new AppError(502, meaning || 'ارسال پیامک ناموفق بود', 'SMS_SEND_FAILED');
     }
     return payload;
+  }
+
+  /** Map Melipayamak short Value codes to Persian operator-facing messages. */
+  private meliValueMeaning(value: string): string {
+    const map: Record<string, string> = {
+      '0': 'نام کاربری یا رمز عبور پیامک اشتباه است',
+      '2': 'اعتبار پنل پیامک کافی نیست — حساب ملی‌پیامک را شارژ کنید',
+      '3': 'محدودیت ارسال روزانه پنل پیامک',
+      '5': 'شماره خط فرستنده پیامک معتبر نیست',
+      '6': 'سامانه پیامک موقتاً در دسترس نیست',
+      '7': 'متن پیامک شامل کلمات غیرمجاز است',
+      '9': 'ارسال از این خط از طریق وب‌سرویس مجاز نیست',
+      '10': 'کاربر پنل پیامک غیرفعال است',
+      '11': 'قالب پیامک (bodyId) نامعتبر است یا متغیرها جور نیست',
+      '12': 'مدارک پنل پیامک کامل نیست',
+      '14': 'متن پیامک خالی است',
+      '16': 'شماره گیرنده پیامک صحیح نیست',
+      '20': 'گیرنده در لیست سیاه است',
+      '21': 'پیامک تکراری پذیرفته نشد',
+      '24': 'پارامترهای ارسال پیامک نامعتبر است',
+      '35': 'داده ارسالی به پنل پیامک نامعتبر است',
+      '-110': 'رمز عبور پنل باید API Key باشد',
+    };
+    return map[value] || '';
   }
 
   /** Pattern SMS on the Melli Payamak service line. Variables are joined with `;`. */
@@ -229,15 +402,12 @@ export class SmsService {
 
     if (this.usesMeliPayamak()) {
       const { otpBodyId } = config.sms.melipayamak;
+      // Prefer approved pattern template; fall back to SendOtp fixed text.
       if (otpBodyId) {
         await this.sendMeliPattern(otpBodyId, [otpCode], recipient);
       } else {
         await this.sendMeliOtp(recipient, otpCode);
       }
-      if (!otpBodyId) {
-        throw new AppError(503, 'الگوی پیامک ورود روی پنل ملی‌پیامک تنظیم نشده است', 'SMS_NOT_CONFIGURED');
-      }
-      await this.sendMeliPattern(otpBodyId, [otpCode], recipient);
       if (config.nodeEnv !== 'production') {
         console.log(`📱 OTP SMS queued for ${this.formatRecipient(recipient)}`);
       }
