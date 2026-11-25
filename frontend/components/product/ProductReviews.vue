@@ -192,6 +192,16 @@ onMounted(async () => {
           <p class="text-xs text-neutral-400">{{ formatShortDate(review.createdAt) }}</p>
         </div>
         <p v-if="review.body" class="mt-2.5 text-sm leading-7 text-[#6e655d]">{{ review.body }}</p>
+        <div
+          v-if="review.adminReply"
+          class="mt-3 rounded-xl border border-[#eadfce] bg-[#faf8f5] px-3.5 py-3"
+        >
+          <p class="text-xs font-semibold text-[#6f5644]">پاسخ فروشگاه</p>
+          <p class="mt-1 text-sm leading-7 text-[#3c322b]">{{ review.adminReply }}</p>
+          <p v-if="review.adminRepliedAt" class="mt-1.5 text-[11px] text-neutral-400">
+            {{ formatShortDate(review.adminRepliedAt) }}
+          </p>
+        </div>
       </li>
     </ul>
     <p v-else class="mt-8 text-sm text-neutral-500">هنوز دیدگاهی برای این محصول نیست.</p>

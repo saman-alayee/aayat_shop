@@ -69,9 +69,8 @@ export function formatJalaliDate(
   const day = toPersianDigits(jalali.date());
   const year = toPersianDigits(jalali.year());
 
-  let text = options.short
-    ? `${day} ${month.slice(0, 3)} ${year}`
-    : `${day} ${month} ${year}`;
+  // Persian month names are short already; don't slice (آبان → آبا was confusing).
+  let text = `${day} ${month} ${year}`;
 
   if (options.withTime) {
     const hours = toPersianDigits(source.format('HH'));

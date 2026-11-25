@@ -32,12 +32,25 @@ function onPostalInput(event: Event) {
     <div class="grid grid-cols-2 gap-4">
       <div>
         <label class="field-label">استان</label>
-        <AppSelect v-model="province" :options="provinceOptions" :invalid="Boolean(errors?.province)" />
+        <AppSelect
+          v-model="province"
+          :options="provinceOptions"
+          searchable
+          placeholder="جستجو یا انتخاب استان"
+          :invalid="Boolean(errors?.province)"
+        />
         <AppFormError :message="errors?.province" />
       </div>
       <div>
-        <label class="field-label">شهر</label>
-        <AppSelect v-model="city" :options="citySelectOptions" :invalid="Boolean(errors?.city)" />
+        <label class="field-label">شهر / شهرستان</label>
+        <AppSelect
+          v-model="city"
+          :options="citySelectOptions"
+          searchable
+          placeholder="ابتدا استان را انتخاب کنید"
+          :disabled="!citySelectOptions.length"
+          :invalid="Boolean(errors?.city)"
+        />
         <AppFormError :message="errors?.city" />
       </div>
     </div>

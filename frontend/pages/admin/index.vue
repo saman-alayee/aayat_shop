@@ -38,7 +38,7 @@ const quickLinks = [
   { to: '/admin/coupons', label: 'کدهای تخفیف', desc: 'کدی که مشتری در سبد وارد می‌کند', icon: 'lucide:ticket-percent' },
   { to: '/admin/admins', label: 'مدیران پنل', desc: 'افزودن، ویرایش و حذف ادمین و پرسنل', icon: 'lucide:shield-check' },
   { to: '/admin/backup', label: 'بکاپ دیتابیس', desc: 'دانلود نسخه فشرده دیتابیس', icon: 'lucide:database' },
-  { to: '/admin/content', label: 'قوانین و مقررات', desc: 'متن صفحه قوانین سایت', icon: 'lucide:file-text' },
+  { to: '/admin/content', label: 'متن صفحات', desc: 'ویرایش متن صفحات ثابت سایت (قوانین، درباره ما و …)', icon: 'lucide:file-text' },
 ];
 
 const visibleLinks = computed(() =>
@@ -66,7 +66,7 @@ useHead({ title: 'داشبورد - پنل مدیریت' });
       @open-order="(id) => navigateTo(`/admin/orders?open=${id}`)"
     />
 
-    <div v-if="stats" class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mb-8">
+    <div v-if="stats" class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 mb-8">
       <div class="card p-4">
         <AppIcon name="lucide:clipboard-list" size="sm" class="text-gray-400 mb-2" />
         <p class="text-xs text-gray-500">کل سفارش</p>
@@ -86,11 +86,6 @@ useHead({ title: 'داشبورد - پنل مدیریت' });
         <AppIcon name="lucide:truck" size="sm" class="text-purple-600 mb-2" />
         <p class="text-xs text-gray-500">ارسال شده</p>
         <p class="text-2xl font-bold text-purple-600">{{ stats.orders.shipped }}</p>
-      </div>
-      <div class="card p-4 border-s-4 border-s-green-500">
-        <AppIcon name="lucide:circle-check-big" size="sm" class="text-green-600 mb-2" />
-        <p class="text-xs text-gray-500">تحویل</p>
-        <p class="text-2xl font-bold text-green-600">{{ stats.orders.delivered }}</p>
       </div>
       <div class="card p-4">
         <AppIcon name="lucide:circle-x" size="sm" class="text-red-400 mb-2" />

@@ -144,6 +144,16 @@ async function start() {
     console.log(`Aayat Shop API running on ${listenHost}:${config.port}`);
     console.log(`Environment: ${config.nodeEnv}`);
   });
+
+  // Release stock locked by abandoned «منتظر پرداخت» checkouts.
+  const { zibalService } = await import('./services/zibal.service');
+  const runExpireReviewing = () => {
+    zibalService.expireStaleReviewingOrders(true).catch((error) => {
+      console.error('scheduled expireStaleReviewingOrders failed:', error);
+    });
+  };
+  setTimeout(runExpireReviewing, 15_000);
+  setInterval(runExpireReviewing, 5 * 60 * 1000);
 }
 
 start().catch(console.error);

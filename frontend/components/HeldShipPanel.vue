@@ -16,7 +16,7 @@ const props = withDefaults(
 const emit = defineEmits<{ shipped: [] }>();
 
 const ordersStore = useOrdersStore();
-const { formatPrice, toPersianDigits } = useFormat();
+const { formatPrice, formatShortDate, toPersianDigits, getProductImage } = useFormat();
 const toast = useToast();
 
 async function onShip() {
@@ -58,14 +58,21 @@ async function onShip() {
         </div>
         <div class="min-w-0 flex-1">
           <h2 class="text-base font-bold text-amber-950">
-            {{ variant === 'success' ? 'الان می‌توانید ارسال را بزنید' : 'پرداخت شده — منتظر ارسال' }}
+            {{ variant === 'success' ? 'الان می‌توانید ارسال را بزنید' : 'سبد ارسال' }}
           </h2>
           <p class="mt-1 text-sm leading-6 text-amber-900/80">
-            لباس‌ها خریداری شده‌اند ولی هنوز برای پست ثبت نشده‌اند.
-            وقتی آماده تحویل بودید، دکمهٔ زیر را بزنید.
+            لباس‌های پرداخت‌شده اینجا جمع می‌شوند (قبلی و جدید با هم).
+            وقتی آماده بودید یک‌بار «درخواست ارسال» بزنید تا همه با هم بروند.
           </p>
           <p
-            v-if="ordersStore.shipRequestDaysLeft != null"
+            v-if="ordersStore.shipRequestDeadlineAt"
+            class="mt-2 text-sm font-bold text-amber-950"
+          >
+            تاریخ درخواست ارسال (روی کل سبد):
+            {{ formatShortDate(ordersStore.shipRequestDeadlineAt) }}
+          </p>
+          <p
+            v-else-if="ordersStore.shipRequestDaysLeft != null"
             class="mt-2 text-sm font-medium text-amber-950"
           >
             <template v-if="ordersStore.shipRequestDaysLeft > 0">
@@ -75,14 +82,11 @@ async function onShip() {
               مهلت تمام شده؛ سفارش به‌زودی برای ارسال ثبت می‌شود
             </template>
           </p>
-          <p
-            v-else-if="ordersStore.shipRequestDeadlineDays"
-            class="mt-2 text-xs text-amber-800/80"
-          >
-            مهلت درخواست ارسال: {{ toPersianDigits(ordersStore.shipRequestDeadlineDays) }} روز از خرید
-          </p>
-          <p v-if="ordersStore.heldCount > 1" class="mt-1 text-xs text-amber-800/70">
-            {{ toPersianDigits(ordersStore.heldCount) }} سفارش منتظر درخواست ارسال
+          <p v-if="ordersStore.heldItemCount > 0" class="mt-1 text-xs text-amber-800/70">
+            {{ toPersianDigits(ordersStore.heldItemCount) }} لباس در سبد ارسال
+            <template v-if="ordersStore.heldCount > 1">
+              · از {{ toPersianDigits(ordersStore.heldCount) }} خرید
+            </template>
           </p>
         </div>
       </div>
@@ -105,13 +109,22 @@ async function onShip() {
       >
         <li
           v-for="item in ordersStore.heldItems"
-          :key="item.id"
-          class="flex items-center justify-between gap-3 py-2.5 text-sm"
+          :key="`${item.orderId}-${item.id}`"
+          class="flex items-center gap-3 py-2.5 text-sm"
         >
-          <span class="min-w-0">
+          <img
+            :src="getProductImage(item.product?.image ?? null)"
+            :alt="item.name"
+            class="h-12 w-12 shrink-0 rounded-lg border border-amber-100 bg-amber-50 object-cover"
+            loading="lazy"
+          />
+          <span class="min-w-0 flex-1">
             <span class="block truncate font-medium text-gray-800">{{ item.name }}</span>
-            <span class="text-xs text-gray-400">
-              {{ toPersianDigits(item.quantity) }} عدد · {{ item.orderNumber }}
+            <span class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-gray-400">
+              <span>{{ toPersianDigits(item.quantity) }} عدد</span>
+              <span v-if="item.purchasedAt" class="font-medium text-amber-900/80">
+                تاریخ خرید: {{ formatShortDate(item.purchasedAt) }}
+              </span>
             </span>
           </span>
           <span class="shrink-0 font-bold text-gray-800">

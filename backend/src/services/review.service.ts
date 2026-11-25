@@ -68,6 +68,8 @@ export class ReviewService {
         body: row.body,
         createdAt: row.createdAt,
         authorName: displayName(row.user),
+        adminReply: row.adminReply || null,
+        adminRepliedAt: row.adminRepliedAt,
       })),
       pagination: {
         page: current,
@@ -152,6 +154,8 @@ export class ReviewService {
         phone: row.user.phone,
         productName: row.product.name,
         productSlug: row.product.slug,
+        adminReply: row.adminReply || null,
+        adminRepliedAt: row.adminRepliedAt,
       })),
       pagination: {
         page: current,
@@ -161,6 +165,24 @@ export class ReviewService {
         /** @deprecated use totalPages */
         pages: Math.max(1, Math.ceil(total / ADMIN_PAGE)),
       },
+    };
+  }
+
+  async adminReply(id: string, reply: string) {
+    const row = await prisma.productReview.findUnique({ where: { id } });
+    if (!row) throw new AppError(404, 'نظر یافت نشد');
+    const clean = reply.trim().slice(0, 1000);
+    const updated = await prisma.productReview.update({
+      where: { id },
+      data: {
+        adminReply: clean,
+        adminRepliedAt: clean ? new Date() : null,
+      },
+    });
+    return {
+      id: updated.id,
+      adminReply: updated.adminReply || null,
+      adminRepliedAt: updated.adminRepliedAt,
     };
   }
 

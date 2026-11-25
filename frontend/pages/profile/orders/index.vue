@@ -54,10 +54,13 @@ useHead({ title: `سفارش‌های من - ${SITE_NAME}` });
   <div class="pb-24">
     <ProfilePageHeader title="سفارش‌های من" subtitle="تاریخچه و پیگیری سفارشات" back-to="/profile" />
 
+    <ActiveShipRequestPanel
+      v-if="ordersStore.hasShipRequests"
+      class="mb-5"
+    />
     <HeldShipPanel
       v-if="ordersStore.hasHeld || ordersStore.shipMessage"
       class="mb-5"
-      :show-items="false"
       @shipped="onShipped"
     />
 
@@ -102,6 +105,9 @@ useHead({ title: `سفارش‌های من - ${SITE_NAME}` });
         </div>
         <p v-if="order.status === 'NEW'" class="mt-2 text-xs font-medium text-amber-700">
           برای پست شدن، دکمهٔ «درخواست ارسال» بالای صفحه را بزنید
+        </p>
+        <p v-else-if="order.status === 'REVIEWING'" class="mt-2 text-xs font-medium text-amber-700">
+          پرداخت ناتمام — برای آزاد شدن لباس وارد جزئیات شوید و لغو کنید
         </p>
       </NuxtLink>
     </div>

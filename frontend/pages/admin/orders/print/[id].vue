@@ -7,7 +7,7 @@ definePageMeta({ layout: 'print', middleware: 'admin' });
 
 const route = useRoute();
 const api = useApi();
-const { formatPrice, formatDate } = useFormat();
+const { formatPrice, formatDate, getProductImage } = useFormat();
 
 const order = ref<Order | null>(null);
 const error = ref('');
@@ -53,13 +53,26 @@ useHead({ title: computed(() => (order.value ? `فیش ${order.value.orderNumber
       <table class="w-full text-sm border-collapse">
         <thead>
           <tr class="border-b-2 border-black">
+            <th class="text-start py-1 w-16">عکس</th>
             <th class="text-start py-1">لباس</th>
             <th class="text-center py-1">تعداد</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="item in order.items" :key="item.id" class="border-b border-gray-300">
-            <td class="py-2 font-medium">{{ item.name }}</td>
+            <td class="py-2">
+              <img
+                :src="getProductImage(item.product?.image ?? null)"
+                :alt="item.name"
+                class="h-12 w-12 rounded object-cover border border-gray-300"
+              />
+            </td>
+            <td class="py-2 font-medium">
+              {{ item.name }}
+              <span v-if="item.product?.barcode" class="block text-xs text-gray-600" dir="ltr">
+                کد: {{ item.product.barcode }}
+              </span>
+            </td>
             <td class="py-2 text-center font-bold">{{ item.quantity }}</td>
           </tr>
         </tbody>

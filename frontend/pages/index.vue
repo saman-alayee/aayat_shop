@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import type { Product, HomeCategorySection, Slider } from '~/types';
 import { SITE_DESCRIPTION, SITE_NAME } from '~/constants/site';
+import { useOrdersStore } from '~/stores/orders';
 
 definePageMeta({ layout: 'home' });
 
 const api = useApi();
 const catalogDemo = useCatalogDemo();
+const authStore = useAuthStore();
+const ordersStore = useOrdersStore();
 
 const newestProducts = ref<Product[]>([]);
 const specialProducts = ref<Product[]>([]);
@@ -95,6 +98,8 @@ async function loadHomeSections() {
 
 onMounted(() => {
   loadHomeSections();
+  authStore.init();
+  if (authStore.isLoggedIn) void ordersStore.fetchHeld();
 });
 
 const siteUrl = String(useRuntimeConfig().public.siteUrl || '').replace(/\/+$/, '');

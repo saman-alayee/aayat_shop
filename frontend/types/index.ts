@@ -81,7 +81,7 @@ export const PERMISSION_LABELS: Record<PanelPermission, string> = {
   sliders: 'اسلایدرها',
   customers: 'مشتریان',
   coupons: 'کدهای تخفیف',
-  content: 'قوانین و محتوا',
+  content: 'متن صفحات',
   settings: 'تنظیمات',
   users: 'مدیران پنل',
 };
@@ -210,6 +210,8 @@ export interface ProductReview {
   createdAt: string;
   authorName: string;
   mine?: boolean;
+  adminReply?: string | null;
+  adminRepliedAt?: string | null;
 }
 
 export interface CartItem {
@@ -333,6 +335,8 @@ export interface Order {
   deliveryLatitude?: number | null;
   deliveryLongitude?: number | null;
   notes?: string | null;
+  /** Staff-only: clothes gathered — no customer SMS. */
+  packedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   items?: OrderItem[];

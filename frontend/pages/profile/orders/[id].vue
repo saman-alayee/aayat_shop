@@ -14,6 +14,7 @@ const { formatPrice, formatDate, getProductImage } = useFormat();
 
 const order = ref<Order | null>(null);
 const loading = ref(true);
+const abandoning = ref(false);
 
 onMounted(async () => {
   try {
@@ -26,6 +27,21 @@ onMounted(async () => {
     loading.value = false;
   }
 });
+
+async function abandonPayment() {
+  if (!order.value || abandoning.value) return;
+  abandoning.value = true;
+  try {
+    await api.post(`/orders/${order.value.id}/abandon-payment`);
+    toast.success('سفارش لغو شد؛ لباس دوباره قابل خرید است');
+    const { data } = await api.get<Order>(`/orders/${route.params.id}`);
+    order.value = data;
+  } catch (error: unknown) {
+    toast.error(error instanceof Error ? error.message : 'لغو سفارش ممکن نشد');
+  } finally {
+    abandoning.value = false;
+  }
+}
 
 async function onShipped() {
   try {
@@ -71,6 +87,25 @@ useHead({ title: `جزئیات سفارش - ${SITE_NAME}` });
       </ProfilePageHeader>
 
       <OrderStatusStepper :status="order.status" />
+
+      <div
+        v-if="order.status === 'REVIEWING'"
+        class="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-start"
+      >
+        <p class="text-sm font-bold text-amber-950">پرداخت کامل نشده</p>
+        <p class="mt-1 text-sm leading-6 text-amber-900/80">
+          اگر پول از حساب برگشت خورده یا پرداخت را ناتمام گذاشته‌اید، این سفارش را لغو کنید تا لباس
+          دوباره در سایت قابل خرید شود.
+        </p>
+        <button
+          type="button"
+          class="btn-secondary mt-3 w-full text-sm"
+          :disabled="abandoning"
+          @click="abandonPayment"
+        >
+          {{ abandoning ? 'در حال لغو...' : 'لغو سفارش و آزاد کردن لباس' }}
+        </button>
+      </div>
 
       <HeldShipPanel
         v-if="order.status === 'NEW' || ordersStore.hasHeld"

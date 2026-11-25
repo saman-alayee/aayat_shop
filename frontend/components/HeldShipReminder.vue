@@ -5,7 +5,7 @@ const route = useRoute();
 const authStore = useAuthStore();
 const ordersStore = useOrdersStore();
 const toast = useToast();
-const { toPersianDigits } = useFormat();
+const { toPersianDigits, formatShortDate } = useFormat();
 
 /** صفحاتی که خودشان CTA کامل دارند — نوار شناور تکراری نشود */
 const hideOn = computed(() => {
@@ -14,12 +14,14 @@ const hideOn = computed(() => {
     path === '/cart' ||
     path.startsWith('/orders/success') ||
     path.startsWith('/checkout') ||
+    path.startsWith('/profile/notifications') ||
+    path.startsWith('/profile/orders') ||
     path.startsWith('/admin')
   );
 });
 
 const show = computed(
-  () => authStore.isLoggedIn && ordersStore.hasHeld && !hideOn.value
+  () => authStore.isLoggedIn && (ordersStore.hasHeld || ordersStore.hasShipRequests) && !hideOn.value
 );
 
 let fetched = false;
@@ -59,15 +61,23 @@ async function onShip() {
       class="mx-auto flex max-w-lg items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-3 py-2.5 shadow-lg md:max-w-xl"
     >
       <div class="min-w-0 flex-1">
-        <p class="text-sm font-bold text-amber-950">درخواست ارسال را بزنید</p>
+        <p class="text-sm font-bold text-amber-950">
+          {{ ordersStore.hasHeld ? 'سبد ارسال — درخواست ارسال' : 'درخواست ارسال ثبت‌شده' }}
+        </p>
         <p class="text-[11px] leading-4 text-amber-900/75">
-          {{ toPersianDigits(ordersStore.heldCount) }} سفارش پرداخت‌شده منتظر ارسال است
-          <template v-if="ordersStore.shipRequestDaysLeft != null && ordersStore.shipRequestDaysLeft > 0">
-            · {{ toPersianDigits(ordersStore.shipRequestDaysLeft) }} روز مانده
+          <template v-if="ordersStore.hasHeld">
+            {{ toPersianDigits(ordersStore.heldItemCount) }} لباس پرداخت‌شده (قبلی و جدید با هم)
+            <template v-if="ordersStore.shipRequestDeadlineAt">
+              · مهلت کل: {{ formatShortDate(ordersStore.shipRequestDeadlineAt) }}
+            </template>
+          </template>
+          <template v-else>
+            {{ toPersianDigits(ordersStore.shipRequestItemCount) }} لباس در حال آماده‌سازی
           </template>
         </p>
       </div>
       <button
+        v-if="ordersStore.hasHeld"
         type="button"
         class="btn-primary shrink-0 h-10 px-4 text-sm font-bold"
         :disabled="ordersStore.requestingShip"
@@ -75,6 +85,13 @@ async function onShip() {
       >
         {{ ordersStore.requestingShip ? '...' : 'ارسال' }}
       </button>
+      <NuxtLink
+        v-else
+        to="/profile/notifications"
+        class="btn-primary shrink-0 inline-flex h-10 items-center px-4 text-sm font-bold"
+      >
+        مشاهده
+      </NuxtLink>
     </div>
   </div>
 </template>

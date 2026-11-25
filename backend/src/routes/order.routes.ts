@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { orderService } from '../services/order.service';
+import { zibalService } from '../services/zibal.service';
 import { asyncHandler, successResponse, validate } from '../utils/errors';
 import { authenticate, sessionMiddleware } from '../middleware/auth';
 import { paramId } from '../utils/params';
@@ -82,6 +83,15 @@ router.get(
   })
 );
 
+router.get(
+  '/ship-requests',
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const orders = await orderService.listShipRequests(req.user!.userId);
+    successResponse(res, orders);
+  })
+);
+
 router.post(
   '/request-shipment',
   authenticate,
@@ -115,6 +125,16 @@ router.get(
   asyncHandler(async (req, res) => {
     const order = await orderService.getOrderById(paramId(req.params.id), req.user!.userId);
     successResponse(res, order);
+  })
+);
+
+/** لغو سفارش منتظر پرداخت — موجودی لباس آزاد می‌شود تا دوباره قابل خرید باشد */
+router.post(
+  '/:id/abandon-payment',
+  authenticate,
+  asyncHandler(async (req, res) => {
+    await zibalService.abandonPendingOrder(paramId(req.params.id), req.user!.userId);
+    successResponse(res, null, 'سفارش لغو شد و موجودی آزاد شد');
   })
 );
 

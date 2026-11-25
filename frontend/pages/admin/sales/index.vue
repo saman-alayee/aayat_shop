@@ -160,9 +160,7 @@ onMounted(load);
 watch(days, applyPreset);
 
 const maxDaily = computed(() => {
-  const rows = overview.value?.workingDays?.length
-    ? overview.value.workingDays
-    : overview.value?.daily || [];
+  const rows = overview.value?.daily || [];
   return Math.max(...rows.map((d) => d.revenue), 1);
 });
 const maxMonthly = computed(() =>
@@ -170,7 +168,7 @@ const maxMonthly = computed(() =>
 );
 
 const dailyWithSales = computed(() =>
-  (overview.value?.workingDays || overview.value?.daily || [])
+  (overview.value?.daily || [])
     .filter((d) => d.orders > 0 || d.revenue > 0)
     .slice()
     .reverse()
@@ -312,9 +310,9 @@ useHead({ title: 'گزارش فروش - پنل مدیریت' });
                     <td class="text-sm text-slate-700 max-w-[14rem]">
                       <span class="break-words">{{ tx.clothingCodes }}</span>
                     </td>
-                    <td>
+                    <td class="whitespace-nowrap">
                       <span
-                        class="inline-flex text-[11px] font-medium px-2 py-0.5 rounded"
+                        class="inline-flex shrink-0 whitespace-nowrap text-[11px] font-medium px-2 py-0.5 rounded"
                         :class="PAYMENT_BUCKET_CLASS[tx.paymentBucket || (txTab === 'pending' ? 'pending' : 'paid')]"
                       >
                         {{ PAYMENT_BUCKET_LABELS[tx.paymentBucket || (txTab === 'pending' ? 'pending' : 'paid')] }}
@@ -374,7 +372,7 @@ useHead({ title: 'گزارش فروش - پنل مدیریت' });
 
       <div class="mb-6">
         <div class="card p-4">
-          <h2 class="font-semibold mb-1">فروش روزهای کاری (به‌جز جمعه)</h2>
+          <h2 class="font-semibold mb-1">فروش روزانه</h2>
           <p class="text-xs text-gray-500 mb-4">فقط درآمد قطعی · ساعت ایران</p>
           <div class="space-y-2 max-h-72 overflow-y-auto">
             <div v-for="day in dailyWithSales" :key="day.date" class="flex items-center gap-3">

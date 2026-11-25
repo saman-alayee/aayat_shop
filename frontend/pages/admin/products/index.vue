@@ -59,9 +59,7 @@ const categoryOptions = computed(() =>
 
 const showingSold = computed(() => stockFilter.value === 'sold');
 
-const selectableProducts = computed(() =>
-  products.value.filter((p) => p.isActive)
-);
+const selectableProducts = computed(() => products.value);
 
 const allPageSelected = computed(
   () =>
@@ -102,6 +100,15 @@ function resetToFirstPageAndLoad() {
   page.value = 1;
   selectedIds.value = [];
   void loadData();
+}
+
+/** سرچ باید لباس خریداری‌شده (موجودی ۰ / غیرفعال) را هم بیاورد */
+function searchProducts() {
+  if (search.value.trim()) {
+    stockFilter.value = 'all';
+    statusFilter.value = 'all';
+  }
+  resetToFirstPageAndLoad();
 }
 
 watch([statusFilter, sortFilter, stockFilter], () => {
@@ -185,10 +192,6 @@ function openBulkConfirm() {
 }
 
 function openSingleDeleteConfirm(product: Product) {
-  if (!product.isActive) {
-    toast.info('این محصول از قبل حذف/غیرفعال است');
-    return;
-  }
   pendingSingleDelete.value = product;
   selectedIds.value = [product.id];
   bulkConfirmChecked.value = false;
@@ -217,8 +220,8 @@ async function confirmBulkDelete() {
     const deleted = data?.deleted ?? 0;
     toast.success(
       deleted
-        ? `${formatNumber(deleted)} محصول حذف شد و از فروشگاه پنهان گردید`
-        : 'محصول فعالی برای حذف نبود'
+        ? `${formatNumber(deleted)} محصول برای همیشه حذف شد`
+        : 'محصولی برای حذف نبود'
     );
     closeBulkConfirm();
     selectedIds.value = [];
@@ -400,8 +403,8 @@ useHead({ title: 'محصولات - پنل مدیریت' });
         v-model="search"
         type="search"
         class="input-field md:max-w-sm"
-        placeholder="نام یا کد لباس (مثلاً ۵۶۰)..."
-        @keyup.enter="resetToFirstPageAndLoad"
+        placeholder="نام یا کد لباس خریداری‌شده / موجود..."
+        @keyup.enter="searchProducts"
       />
       <AppSelect
         v-model="categoryFilter"
@@ -424,8 +427,11 @@ useHead({ title: 'محصولات - پنل مدیریت' });
         <option value="active">فقط فعال</option>
         <option value="inactive">فقط غیرفعال</option>
       </select>
-      <button class="btn-secondary text-sm" @click="resetToFirstPageAndLoad">اعمال فیلتر</button>
+      <button class="btn-secondary text-sm" @click="searchProducts">جستجو</button>
     </div>
+    <p class="mb-4 text-xs text-slate-400">
+      با سرچ، لباس‌های خریداری‌شده (موجودی صفر) هم می‌آیند؛ برای دیدن فقط فروخته‌شده‌ها فیلتر «فروخته‌شده» را بزنید.
+    </p>
 
     <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
       <p class="text-sm text-gray-500">
@@ -502,7 +508,6 @@ useHead({ title: 'محصولات - پنل مدیریت' });
                 <input
                   type="checkbox"
                   class="rounded border-slate-300"
-                  :disabled="!product.isActive"
                   :checked="selectedIds.includes(product.id)"
                   @change="toggleSelect(product.id, ($event.target as HTMLInputElement).checked)"
                 />
@@ -562,20 +567,19 @@ useHead({ title: 'محصولات - پنل مدیریت' });
                 <div class="admin-actions">
                   <button type="button" class="admin-btn-secondary" @click="openForm(product)">ویرایش</button>
                   <button
-                    v-if="product.isActive"
-                    type="button"
-                    class="admin-btn-danger"
-                    @click="openSingleDeleteConfirm(product)"
-                  >
-                    حذف
-                  </button>
-                  <button
-                    v-else
+                    v-if="!product.isActive"
                     type="button"
                     class="admin-btn-success"
                     @click="activate(product)"
                   >
                     فعال‌سازی
+                  </button>
+                  <button
+                    type="button"
+                    class="admin-btn-danger"
+                    @click="openSingleDeleteConfirm(product)"
+                  >
+                    حذف
                   </button>
                 </div>
               </td>
@@ -597,12 +601,12 @@ useHead({ title: 'محصولات - پنل مدیریت' });
         <h2 class="text-lg font-bold text-slate-900 mb-2">تأیید حذف</h2>
         <p class="text-sm leading-7 text-slate-600 mb-4">
           <template v-if="pendingSingleDelete">
-            محصول «{{ pendingSingleDelete.name }}» از فروشگاه حذف (پنهان) می‌شود.
+            محصول «{{ pendingSingleDelete.name }}» برای همیشه از فروشگاه و پنل حذف می‌شود.
           </template>
           <template v-else>
-            {{ formatNumber(selectedCount) }} محصول انتخاب‌شده از فروشگاه حذف (پنهان) می‌شوند.
+            {{ formatNumber(selectedCount) }} محصول انتخاب‌شده برای همیشه حذف می‌شوند.
           </template>
-          این کار برگشت‌پذیر است فقط با فعال‌سازی دوباره از پنل.
+          این کار برگشت‌پذیر نیست. سوابق سفارش‌های قبلی حفظ می‌ماند.
         </p>
 
         <label class="flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 px-3 py-3 cursor-pointer mb-5">

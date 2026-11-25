@@ -275,11 +275,22 @@ export class OrderService {
 
   async listHeldOrders(userId: string) {
     await this.expireStaleHeldOrders();
+    // پرداخت‌هایی که callback کامل نشده را برگردان به سبد ارسال
+    await zibalService.reconcilePendingForUser(userId).catch((error) => {
+      console.error('reconcilePendingForUser failed:', error);
+    });
+    await this.attachOrphanPaidOrdersToUser(userId);
+
     const settings = await settingsService.getShipping();
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { phone: true } });
+    const phone = user?.phone;
     const orders = await prisma.order.findMany({
-      where: { userId, status: 'NEW' },
+      where: {
+        status: 'NEW',
+        OR: [{ userId }, ...(phone ? [{ customerPhone: phone }] : [])],
+      },
       include: {
-        items: true,
+        items: { include: { product: { select: { image: true, slug: true, barcode: true } } } },
         statusLogs: {
           where: { status: 'NEW' },
           orderBy: { createdAt: 'asc' },
@@ -291,6 +302,52 @@ export class OrderService {
     return orders.map((order) => this.formatHeldOrder(order, settings.shipRequestDeadlineDays));
   }
 
+  /** Link paid NEW orders that match this user's phone but lost userId. */
+  private async attachOrphanPaidOrdersToUser(userId: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { phone: true } });
+    if (!user?.phone) return;
+    await prisma.order.updateMany({
+      where: {
+        customerPhone: user.phone,
+        userId: null,
+        status: { in: ['NEW', 'PREPARING', 'REVIEWING'] },
+      },
+      data: { userId },
+    });
+  }
+
+  /** Orders already requested for shipping (PREPARING) — shown on homepage after «درخواست ارسال». */
+  async listShipRequests(userId: string) {
+    await this.expireStaleHeldOrders();
+    const orders = await prisma.order.findMany({
+      where: { userId, status: 'PREPARING' },
+      include: {
+        items: { include: { product: { select: { image: true, slug: true, barcode: true } } } },
+        statusLogs: {
+          where: { status: 'PREPARING' },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+    return orders.map((order) => {
+      const formatted = this.formatOrder(order);
+      const details =
+        order.paymentDetails && typeof order.paymentDetails === 'object' && !Array.isArray(order.paymentDetails)
+          ? (order.paymentDetails as Record<string, unknown>)
+          : {};
+      const requested =
+        typeof details.requestedShipDate === 'string'
+          ? details.requestedShipDate
+          : order.statusLogs?.[0]?.createdAt?.toISOString()?.slice(0, 10) ?? null;
+      return {
+        ...formatted,
+        requestedShipDate: requested,
+      };
+    });
+  }
+
   /**
    * Paid orders waiting in NEW past shipRequestDeadlineDays are auto-promoted to PREPARING
    * (same as customer pressing «درخواست ارسال»), so the shop ships even without the button.
@@ -299,6 +356,11 @@ export class OrderService {
     const now = Date.now();
     if (!force && now - this.lastExpireHeldAt < 60_000) return 0;
     this.lastExpireHeldAt = now;
+
+    // Unpaid gateway checkouts lock stock — release them before other order work.
+    await zibalService.expireStaleReviewingOrders(force).catch((error) => {
+      console.error('expireStaleReviewingOrders failed:', error);
+    });
 
     const { shipRequestDeadlineDays } = await settingsService.getShipping();
     const deadlineMs = shipRequestDeadlineDays * 24 * 60 * 60 * 1000;
@@ -374,14 +436,31 @@ export class OrderService {
 
   async requestShipment(userId: string, shipDate?: string) {
     await this.expireStaleHeldOrders();
+    await zibalService.reconcilePendingForUser(userId).catch((error) => {
+      console.error('reconcilePendingForUser failed:', error);
+    });
+    await this.attachOrphanPaidOrdersToUser(userId);
+
     const requestedShipDate = shipDate ? assertShipDate(shipDate) : todayTehranIso();
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { phone: true } });
+    const phone = user?.phone;
     const orders = await prisma.order.findMany({
-      where: { userId, status: 'NEW' },
+      where: {
+        status: 'NEW',
+        OR: [{ userId }, ...(phone ? [{ customerPhone: phone }] : [])],
+      },
       include: { items: true },
       orderBy: { createdAt: 'asc' },
     });
     if (!orders.length) {
       throw new AppError(400, 'لباس خریداری‌شده‌ای برای ارسال ندارید');
+    }
+
+    // Ensure ownership is attached before status change
+    for (const order of orders) {
+      if (!order.userId) {
+        await prisma.order.update({ where: { id: order.id }, data: { userId } });
+      }
     }
 
     await prisma.$transaction(async (tx) => {
@@ -432,10 +511,17 @@ export class OrderService {
   }
 
   async getUserOrders(userId: string, page = 1, limit = 10) {
+    await this.expireStaleHeldOrders();
+    await zibalService.reconcilePendingForUser(userId).catch((error) => {
+      console.error('reconcilePendingForUser failed:', error);
+    });
+
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
         where: { userId },
-        include: { items: true },
+        include: {
+          items: { include: { product: { select: { image: true, slug: true, barcode: true } } } },
+        },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
@@ -476,7 +562,7 @@ export class OrderService {
     const order = await prisma.order.findUnique({
       where: { orderNumber },
       include: {
-        items: true,
+        items: { include: { product: { select: { image: true, slug: true, barcode: true } } } },
         statusLogs: { orderBy: { createdAt: 'desc' } },
       },
     });
@@ -664,6 +750,7 @@ export class OrderService {
     const order = await prisma.$transaction(async (tx) => {
       if (restoringStock) {
         for (const item of current.items) {
+          if (!item.productId) continue;
           await tx.product.update({
             where: { id: item.productId },
             data: { stock: { increment: item.quantity } },
@@ -746,6 +833,23 @@ export class OrderService {
     return { sent: true, orderNumber: order.orderNumber };
   }
 
+  /** Staff-only packed flag — never sends SMS or changes order status. */
+  async setPacked(orderId: string, packed: boolean) {
+    const current = await prisma.order.findUnique({ where: { id: orderId } });
+    if (!current) throw new AppError(404, 'سفارش یافت نشد');
+
+    const order = await prisma.order.update({
+      where: { id: orderId },
+      data: { packedAt: packed ? new Date() : null },
+      include: {
+        items: { include: { product: { select: { image: true, slug: true, barcode: true } } } },
+        statusLogs: { orderBy: { createdAt: 'desc' } },
+      },
+    });
+
+    return this.formatOrder(order);
+  }
+
   async getOrderStats() {
     await this.expireStaleHeldOrders();
     const [total, newOrders, reviewing, preparing, shipped, delivered, cancelled] =
@@ -807,26 +911,29 @@ export class OrderService {
     deliveryLatitude?: number | null;
     deliveryLongitude?: number | null;
     notes?: string | null;
+    packedAt?: Date | null;
     createdAt: Date;
     updatedAt: Date;
     items?: Array<{
       id: string;
-      productId: string;
+      productId: string | null;
       quantity: number;
       price: { toNumber?: () => number } | number | bigint;
       name: string;
-      product?: { image: string | null; slug: string; barcode?: string | null };
+      product?: { image: string | null; slug: string; barcode?: string | null } | null;
     }>;
     user?: { id: string; phone: string; firstName: string | null; lastName: string | null } | null;
     statusLogs?: Array<{ id: string; status: OrderStatus; note: string | null; createdAt: Date }>;
   }) {
     return {
       ...order,
+      packedAt: order.packedAt ? order.packedAt.toISOString() : null,
       subtotal: order.subtotal != null ? Number(order.subtotal) : Number(order.totalPrice),
       discountAmount: Number(order.discountAmount ?? 0),
       totalPrice: Number(order.totalPrice),
       items: order.items?.map((item) => ({
         ...item,
+        product: item.product ?? null,
         price: Number(item.price),
         subtotal: Number(item.price) * item.quantity,
       })),

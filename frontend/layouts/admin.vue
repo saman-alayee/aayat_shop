@@ -28,7 +28,7 @@ const allNavItems = [
   { to: '/admin/admins', label: 'مدیران پنل', icon: 'lucide:shield-check' },
   { to: '/admin/backup', label: 'بکاپ دیتابیس', icon: 'lucide:database' },
   { to: '/admin/settings', label: 'تنظیمات', icon: 'lucide:settings' },
-  { to: '/admin/content', label: 'قوانین و مقررات', icon: 'lucide:file-text' },
+  { to: '/admin/content', label: 'متن صفحات', icon: 'lucide:file-text' },
 ];
 
 const navItems = computed(() =>

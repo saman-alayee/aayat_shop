@@ -79,6 +79,7 @@ function textContains(value: string) {
 }
 
 function buildSearchClause(search: string) {
+  const raw = search.trim();
   let terms = searchTermsFromQuery(search);
 
   // Pasted titles can be long; keep distinctive terms so AND stays useful.
@@ -91,25 +92,42 @@ function buildSearchClause(search: string) {
     terms = [...new Set([...digitTerms, ...wordTerms])];
   }
 
-  if (!terms.length) return null;
+  if (!terms.length && !raw) return null;
 
-  // Every kept word must match somewhere (AND of ORs).
+  const fullVariants = raw ? searchTermVariants(raw) : [];
+  // Exact-ish full barcode/name match first (sold clothes codes like "Baft 1124")
+  const fullMatchOr = fullVariants.flatMap((variant) => [
+    { name: textContains(variant) },
+    { barcode: textContains(variant) },
+    { slug: textContains(variant) },
+  ]);
+
+  if (!terms.length) {
+    return fullMatchOr.length ? { OR: fullMatchOr } : null;
+  }
+
+  // Every kept word must match somewhere (AND of ORs), OR the full string hits barcode/name.
   return {
-    AND: terms.map((term) => {
-      const variants = searchTermVariants(term);
-      return {
-        OR: variants.flatMap((variant) => [
-          { name: textContains(variant) },
-          { description: textContains(variant) },
-          { slug: textContains(variant) },
-          { barcode: textContains(variant) },
-          { category: { name: textContains(variant) } },
-          { tag: { name: textContains(variant) } },
-          { productCategories: { some: { category: { name: textContains(variant) } } } },
-          { productTags: { some: { tag: { name: textContains(variant) } } } },
-        ]),
-      };
-    }),
+    OR: [
+      ...(fullMatchOr.length ? [{ OR: fullMatchOr }] : []),
+      {
+        AND: terms.map((term) => {
+          const variants = searchTermVariants(term);
+          return {
+            OR: variants.flatMap((variant) => [
+              { name: textContains(variant) },
+              { description: textContains(variant) },
+              { slug: textContains(variant) },
+              { barcode: textContains(variant) },
+              { category: { name: textContains(variant) } },
+              { tag: { name: textContains(variant) } },
+              { productCategories: { some: { category: { name: textContains(variant) } } } },
+              { productTags: { some: { tag: { name: textContains(variant) } } } },
+            ]),
+          };
+        }),
+      },
+    ],
   };
 }
 
@@ -495,12 +513,16 @@ export class ProductService {
   }
 
   async delete(id: string) {
-    await prisma.product.update({ where: { id }, data: { isActive: false } });
+    const existing = await prisma.product.findUnique({ where: { id }, select: { id: true } });
+    if (!existing) throw new AppError(404, 'محصول یافت نشد');
+
+    // Order lines keep name/price; productId is SetNull. Cart rows cascade.
+    await prisma.product.delete({ where: { id } });
     await cacheDel('products:*');
     await cacheDel('home:*');
   }
 
-  /** Soft-delete many products (hide from storefront). Returns how many were updated. */
+  /** Permanently delete products from the catalog. Returns how many were removed. */
   async deleteMany(ids: string[]) {
     const uniqueIds = [...new Set(ids.map((id) => String(id || '').trim()).filter(Boolean))];
     if (!uniqueIds.length) {
@@ -510,9 +532,8 @@ export class ProductService {
       throw new AppError(400, 'حداکثر ۲۰۰ محصول در هر بار قابل حذف است');
     }
 
-    const result = await prisma.product.updateMany({
-      where: { id: { in: uniqueIds }, isActive: true },
-      data: { isActive: false },
+    const result = await prisma.product.deleteMany({
+      where: { id: { in: uniqueIds } },
     });
     await cacheDel('products:*');
     await cacheDel('home:*');

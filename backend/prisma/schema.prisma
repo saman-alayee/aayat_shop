@@ -262,13 +262,15 @@ model Product {
 }
 
 model ProductReview {
-  id        String   @id @default(cuid())
-  productId String
-  userId    String
-  rating    Int
-  body      String   @default("")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String    @id @default(cuid())
+  productId      String
+  userId         String
+  rating         Int
+  body           String    @default("")
+  adminReply     String    @default("")
+  adminRepliedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -427,7 +429,7 @@ model CartItem {
   updatedAt DateTime @updatedAt
 
   cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([cartId, productId])
   @@map("cart_items")
@@ -460,6 +462,8 @@ model Order {
   deliveryLatitude   Float?
   deliveryLongitude  Float?
   notes             String?
+  /** Staff-only: clothes gathered/packed — no customer SMS. */
+  packedAt          DateTime?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
@@ -475,19 +479,21 @@ model Order {
   @@index([paymentMethod])
   @@index([createdAt])
   @@index([status, createdAt])
+  @@index([packedAt])
   @@map("orders")
 }
 
 model OrderItem {
   id        String  @id @default(cuid())
   orderId   String
-  productId String
+  /** Nullable so sold products can be hard-deleted; name/price stay on the line. */
+  productId String?
   quantity  Int
   price     Int
   name      String
 
-  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@map("order_items")
 }

@@ -10,7 +10,12 @@ const ui = computed<OrderPaymentUi>(() => getOrderPaymentUi(props.order));
 </script>
 
 <template>
-  <span :class="['inline-flex items-center px-3 py-1 rounded-full text-xs font-medium', ORDER_PAYMENT_UI_COLORS[ui]]">
+  <span
+    :class="[
+      'inline-flex shrink-0 items-center whitespace-nowrap px-3 py-1 rounded-full text-xs font-medium',
+      ORDER_PAYMENT_UI_COLORS[ui],
+    ]"
+  >
     {{ ORDER_PAYMENT_UI_LABELS[ui] }}
   </span>
 </template>

@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { AppNotification } from '~/types';
 import { SITE_NAME } from '~/constants/site';
+import { useOrdersStore } from '~/stores/orders';
 
 definePageMeta({ layout: 'profile', middleware: 'auth' });
 
 const api = useApi();
+const ordersStore = useOrdersStore();
 const { formatShortDate } = useFormat();
 
 const notifications = ref<AppNotification[]>([]);
@@ -16,7 +18,13 @@ const typeIcons: Record<string, string> = {
   GENERAL: 'lucide:info',
 };
 
-onMounted(loadNotifications);
+onMounted(async () => {
+  await Promise.all([loadNotifications(), ordersStore.fetchHeld()]);
+});
+
+async function onShipped() {
+  await Promise.all([loadNotifications(), ordersStore.fetchHeld()]);
+}
 
 async function loadNotifications() {
   loading.value = true;
@@ -58,6 +66,16 @@ useHead({ title: `اعلان‌ها - ${SITE_NAME}` });
         </button>
       </template>
     </ProfilePageHeader>
+
+    <ActiveShipRequestPanel
+      v-if="ordersStore.hasShipRequests"
+      class="mb-4"
+    />
+    <HeldShipPanel
+      v-if="ordersStore.hasHeld || ordersStore.shipMessage"
+      class="mb-4"
+      @shipped="onShipped"
+    />
 
     <LoadingSpinner :show="loading" />
 
@@ -107,7 +125,11 @@ useHead({ title: `اعلان‌ها - ${SITE_NAME}` });
       </div>
     </div>
 
-    <EmptyState v-if="!loading && !notifications.length" message="اعلانی ندارید" icon="lucide:bell-off">
+    <EmptyState
+      v-if="!loading && !notifications.length && !ordersStore.hasHeld && !ordersStore.hasShipRequests && !ordersStore.shipMessage"
+      message="اعلانی ندارید"
+      icon="lucide:bell-off"
+    >
       <p class="text-xs text-gray-400 mt-2">پس از ثبت سفارش، وضعیت ارسال اینجا نمایش داده می‌شود</p>
     </EmptyState>
   </div>

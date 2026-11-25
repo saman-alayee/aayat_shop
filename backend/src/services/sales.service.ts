@@ -221,7 +221,9 @@ export class SalesService {
       take: limit,
     });
 
-    const productIds = items.map((i) => i.productId);
+    const productIds = items
+      .map((i) => i.productId)
+      .filter((id): id is string => Boolean(id));
     const products = await prisma.product.findMany({
       where: { id: { in: productIds } },
       select: {
@@ -240,7 +242,7 @@ export class SalesService {
       name: item.name,
       totalQuantity: item._sum.quantity ?? 0,
       orderCount: item._count.id,
-      product: productMap.get(item.productId) ?? null,
+      product: item.productId ? productMap.get(item.productId) ?? null : null,
     }));
   }
 

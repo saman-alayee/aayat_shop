@@ -138,9 +138,22 @@ useHead({
         </button>
       </div>
 
-      <HeldShipPanel v-if="ordersStore.hasHeld || ordersStore.shipMessage" class="mb-6" />
+      <ActiveShipRequestPanel v-if="ordersStore.hasShipRequests" class="mb-4" />
+      <HeldShipPanel v-if="ordersStore.hasHeld || ordersStore.shipMessage" class="mb-4" />
+      <p
+        v-if="ordersStore.hasHeld && !cartStore.isEmpty"
+        class="mb-6 rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-2 text-xs leading-5 text-amber-900/80"
+      >
+        لباس‌های جدید را اول پرداخت کنید؛ بعد از پرداخت، خودکار به همین سبد ارسال اضافه می‌شوند و با قبلی‌ها یک‌جا درخواست ارسال می‌خورند.
+      </p>
+      <p
+        v-else-if="ordersStore.hasHeld && cartStore.isEmpty"
+        class="mb-6 rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-2 text-xs leading-5 text-amber-900/80"
+      >
+        سبد خرید خالی است، ولی لباس‌های پرداخت‌شدهٔ بالا منتظر «درخواست ارسال» هستند — همان دکمه را بزنید.
+      </p>
 
-      <LoadingSpinner :show="cartStore.loading && cartStore.isEmpty && !ordersStore.hasHeld" />
+      <LoadingSpinner :show="cartStore.loading && cartStore.isEmpty && !ordersStore.hasHeld && !ordersStore.hasShipRequests" />
       <p v-if="actionError" class="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{{ actionError }}</p>
 
       <div v-if="!cartStore.isEmpty" class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -252,7 +265,7 @@ useHead({
       </div>
 
       <EmptyCatalogScene
-        v-else-if="!cartStore.loading && !ordersStore.hasHeld && !ordersStore.shipMessage"
+        v-else-if="!cartStore.loading && !ordersStore.hasHeld && !ordersStore.hasShipRequests && !ordersStore.shipMessage"
         variant="cart"
         class="shadow-card"
       >
@@ -267,39 +280,40 @@ useHead({
       <ProductCardList :products="suggestedProducts" layout="grid" density="sarak" />
     </section>
 
-    <!-- موبایل: اولویت با درخواست ارسال؛ وگرنه ادامه پرداخت -->
+    <!-- موبایل: درخواست ارسال + پرداخت لباس جدید کنار هم -->
     <div
-      v-if="ordersStore.hasHeld"
-      class="fixed inset-x-0 bottom-16 z-40 border-t border-amber-200 bg-amber-50/95 px-4 py-3 backdrop-blur lg:hidden"
+      v-if="ordersStore.hasHeld || !cartStore.isEmpty"
+      class="fixed inset-x-0 bottom-16 z-40 border-t px-4 py-3 backdrop-blur lg:hidden"
+      :class="ordersStore.hasHeld ? 'border-amber-200 bg-amber-50/95' : 'border-[#f0ebe8] bg-white/95'"
     >
-      <div class="mx-auto flex max-w-lg items-center gap-3">
-        <div class="min-w-0">
-          <p class="text-xs text-amber-900/70">پرداخت شده</p>
-          <p class="truncate text-sm font-bold text-amber-950">آماده درخواست ارسال</p>
+      <div class="mx-auto flex max-w-lg flex-col gap-2">
+        <div v-if="ordersStore.hasHeld && !cartStore.isEmpty" class="flex items-center justify-between gap-2 text-xs">
+          <span class="font-medium text-amber-950">
+            {{ toPersianDigits(ordersStore.heldItemCount) }} لباس در سبد ارسال
+          </span>
+          <span class="text-gray-600">جدید: {{ formatPrice(payable(cartStore.totalPrice)) }}</span>
         </div>
-        <button
-          type="button"
-          class="btn-primary inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl text-sm font-bold"
-          :disabled="ordersStore.requestingShip"
-          @click="ordersStore.requestShipment()"
-        >
-          <AppIcon name="lucide:send" size="sm" />
-          {{ ordersStore.requestingShip ? '...' : 'درخواست ارسال' }}
-        </button>
-      </div>
-    </div>
-    <div
-      v-else-if="!cartStore.isEmpty"
-      class="fixed inset-x-0 bottom-16 z-40 border-t border-[#f0ebe8] bg-white/95 px-4 py-3 backdrop-blur lg:hidden"
-    >
-      <div class="mx-auto flex max-w-lg items-center gap-3">
-        <div class="min-w-0">
-          <p class="text-xs text-gray-500">قابل پرداخت</p>
-          <p class="truncate text-sm font-bold text-[#3c322b]">{{ formatPrice(payable(cartStore.totalPrice)) }}</p>
+        <div class="flex items-stretch gap-2">
+          <button
+            v-if="ordersStore.hasHeld"
+            type="button"
+            class="btn-primary inline-flex h-12 flex-1 items-center justify-center gap-1.5 rounded-xl text-sm font-bold"
+            :disabled="ordersStore.requestingShip"
+            @click="ordersStore.requestShipment()"
+          >
+            <AppIcon name="lucide:send" size="sm" />
+            {{ ordersStore.requestingShip ? '...' : 'درخواست ارسال' }}
+          </button>
+          <button
+            v-if="!cartStore.isEmpty"
+            type="button"
+            class="inline-flex h-12 flex-1 items-center justify-center rounded-xl text-sm font-bold"
+            :class="ordersStore.hasHeld ? 'btn-secondary border-amber-300 bg-white text-amber-950' : 'btn-primary'"
+            @click="continueCheckout"
+          >
+            {{ ordersStore.hasHeld ? 'پرداخت لباس جدید' : 'ادامه و ثبت سفارش' }}
+          </button>
         </div>
-        <button type="button" class="btn-primary inline-flex h-12 flex-1 items-center justify-center rounded-xl text-sm font-bold" @click="continueCheckout">
-          ادامه و ثبت سفارش
-        </button>
       </div>
     </div>
   </div>

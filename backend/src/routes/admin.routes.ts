@@ -208,6 +208,9 @@ router.get(
     const statusRaw = String(req.query.status ?? 'all').trim().toLowerCase();
     const status = statusRaw === 'active' || statusRaw === 'inactive' ? statusRaw : 'all';
     const stockRaw = String(req.query.stock ?? 'all').trim().toLowerCase();
+    const hasSearch = Boolean(String(req.query.search || req.query.barcode || '').trim());
+    // هنگام سرچ، لباس خریداری‌شده (موجودی ۰) هم باید بیاید مگر فیلتر صریح «فقط موجود»
+    const forceIncludeSold = hasSearch && stockRaw !== 'in' && stockRaw !== 'instock';
     const result = await productService.getAll({
       // پنل ادمین: برای «همه» هیچ فیلتر isActive نگذار؛ holdهای سبد را هم اعمال نکن
       includeInactive: status !== 'active',
@@ -221,7 +224,7 @@ router.get(
       discounted: req.query.discounted === 'true',
       sort: req.query.sort as string,
       outOfStock: stockRaw === 'sold' || stockRaw === 'soldout' || stockRaw === 'out',
-      inStock: stockRaw === 'in' || stockRaw === 'instock',
+      inStock: forceIncludeSold ? false : stockRaw === 'in' || stockRaw === 'instock',
       page: req.query.page ? parseInt(req.query.page as string) : 1,
       limit: Math.min(req.query.limit ? parseInt(req.query.limit as string) : 20, 100),
     });
@@ -278,8 +281,8 @@ router.post(
       res,
       result,
       result.deleted
-        ? `${result.deleted} محصول حذف (غیرفعال) شد`
-        : 'محصول فعالی برای حذف پیدا نشد'
+        ? `${result.deleted} محصول برای همیشه حذف شد`
+        : 'محصولی برای حذف پیدا نشد'
     );
   })
 );
@@ -345,6 +348,19 @@ router.put(
     const { status, note } = req.body;
     const order = await orderService.updateStatus(paramId(req.params.id), status, note);
     successResponse(res, order, 'وضعیت سفارش به‌روزرسانی شد');
+  })
+);
+
+router.put(
+  '/orders/:id/packed',
+  asyncHandler(async (req, res) => {
+    const packed = req.body?.packed !== false && req.body?.packed !== 'false';
+    const order = await orderService.setPacked(paramId(req.params.id), Boolean(packed));
+    successResponse(
+      res,
+      order,
+      packed ? 'سفارش به‌عنوان تکمیل‌شده علامت خورد' : 'علامت تکمیل برداشته شد'
+    );
   })
 );
 
@@ -1180,6 +1196,19 @@ router.get(
     const page = req.query.page ? parseInt(req.query.page as string) : 1;
     const result = await reviewService.adminList(page);
     successResponse(res, result);
+  })
+);
+
+router.put(
+  '/reviews/:id/reply',
+  validate(
+    z.object({
+      reply: z.string().max(1000, 'پاسخ حداکثر ۱۰۰۰ کاراکتر است'),
+    })
+  ),
+  asyncHandler(async (req, res) => {
+    const result = await reviewService.adminReply(paramId(req.params.id), req.body.reply ?? '');
+    successResponse(res, result, result.adminReply ? 'پاسخ ذخیره شد' : 'پاسخ حذف شد');
   })
 );
 

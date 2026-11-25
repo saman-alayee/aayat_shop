@@ -25,12 +25,18 @@ onMounted(async () => {
     paid.value = route.query.paid === '1';
   }
 
-  if (paid.value && authStore.isLoggedIn) {
-    // کمی صبر تا callback زیبال وضعیت را NEW کند، بعد دوباره بگیر
-    await ordersStore.fetchHeld();
-    if (!ordersStore.hasHeld) {
-      await new Promise((r) => setTimeout(r, 1200));
+  if (authStore.isLoggedIn) {
+    // چند بار تلاش: اگر پرداخت شده ولی هنوز در سبد ارسال نیامده، reconcile سمت سرور فعال می‌شود
+    for (let i = 0; i < 4; i++) {
       await ordersStore.fetchHeld();
+      if (ordersStore.hasHeld || ordersStore.hasShipRequests) break;
+      await new Promise((r) => setTimeout(r, 900));
+      try {
+        const { data } = await api.get<Order>(`/orders/track/${encodeURIComponent(orderNumber)}`);
+        paid.value = data.status !== 'CANCELLED' && data.status !== 'REVIEWING';
+      } catch {
+        /* keep previous paid flag */
+      }
     }
   }
   checking.value = false;
@@ -77,6 +83,10 @@ useHead({
       <p class="text-xl font-bold text-primary-600" dir="ltr">{{ orderNumber }}</p>
     </div>
 
+    <ActiveShipRequestPanel
+      v-if="!checking && ordersStore.hasShipRequests"
+      class="mb-6 text-start"
+    />
     <HeldShipPanel
       v-if="paid !== false && !checking"
       variant="success"
